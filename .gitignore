@@ -1,0 +1,25 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Env / secrets
+.env
+*.env
+
+# Paramètres locaux Claude (contient credentials FTP)
+.claude/settings.json
+.claude/settings.local.json
+
+# Node
+node_modules/
+
+# Wrangler
+.wrangler/
+
+# Backups / archives
+*.tar
+*.tar.gz
+*.zip

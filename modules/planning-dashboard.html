@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 5 — Planning Production | HCS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --orange: #FF6B00;
+    --orange-dim: rgba(255,107,0,0.15);
+    --text: #f0f0f0;
+    --text-muted: #666;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --teal: #14b8a6;
+    --teal-dim: rgba(20,184,166,0.15);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* HEADER */
+  .header {
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+    padding:14px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:100;
+  }
+  .header-left { display:flex; align-items:center; gap:12px; }
+  .logo { font-size:18px; font-weight:700; color:var(--orange); }
+  .subtitle { font-size:13px; color:var(--text-muted); }
+  .live-clock { font-size:13px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .btn {
+    padding:8px 16px; border-radius:8px; border:none; cursor:pointer;
+    font-size:13px; font-weight:500; font-family:'Inter',sans-serif;
+    transition:all 0.2s;
+  }
+  .btn-orange { background:var(--orange); color:#fff; }
+  .btn-orange:hover { background:#e05e00; }
+  .btn-ghost { background:transparent; color:var(--text-muted); border:1px solid var(--border); }
+  .btn-ghost:hover { border-color:var(--orange); color:var(--orange); }
+
+  /* STATS BAR */
+  .stats-bar {
+    display:grid; grid-template-columns:repeat(5,1fr); gap:12px;
+    padding:16px 24px;
+  }
+  .stat-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px;
+  }
+  .stat-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+  .stat-value { font-size:22px; font-weight:700; }
+  .stat-value.orange { color:var(--orange); }
+  .stat-value.green { color:var(--green); }
+  .stat-value.yellow { color:var(--yellow); }
+  .stat-value.red { color:var(--red); }
+
+  /* MAIN LAYOUT */
+  .main { display:grid; grid-template-columns:1fr 320px; gap:16px; padding:0 24px 24px; }
+
+  /* KANBAN */
+  .kanban { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+  .kanban-col { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .col-header {
+    padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.06em; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--border);
+  }
+  .col-badge {
+    background:var(--surface2); color:var(--text-muted);
+    font-size:11px; padding:2px 7px; border-radius:999px; font-weight:600;
+  }
+  .col-body { padding:10px; display:flex; flex-direction:column; gap:8px; min-height:300px; }
+
+  /* COMMANDE CARD */
+  .cmd-card {
+    background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; cursor:grab; transition:all 0.2s;
+    position:relative;
+  }
+  .cmd-card:hover { border-color:var(--orange); transform:translateY(-1px); }
+  .cmd-card.dragging { opacity:0.4; }
+  .cmd-card.urgent { border-left:3px solid var(--red); }
+  .cmd-card.warning { border-left:3px solid var(--yellow); }
+  .cmd-card.ok { border-left:3px solid var(--green); }
+  .cmd-ref { font-size:12px; font-weight:700; color:var(--orange); margin-bottom:4px; }
+  .cmd-client { font-size:13px; font-weight:500; margin-bottom:4px; }
+  .cmd-detail { font-size:11px; color:var(--text-muted); margin-bottom:6px; line-height:1.5; }
+  .cmd-footer { display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap; }
+  .cmd-machine {
+    font-size:10px; padding:2px 7px; border-radius:999px; font-weight:600;
+    background:var(--orange-dim); color:var(--orange);
+  }
+  .cmd-deadline { font-size:10px; color:var(--text-muted); }
+  .cmd-deadline.late { color:var(--red); font-weight:600; }
+  .cmd-actions { display:flex; gap:4px; margin-top:8px; }
+  .cmd-btn {
+    flex:1; padding:4px 0; border-radius:6px; border:none; cursor:pointer;
+    font-size:10px; font-weight:600; font-family:'Inter',sans-serif; transition:all 0.2s;
+  }
+  .cmd-btn-next { background:var(--orange-dim); color:var(--orange); }
+  .cmd-btn-next:hover { background:var(--orange); color:#fff; }
+  .cmd-btn-del { background:rgba(239,68,68,.1); color:var(--red); }
+  .cmd-btn-del:hover { background:var(--red); color:#fff; }
+
+  /* COL COLORS */
+  .col-header.attendre { color:#a855f7; }
+  .col-header.matiere { color:var(--yellow); }
+  .col-header.reservation { color:var(--teal); }
+  .col-header.prod { color:var(--orange); }
+  .col-header.qualite { color:var(--blue); }
+  .col-header.pret { color:var(--green); }
+
+  /* SIDEBAR */
+  .sidebar { display:flex; flex-direction:column; gap:12px; }
+
+  .side-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:16px;
+  }
+  .side-title { font-size:13px; font-weight:600; margin-bottom:12px; color:var(--text); }
+
+  /* MACHINES */
+  .machine-row {
+    display:flex; align-items:center; gap:10px; margin-bottom:10px;
+  }
+  .machine-icon { font-size:18px; }
+  .machine-info { flex:1; }
+  .machine-name { font-size:12px; font-weight:600; margin-bottom:3px; }
+  .machine-bar-bg { height:6px; background:var(--border); border-radius:999px; overflow:hidden; }
+  .machine-bar { height:100%; border-radius:999px; transition:width .5s; }
+  .machine-bar.green { background:var(--green); }
+  .machine-bar.yellow { background:var(--yellow); }
+  .machine-bar.red { background:var(--red); }
+  .machine-load { font-size:10px; color:var(--text-muted); margin-top:2px; }
+
+  /* ALERTES */
+  .alert-item {
+    display:flex; gap:10px; align-items:flex-start;
+    padding:8px 10px; border-radius:8px; margin-bottom:6px; font-size:12px;
+  }
+  .alert-item.urgent { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); }
+  .alert-item.warning { background:rgba(234,179,8,.1); border:1px solid rgba(234,179,8,.2); }
+  .alert-item.info { background:rgba(59,130,246,.1); border:1px solid rgba(59,130,246,.2); }
+  .alert-icon { font-size:14px; flex-shrink:0; }
+  .alert-text { line-height:1.5; }
+  .alert-text strong { font-weight:600; }
+
+  /* FORM MODAL */
+  .modal-bg {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.8); z-index:200;
+    align-items:center; justify-content:center;
+  }
+  .modal-bg.open { display:flex; }
+  .modal {
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:24px; width:480px; max-width:95vw; max-height:90vh; overflow-y:auto;
+  }
+  .modal-title { font-size:16px; font-weight:700; margin-bottom:18px; }
+  .form-row { margin-bottom:14px; }
+  .form-label { font-size:12px; color:var(--text-muted); margin-bottom:6px; display:block; }
+  .form-input, .form-select, .form-textarea {
+    width:100%; background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:10px 12px; color:var(--text);
+    font-size:13px; font-family:'Inter',sans-serif; outline:none;
+    transition:border .2s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color:var(--orange); }
+  .form-textarea { resize:vertical; min-height:70px; }
+  .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+
+  /* TAG */
+  .tag {
+    display:inline-block; font-size:10px; font-weight:600; padding:2px 8px;
+    border-radius:999px; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .tag-dtf { background:rgba(168,85,247,.15); color:#a855f7; }
+  .tag-vinyle { background:rgba(59,130,246,.15); color:var(--blue); }
+  .tag-casquette { background:rgba(234,179,8,.15); color:var(--yellow); }
+  .tag-broderie { background:rgba(34,197,94,.15); color:var(--green); }
+  .tag-multi { background:var(--orange-dim); color:var(--orange); }
+
+  /* TIMELINE MINI */
+  .timeline { font-size:11px; color:var(--text-muted); margin-top:4px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .timeline-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+
+  /* EMPTY STATE */
+  .empty { text-align:center; padding:24px 12px; color:var(--text-muted); font-size:12px; }
+
+  /* DROP ZONE */
+  .col-body.dragover { background:var(--orange-dim); border-radius:8px; }
+
+  /* ─── RÉSERVATION ─── */
+  .cmd-btn-reserve { background:var(--teal-dim); color:var(--teal); }
+  .cmd-btn-reserve:hover { background:var(--teal); color:#fff; }
+  .cmd-btn-reserve-edit { background:rgba(168,85,247,.1); color:#a855f7; flex:0 0 auto; padding:4px 8px; }
+  .cmd-btn-reserve-edit:hover { background:#a855f7; color:#fff; }
+  .reserve-badge { display:inline-block; font-size:10px; font-weight:600; padding:2px 8px; border-radius:999px; }
+  .reserve-badge.en_attente { background:rgba(234,179,8,.15); color:var(--yellow); }
+  .reserve-badge.confirme { background:rgba(34,197,94,.15); color:var(--green); }
+  .reserve-badge.non_disponible { background:rgba(239,68,68,.15); color:var(--red); }
+  .reserve-info { font-size:10px; color:var(--text-muted); margin-top:4px; padding:4px 6px; background:var(--bg); border-radius:6px; line-height:1.5; }
+
+  /* STOCK TYPE RADIO */
+  .stock-type-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
+  .stock-type-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px 8px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:12px; text-align:center; transition:all 0.2s; background:var(--surface2); gap:4px; }
+  .stock-type-btn input { display:none; }
+  .stock-type-btn:has(input:checked) { border-color:var(--teal); background:rgba(20,184,166,.1); color:var(--teal); }
+  .stock-type-btn small { color:var(--text-muted); font-size:10px; }
+  .stock-type-btn:has(input:checked) small { color:rgba(20,184,166,.7); }
+
+  /* MODAL WIDE */
+  .modal-wide { width:620px; }
+
+  /* FOURNISSEURS */
+  .fourn-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:8px; }
+  .fourn-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .fourn-name { font-size:13px; font-weight:600; }
+  .fourn-type-badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; }
+  .fourn-type-badge.local { background:rgba(34,197,94,.15); color:var(--green); }
+  .fourn-type-badge.etranger { background:rgba(59,130,246,.15); color:var(--blue); }
+  .fourn-contact { font-size:11px; color:var(--text-muted); margin-top:4px; display:flex; gap:14px; flex-wrap:wrap; }
+  .fourn-produits { font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .fourn-actions { display:flex; gap:6px; }
+  .fourn-btn { font-size:10px; font-weight:600; padding:3px 8px; border-radius:6px; border:none; cursor:pointer; font-family:'Inter',sans-serif; }
+  .fourn-btn-edit { background:var(--orange-dim); color:var(--orange); }
+  .fourn-btn-del { background:rgba(239,68,68,.1); color:var(--red); }
+
+  /* ACHATS TABLE */
+  .achat-row { display:grid; grid-template-columns:75px 1fr 110px 65px 100px 80px; gap:8px; align-items:center; padding:8px 10px; border-radius:8px; font-size:11px; border:1px solid var(--border); margin-bottom:6px; background:var(--surface2); }
+  .achat-header { display:grid; grid-template-columns:75px 1fr 110px 65px 100px 80px; gap:8px; padding:6px 10px; font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; }
+  .achat-status { font-size:10px; font-weight:600; padding:2px 6px; border-radius:999px; white-space:nowrap; text-align:center; }
+  .achat-status.en_attente { background:rgba(234,179,8,.15); color:var(--yellow); }
+  .achat-status.commande { background:rgba(59,130,246,.15); color:var(--blue); }
+  .achat-status.recu { background:rgba(34,197,94,.15); color:var(--green); }
+  .achat-status.facture { background:rgba(168,85,247,.15); color:#a855f7; }
+  .achat-action { font-size:10px; background:none; border:none; cursor:pointer; color:var(--text-muted); font-family:'Inter',sans-serif; }
+  .achat-action:hover { color:var(--orange); }
+
+  /* FOURN INFO BLOCK */
+  .fourn-info-block { background:rgba(20,184,166,.08); border:1px solid rgba(20,184,166,.2); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; line-height:1.6; }
+
+  @media(max-width:1500px) { .kanban { grid-template-columns:repeat(3,1fr); } }
+  @media(max-width:900px) {
+    .main { grid-template-columns:1fr; }
+    .kanban { grid-template-columns:1fr 1fr; }
+    .stats-bar { grid-template-columns:repeat(3,1fr); }
+    .achat-row, .achat-header { grid-template-columns:65px 1fr 90px; }
+    .achat-row > *:nth-child(n+4), .achat-header > *:nth-child(n+4) { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <span class="logo">⚙️ Agent 5</span>
+    <span class="subtitle">Planning Production — High Coffee Shirt</span>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <span class="live-clock" id="clock"></span>
+    <button class="btn btn-ghost" onclick="exportPlanning()">Export CSV</button>
+    <button class="btn btn-ghost" onclick="openFournisseursModal()" title="Gérer les fournisseurs">👥 Fournisseurs</button>
+    <button class="btn btn-ghost" onclick="openAchatsModal()" title="Liste des achats / comptabilité">🛒 Achats</button>
+    <button class="btn btn-orange" onclick="openAddModal()">+ Nouvelle commande</button>
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="stat-label">En attente</div>
+    <div class="stat-value orange" id="stat-attente">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">En production</div>
+    <div class="stat-value yellow" id="stat-prod">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Prêtes</div>
+    <div class="stat-value green" id="stat-pret">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">En retard</div>
+    <div class="stat-value red" id="stat-retard">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Livrées aujourd'hui</div>
+    <div class="stat-value" id="stat-livre">0</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- KANBAN -->
+  <div class="kanban">
+    <!-- Col 1 -->
+    <div class="kanban-col">
+      <div class="col-header attendre">
+        <span>À planifier</span>
+        <span class="col-badge" id="cnt-attente">0</span>
+      </div>
+      <div class="col-body" id="col-attente" data-col="attente"
+           ondragover="dragOver(event)" ondrop="drop(event)"></div>
+    </div>
+    <!-- Col 2 -->
+    <div class="kanban-col">
+      <div class="col-header matiere">
+        <span>Attente matière</span>
+        <span class="col-badge" id="cnt-matiere">0</span>
+      </div>
+      <div class="col-body" id="col-matiere" data-col="matiere"
+           ondragover="dragOver(event)" ondrop="drop(event)"></div>
+    </div>
+    <!-- Col 3 — RÉSERVATION -->
+    <div class="kanban-col">
+      <div class="col-header reservation">
+        <span>📦 Réservation</span>
+        <span class="col-badge" id="cnt-reservation">0</span>
+      </div>
+      <div class="col-body" id="col-reservation" data-col="reservation"
+           ondragover="dragOver(event)" ondrop="drop(event)"></div>
+    </div>
+    <!-- Col 4 -->
+    <div class="kanban-col">
+      <div class="col-header prod">
+        <span>En production</span>
+        <span class="col-badge" id="cnt-prod">0</span>
+      </div>
+      <div class="col-body" id="col-prod" data-col="prod"
+           ondragover="dragOver(event)" ondrop="drop(event)"></div>
+    </div>
+    <!-- Col 5 -->
+    <div class="kanban-col">
+      <div class="col-header qualite">
+        <span>Contrôle qualité</span>
+        <span class="col-badge" id="cnt-qualite">0</span>
+      </div>
+      <div class="col-body" id="col-qualite" data-col="qualite"
+           ondragover="dragOver(event)" ondrop="drop(event)"></div>
+    </div>
+    <!-- Col 6 -->
+    <div class="kanban-col">
+      <div class="col-header pret">
+        <span>Prêt / Livré</span>
+        <span class="col-badge" id="cnt-pret">0</span>
+      </div>
+      <div class="col-body" id="col-pret" data-col="pret"
+           ondragover="dragOver(event)" ondrop="drop(event)"></div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- MACHINES -->
+    <div class="side-card">
+      <div class="side-title">🏭 État des machines</div>
+      <div id="machines-list"></div>
+    </div>
+
+    <!-- ALERTES -->
+    <div class="side-card">
+      <div class="side-title">🔔 Alertes</div>
+      <div id="alerts-list"></div>
+    </div>
+
+    <!-- RÉSERVATIONS EN ATTENTE -->
+    <div class="side-card">
+      <div class="side-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📦 Réservations</span>
+        <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;" onclick="openAchatsModal()">Voir achats →</button>
+      </div>
+      <div id="reservations-sidebar"></div>
+    </div>
+
+    <!-- STATS JOUR -->
+    <div class="side-card">
+      <div class="side-title">📊 Aujourd'hui</div>
+      <div id="stats-today"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL AJOUT COMMANDE -->
+<div class="modal-bg" id="addModal">
+  <div class="modal">
+    <div class="modal-title">+ Nouvelle commande</div>
+    <div class="form-row">
+      <label class="form-label">Client *</label>
+      <input class="form-input" id="f-client" placeholder="Nom du client">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">N° Devis / Commande</label>
+        <input class="form-input" id="f-ref" placeholder="ex: DEV-2026-042">
+      </div>
+      <div>
+        <label class="form-label">Canal</label>
+        <select class="form-select" id="f-canal">
+          <option value="Messenger">Messenger</option>
+          <option value="Gmail">Gmail</option>
+          <option value="WhatsApp">WhatsApp</option>
+          <option value="Instagram">Instagram</option>
+          <option value="WooCommerce">WooCommerce</option>
+          <option value="Boutique">Boutique</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Description de la commande *</label>
+      <textarea class="form-textarea" id="f-desc" placeholder="ex: 20 t-shirts blanc DTF logo entreprise, 5 casquettes broderie"></textarea>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Type de production</label>
+        <select class="form-select" id="f-type">
+          <option value="dtf">DTF transfert</option>
+          <option value="vinyle">Vinyle (plotter)</option>
+          <option value="casquette">Casquette</option>
+          <option value="multi">Multi-technique</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Machine assignée</label>
+        <select class="form-select" id="f-machine">
+          <option value="Presse T-shirt 1">Presse T-shirt 1</option>
+          <option value="Presse T-shirt 2">Presse T-shirt 2</option>
+          <option value="Presse Casquette 1">Presse Casquette 1</option>
+          <option value="Presse Casquette 2">Presse Casquette 2</option>
+          <option value="Plotter Vinyle 1">Plotter Vinyle 1</option>
+          <option value="Plotter Vinyle 2">Plotter Vinyle 2</option>
+          <option value="Plotter Vinyle 3">Plotter Vinyle 3</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Quantité</label>
+        <input class="form-input" id="f-qty" type="number" min="1" value="1" placeholder="1">
+      </div>
+      <div>
+        <label class="form-label">Deadline livraison</label>
+        <input class="form-input" id="f-deadline" type="datetime-local">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Priorité</label>
+      <select class="form-select" id="f-priority">
+        <option value="normal">Normal (48h)</option>
+        <option value="urgent">Urgent (24h)</option>
+        <option value="express">Express (même jour)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Notes internes</label>
+      <textarea class="form-textarea" id="f-notes" placeholder="Matière disponible, instructions spéciales..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAddModal()">Annuler</button>
+      <button class="btn btn-orange" onclick="saveCommande()">Ajouter à la file</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL RÉSERVATION STOCK
+════════════════════════════════════════ -->
+<div class="modal-bg" id="reservationModal">
+  <div class="modal modal-wide">
+    <div class="modal-title">📦 Réservation de stock / Matière</div>
+
+    <!-- Info commande (lecture seule) -->
+    <div id="r-cmd-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--text-muted);line-height:1.6;"></div>
+
+    <!-- Source du stock -->
+    <div class="form-row">
+      <label class="form-label">Source du stock *</label>
+      <div class="stock-type-grid">
+        <label class="stock-type-btn">
+          <input type="radio" name="r-type-radio" value="magasin" onchange="toggleReservationType()">
+          <span>🏪 Stock magasin</span>
+          <small>Disponible de suite</small>
+        </label>
+        <label class="stock-type-btn">
+          <input type="radio" name="r-type-radio" value="fournisseur_local" onchange="toggleReservationType()">
+          <span>🚚 Fournisseur local</span>
+          <small>Délai court (PF)</small>
+        </label>
+        <label class="stock-type-btn">
+          <input type="radio" name="r-type-radio" value="fournisseur_etranger" onchange="toggleReservationType()">
+          <span>✈️ Fournisseur étranger</span>
+          <small>Import / délai long</small>
+        </label>
+      </div>
+    </div>
+
+    <!-- Bloc fournisseur (masqué si magasin) -->
+    <div id="r-bloc-fournisseur" style="display:none;">
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Fournisseur</label>
+          <select class="form-select" id="r-fournisseur" onchange="onFournisseurChange()">
+            <option value="">-- Sélectionner un fournisseur --</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Mode de contact</label>
+          <select class="form-select" id="r-contact">
+            <option value="telephone">📞 Appel téléphonique</option>
+            <option value="email">📧 Envoi email</option>
+            <option value="les_deux">📞📧 Téléphone + Email</option>
+          </select>
+        </div>
+      </div>
+      <!-- Infos fournisseur -->
+      <div id="r-fournisseur-info" class="fourn-info-block" style="display:none;"></div>
+      <div style="text-align:right;margin-bottom:12px;">
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="closeReservationModal();openFournisseursModal();">+ Ajouter un fournisseur</button>
+      </div>
+    </div>
+
+    <!-- Produit & Quantité -->
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Produit / Matière à réserver *</label>
+        <input class="form-input" id="r-produit" placeholder="ex: 50 t-shirts blanc M/L/XL polyester">
+      </div>
+      <div>
+        <label class="form-label">Quantité</label>
+        <input class="form-input" id="r-qte" type="number" min="1" value="1">
+      </div>
+    </div>
+
+    <!-- Montant & Statut -->
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Montant estimé (XPF)</label>
+        <input class="form-input" id="r-montant" type="number" placeholder="0" min="0">
+      </div>
+      <div>
+        <label class="form-label">Statut de la réservation</label>
+        <select class="form-select" id="r-status">
+          <option value="en_attente">⏳ En attente de confirmation</option>
+          <option value="confirme">✅ Confirmé — disponible</option>
+          <option value="non_disponible">❌ Non disponible</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="form-row">
+      <label class="form-label">Instructions / Notes de commande</label>
+      <textarea class="form-textarea" id="r-notes" placeholder="Ex: couleurs requises, tailles, délai souhaité, conditions spéciales..."></textarea>
+    </div>
+
+    <!-- Feedback fournisseur -->
+    <div class="form-row">
+      <label class="form-label">Feedback fournisseur (réponse, devis, confirmations reçus...)</label>
+      <textarea class="form-textarea" id="r-feedback" placeholder="Ex: M. Dupont a confirmé le 14/04, livraison prévue le 16/04 — Devis joint par email..."></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeReservationModal()">Annuler</button>
+      <button class="btn btn-orange" onclick="saveReservation()">💾 Enregistrer la réservation</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL FOURNISSEURS
+════════════════════════════════════════ -->
+<div class="modal-bg" id="fournisseursModal">
+  <div class="modal modal-wide">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div class="modal-title" style="margin-bottom:0;">👥 Fournisseurs</div>
+      <button class="btn btn-orange" style="font-size:12px;padding:6px 14px;" onclick="openAddFournisseurForm()">+ Ajouter</button>
+    </div>
+
+    <!-- Formulaire ajout / édition -->
+    <div id="fourn-form" style="display:none;background:var(--surface2);border:1px solid var(--teal);border-radius:10px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--teal);" id="fourn-form-title">✏️ Nouveau fournisseur</div>
+      <input type="hidden" id="ff-id">
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Nom *</label>
+          <input class="form-input" id="ff-nom" placeholder="Nom du fournisseur">
+        </div>
+        <div>
+          <label class="form-label">Type</label>
+          <select class="form-select" id="ff-type">
+            <option value="local">🚚 Fournisseur local (PF)</option>
+            <option value="etranger">✈️ Fournisseur étranger</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Téléphone</label>
+          <input class="form-input" id="ff-tel" placeholder="+689 40 00 00 00">
+        </div>
+        <div>
+          <label class="form-label">Email</label>
+          <input class="form-input" id="ff-email" placeholder="contact@fournisseur.com">
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Pays / Localisation</label>
+          <input class="form-input" id="ff-pays" placeholder="Polynésie française">
+        </div>
+        <div>
+          <label class="form-label">Produits / Spécialités</label>
+          <input class="form-input" id="ff-produits" placeholder="T-shirts, polos, transferts DTF...">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Notes (délais, MOQ, conditions...)</label>
+        <textarea class="form-textarea" id="ff-notes" style="min-height:50px;" placeholder="Ex: Livraison 24-48h, MOQ 10 pcs, paiement à 30j..."></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-ghost" style="font-size:12px;" onclick="cancelFournisseurForm()">Annuler</button>
+        <button class="btn btn-orange" style="font-size:12px;" onclick="saveFournisseur()">Enregistrer</button>
+      </div>
+    </div>
+
+    <!-- Liste des fournisseurs -->
+    <div id="fourn-list" style="max-height:400px;overflow-y:auto;"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeFournisseursModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL ACHATS — COMPTABILITÉ
+════════════════════════════════════════ -->
+<div class="modal-bg" id="achatsModal">
+  <div class="modal modal-wide">
+    <div class="modal-title">🛒 Liste d'achats — Comptabilité fournisseurs</div>
+
+    <!-- Filtres & Actions -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+      <select class="form-select" id="ach-filter" onchange="renderAchatsList()" style="max-width:200px;padding:7px 10px;">
+        <option value="">Tous les statuts</option>
+        <option value="en_attente">⏳ En attente</option>
+        <option value="commande">📋 Commandé</option>
+        <option value="recu">📦 Reçu</option>
+        <option value="facture">🧾 Facturé</option>
+      </select>
+      <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;" onclick="exportAchats()">Export CSV</button>
+    </div>
+
+    <!-- En-tête tableau -->
+    <div class="achat-header">
+      <div>Réf.</div>
+      <div>Client / Produit</div>
+      <div>Fournisseur</div>
+      <div>Qté</div>
+      <div>Statut</div>
+      <div>Montant</div>
+    </div>
+
+    <!-- Lignes -->
+    <div id="achats-list" style="max-height:360px;overflow-y:auto;"></div>
+
+    <!-- Total -->
+    <div id="achats-total" style="margin-top:10px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--text-muted);">Total des achats affichés</span>
+      <span id="achats-total-val" style="font-weight:700;font-size:16px;">0 XPF</span>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAchatsModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DÉTAIL -->
+<div class="modal-bg" id="detailModal">
+  <div class="modal">
+    <div class="modal-title" id="detail-title">Commande</div>
+    <div id="detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDetailModal()">Fermer</button>
+      <button class="btn btn-orange" id="detail-next-btn">Étape suivante →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───
+const MACHINES = [
+  { id: 'presse-t1', name: 'Presse T-shirt 1', icon: '👕' },
+  { id: 'presse-t2', name: 'Presse T-shirt 2', icon: '👕' },
+  { id: 'presse-c1', name: 'Presse Casquette 1', icon: '🧢' },
+  { id: 'presse-c2', name: 'Presse Casquette 2', icon: '🧢' },
+  { id: 'plotter-1', name: 'Plotter Vinyle 1', icon: '✂️' },
+  { id: 'plotter-2', name: 'Plotter Vinyle 2', icon: '✂️' },
+  { id: 'plotter-3', name: 'Plotter Vinyle 3', icon: '✂️' },
+];
+
+const COLS = ['attente', 'matiere', 'reservation', 'prod', 'qualite', 'pret'];
+const COL_LABELS = {
+  attente: 'À planifier',
+  matiere: 'Attente matière',
+  reservation: 'Réservation stock',
+  prod: 'En production',
+  qualite: 'Contrôle qualité',
+  pret: 'Prêt / Livré'
+};
+const NEXT_COL = { attente:'matiere', matiere:'reservation', reservation:'prod', prod:'qualite', qualite:'pret', pret:null };
+
+let commandes = JSON.parse(localStorage.getItem('hcs_planning') || '[]');
+let fournisseurs = JSON.parse(localStorage.getItem('hcs_fournisseurs') || '[]');
+let achats = JSON.parse(localStorage.getItem('hcs_achats') || '[]');
+let dragId = null;
+let currentDetailId = null;
+let currentReservationId = null;
+let editingFournisseurId = null;
+
+// ─── CLOCK ───
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'})
+    + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── INIT DEADLINE ───
+window.addEventListener('load', () => {
+  const d = new Date(Date.now() + 48*3600*1000);
+  d.setMinutes(0);
+  document.getElementById('f-deadline').value = d.toISOString().slice(0,16);
+  loadDemoData();
+  loadDemoFournisseurs();
+  render();
+});
+
+// ─── DEMO DATA ───
+function loadDemoData() {
+  if (commandes.length > 0) return;
+  const now = Date.now();
+  commandes = [
+    {
+      id: 'cmd-1', client: 'Mairie de Papeete', ref: 'DEV-2026-038',
+      canal: 'Gmail', desc: '50 t-shirts blanc polyester DTF logo mairie',
+      type: 'dtf', machine: 'Presse T-shirt 1', qty: 50,
+      deadline: new Date(now + 12*3600*1000).toISOString(),
+      priority: 'urgent', notes: 'Transferts reçus de HT4You', col: 'prod',
+      createdAt: new Date(now - 24*3600*1000).toISOString()
+    },
+    {
+      id: 'cmd-2', client: 'Tahiti Pearl Resort', ref: 'DEV-2026-039',
+      canal: 'Messenger', desc: '30 polos broderie logo + 10 casquettes',
+      type: 'casquette', machine: 'Presse Casquette 1', qty: 40,
+      deadline: new Date(now + 36*3600*1000).toISOString(),
+      priority: 'normal', notes: 'Attente livraison Anémone (casquettes blanc)', col: 'matiere',
+      createdAt: new Date(now - 12*3600*1000).toISOString()
+    },
+    {
+      id: 'cmd-3', client: 'Air Tahiti Nui', ref: 'DEV-2026-040',
+      canal: 'Gmail', desc: '5 m² vinyl décoration vitrine',
+      type: 'vinyle', machine: 'Plotter Vinyle 1', qty: 1,
+      deadline: new Date(now + 72*3600*1000).toISOString(),
+      priority: 'normal', notes: '', col: 'attente',
+      createdAt: new Date(now - 2*3600*1000).toISOString()
+    },
+    {
+      id: 'cmd-4', client: 'Festival Heiva', ref: 'DEV-2026-037',
+      canal: 'Instagram', desc: '100 t-shirts événement Festival Heiva',
+      type: 'dtf', machine: 'Presse T-shirt 2', qty: 100,
+      deadline: new Date(now - 2*3600*1000).toISOString(),
+      priority: 'express', notes: 'EN RETARD — attente validation couleurs', col: 'qualite',
+      createdAt: new Date(now - 48*3600*1000).toISOString()
+    },
+    {
+      id: 'cmd-5', client: 'Carrefour Faa\'a', ref: 'DEV-2026-036',
+      canal: 'WooCommerce', desc: '20 tabliers personnalisés vinyle',
+      type: 'vinyle', machine: 'Plotter Vinyle 2', qty: 20,
+      deadline: new Date(now + 6*3600*1000).toISOString(),
+      priority: 'urgent', notes: 'Prêt à livrer', col: 'pret',
+      createdAt: new Date(now - 60*3600*1000).toISOString()
+    }
+  ];
+  save();
+}
+
+// ─── DEMO FOURNISSEURS ───
+function loadDemoFournisseurs() {
+  if (fournisseurs.length > 0) return;
+  fournisseurs = [
+    { id:'f-1', nom:'Anémone Tahiti', type:'local', telephone:'+689 40 50 00 01', email:'contact@anemone.pf', produits:'T-shirts, polos, casquettes blank', pays:'Polynésie française', notes:'Fournisseur principal textile. Livraison 24-48h. Crédit 30j.' },
+    { id:'f-2', nom:'HT4You', type:'local', telephone:'+689 40 50 00 02', email:'info@ht4you.pf', produits:'Transferts DTF, films, encres', pays:'Polynésie française', notes:'Livraison J+1. MOQ 10 transferts. Paiement à la commande.' },
+    { id:'f-3', nom:'AliExpress Pro', type:'etranger', telephone:'', email:'supplier@alibaba.com', produits:'Textile en gros, casquettes, bags', pays:'Chine', notes:'Délai 15-30 jours. MOQ 100 pcs. Paiement anticipé.' },
+    { id:'f-4', nom:'Stanley/Stella Europe', type:'etranger', telephone:'+32 2 000 0000', email:'orders@stanleystella.com', produits:'T-shirts bio premium, polos éco', pays:'Belgique', notes:'Délai 7-10 jours. Livraison DHL. Facture EUR.' },
+  ];
+  saveFournisseurs();
+}
+
+// ─── SAVE ───
+function save() {
+  localStorage.setItem('hcs_planning', JSON.stringify(commandes));
+}
+function saveFournisseurs() {
+  localStorage.setItem('hcs_fournisseurs', JSON.stringify(fournisseurs));
+}
+function saveAchats() {
+  localStorage.setItem('hcs_achats', JSON.stringify(achats));
+}
+
+// ─── RENDER ───
+function render() {
+  COLS.forEach(col => {
+    const el = document.getElementById('col-' + col);
+    const cnt = document.getElementById('cnt-' + col);
+    const items = commandes.filter(c => c.col === col);
+    cnt.textContent = items.length;
+    if (items.length === 0) {
+      el.innerHTML = '<div class="empty">Glisser une commande ici</div>';
+    } else {
+      el.innerHTML = items.map(c => renderCard(c)).join('');
+    }
+  });
+  renderStats();
+  renderMachines();
+  renderAlerts();
+  renderReservationsSidebar();
+  renderStatsToday();
+}
+
+function urgencyClass(cmd) {
+  const now = Date.now();
+  const dl = new Date(cmd.deadline).getTime();
+  const diff = dl - now;
+  if (diff < 0) return 'urgent';
+  if (diff < 6*3600*1000) return 'urgent';
+  if (diff < 24*3600*1000) return 'warning';
+  return 'ok';
+}
+
+function formatDeadline(iso) {
+  const d = new Date(iso);
+  const now = Date.now();
+  const diff = d.getTime() - now;
+  const abs = Math.abs(diff);
+  const h = Math.floor(abs / 3600000);
+  const m = Math.floor((abs % 3600000) / 60000);
+  if (diff < 0) return `<span class="cmd-deadline late">EN RETARD ${h}h${m}m</span>`;
+  if (h < 24) return `<span class="cmd-deadline ${h<6?'late':''}">${h}h${m}m restantes</span>`;
+  return `<span class="cmd-deadline">${d.toLocaleDateString('fr-FR', {day:'numeric',month:'short'})} ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>`;
+}
+
+function typeTag(type) {
+  const map = { dtf:'tag-dtf', vinyle:'tag-vinyle', casquette:'tag-casquette', multi:'tag-multi' };
+  const labels = { dtf:'DTF', vinyle:'Vinyle', casquette:'Casquette', multi:'Multi' };
+  return `<span class="tag ${map[type]||'tag-dtf'}">${labels[type]||type}</span>`;
+}
+
+function getReservationStatusBadge(status) {
+  const map = {
+    en_attente: '⏳ En attente confirmation',
+    confirme: '✅ Confirmé — disponible',
+    non_disponible: '❌ Non disponible',
+  };
+  return `<span class="reserve-badge ${status||'en_attente'}">${map[status] || '⏳ En attente'}</span>`;
+}
+
+function renderCard(c) {
+  const urg = urgencyClass(c);
+  const nextCol = NEXT_COL[c.col];
+
+  // ── Bloc informations réservation (colonne reservation) ──
+  let reserveInfo = '';
+  if (c.col === 'reservation' && c.reservation) {
+    const res = c.reservation;
+    const typeLabel = { magasin:'🏪 Stock magasin', fournisseur_local:'🚚 Fourn. local', fournisseur_etranger:'✈️ Fourn. étranger' }[res.type] || '';
+    const contactIcon = { telephone:'📞', email:'📧', les_deux:'📞📧' }[res.contactMethod] || '';
+    reserveInfo = `<div class="reserve-info">
+      ${typeLabel}${res.fournisseurNom ? ' · <strong>' + res.fournisseurNom + '</strong>' : ''} ${contactIcon}
+      ${res.feedback ? '<br><em style="color:var(--text-muted);">' + res.feedback.substring(0,60) + (res.feedback.length>60?'…':'') + '</em>' : ''}
+    </div>`;
+  }
+
+  // ── Boutons d'action selon la colonne ──
+  let actionsHtml = '';
+
+  if (c.col === 'matiere') {
+    // Bouton spécial : ouvrir le modal de réservation
+    actionsHtml = `
+      <button class="cmd-btn cmd-btn-reserve" onclick="openReservationModal('${c.id}')">📦 Réserver stock</button>
+      <button class="cmd-btn cmd-btn-del" onclick="deleteCmd('${c.id}')">✕</button>
+    `;
+  } else if (c.col === 'reservation') {
+    const res = c.reservation || {};
+    const canAdvance = res.status === 'confirme';
+    actionsHtml = `
+      <div style="width:100%;margin-bottom:6px;">${getReservationStatusBadge(res.status)}</div>
+      <button class="cmd-btn cmd-btn-reserve-edit" onclick="openReservationModal('${c.id}')">✏️</button>
+      <button class="cmd-btn cmd-btn-next" onclick="advanceCmd('${c.id}')"
+        ${!canAdvance ? 'disabled style="opacity:.4;cursor:not-allowed;"' : ''}
+        title="${canAdvance ? 'Passer en production' : 'Confirmez la disponibilité pour débloquer'}">
+        → Production
+      </button>
+      <button class="cmd-btn cmd-btn-del" onclick="deleteCmd('${c.id}')">✕</button>
+    `;
+  } else {
+    const nextLabel = nextCol ? COL_LABELS[nextCol] : null;
+    actionsHtml = `
+      ${nextLabel
+        ? `<button class="cmd-btn cmd-btn-next" onclick="advanceCmd('${c.id}')">→ ${nextLabel}</button>`
+        : '<button class="cmd-btn cmd-btn-next" style="opacity:.4" disabled>✅ Terminé</button>'}
+      <button class="cmd-btn cmd-btn-del" onclick="deleteCmd('${c.id}')">✕</button>
+    `;
+  }
+
+  return `<div class="cmd-card ${urg}" draggable="true" id="card-${c.id}"
+    ondragstart="dragStart('${c.id}')"
+    ondragend="dragEnd()">
+    <div class="cmd-ref">${c.ref || 'CMD'} ${c.priority==='urgent'?'🔴':c.priority==='express'?'⚡':''}${typeTag(c.type)}</div>
+    <div class="cmd-client">${c.client}</div>
+    <div class="cmd-detail">${c.desc.substring(0,80)}${c.desc.length>80?'…':''}<br>Qté: ${c.qty} · ${c.machine}</div>
+    ${reserveInfo}
+    <div class="cmd-footer">${formatDeadline(c.deadline)}</div>
+    <div class="cmd-actions">${actionsHtml}</div>
+  </div>`;
+}
+
+// ─── STATS ───
+function renderStats() {
+  const now = Date.now();
+  document.getElementById('stat-attente').textContent = commandes.filter(c => c.col === 'attente').length;
+  document.getElementById('stat-prod').textContent = commandes.filter(c => c.col === 'prod').length;
+  document.getElementById('stat-pret').textContent = commandes.filter(c => c.col === 'pret').length;
+  document.getElementById('stat-retard').textContent = commandes.filter(c => c.col !== 'pret' && new Date(c.deadline).getTime() < now).length;
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  document.getElementById('stat-livre').textContent = commandes.filter(c =>
+    c.col === 'pret' && new Date(c.createdAt).getTime() > todayStart.getTime()
+  ).length;
+}
+
+// ─── MACHINES ───
+function renderMachines() {
+  const el = document.getElementById('machines-list');
+  const loads = {};
+  MACHINES.forEach(m => { loads[m.name] = 0; });
+  commandes.filter(c => c.col === 'prod' || c.col === 'qualite').forEach(c => {
+    if (loads[c.machine] !== undefined) loads[c.machine]++;
+  });
+  el.innerHTML = MACHINES.map(m => {
+    const load = loads[m.name] || 0;
+    const pct = Math.min(load * 30, 100);
+    const cls = pct < 40 ? 'green' : pct < 70 ? 'yellow' : 'red';
+    return `<div class="machine-row">
+      <span class="machine-icon">${m.icon}</span>
+      <div class="machine-info">
+        <div class="machine-name">${m.name}</div>
+        <div class="machine-bar-bg"><div class="machine-bar ${cls}" style="width:${pct}%"></div></div>
+        <div class="machine-load">${load} commande${load>1?'s':''} en cours</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── ALERTES ───
+function renderAlerts() {
+  const el = document.getElementById('alerts-list');
+  const now = Date.now();
+  const alerts = [];
+  commandes.forEach(c => {
+    if (c.col === 'pret') return;
+    const dl = new Date(c.deadline).getTime();
+    const diff = dl - now;
+    if (diff < 0) alerts.push({ type:'urgent', text:`<strong>${c.client}</strong> — EN RETARD ${Math.round(-diff/3600000)}h (${c.ref})` });
+    else if (diff < 6*3600*1000) alerts.push({ type:'urgent', text:`<strong>${c.client}</strong> — Deadline dans ${Math.round(diff/3600000)}h (${c.ref})` });
+    else if (diff < 24*3600*1000) alerts.push({ type:'warning', text:`<strong>${c.client}</strong> — Deadline demain (${c.ref})` });
+  });
+  if (alerts.length === 0) alerts.push({ type:'info', text:'Aucune alerte urgente — production dans les délais ✓' });
+  el.innerHTML = alerts.map(a => `<div class="alert-item ${a.type}">
+    <span class="alert-icon">${a.type==='urgent'?'🔴':a.type==='warning'?'🟡':'🟢'}</span>
+    <span class="alert-text">${a.text}</span>
+  </div>`).join('');
+}
+
+// ─── RÉSERVATIONS SIDEBAR ───
+function renderReservationsSidebar() {
+  const el = document.getElementById('reservations-sidebar');
+  const reserved = commandes.filter(c => c.col === 'reservation');
+  if (reserved.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:12px;">Aucune réservation en cours</div>';
+    return;
+  }
+  const statusColors = { en_attente:'var(--yellow)', confirme:'var(--green)', non_disponible:'var(--red)' };
+  const statusIcons = { en_attente:'⏳', confirme:'✅', non_disponible:'❌' };
+  el.innerHTML = reserved.map(c => {
+    const res = c.reservation || {};
+    const color = statusColors[res.status] || 'var(--yellow)';
+    const icon = statusIcons[res.status] || '⏳';
+    const typeShort = { magasin:'Stock', fournisseur_local:'Local', fournisseur_etranger:'Import' }[res.type] || '—';
+    return `<div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px;cursor:pointer;"
+              onclick="openReservationModal('${c.id}')">
+      <span style="color:${color};font-size:14px;flex-shrink:0;">${icon}</span>
+      <div style="flex:1;">
+        <div style="font-weight:600;">${c.client}</div>
+        <div style="color:var(--text-muted);">${c.ref} · ${typeShort}${res.fournisseurNom?' · '+res.fournisseurNom:''}</div>
+      </div>
+      <button class="cmd-btn cmd-btn-reserve-edit" style="padding:2px 6px;font-size:10px;flex-shrink:0;"
+        onclick="event.stopPropagation();openReservationModal('${c.id}')">✏️</button>
+    </div>`;
+  }).join('');
+}
+
+// ─── STATS TODAY ───
+function renderStatsToday() {
+  const el = document.getElementById('stats-today');
+  const now = Date.now();
+  const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+  const dueToday = commandes.filter(c => c.col !== 'pret' && new Date(c.deadline) <= todayEnd).length;
+  const inProd = commandes.filter(c => c.col === 'prod').length;
+  const qtyInProd = commandes.filter(c => c.col === 'prod').reduce((s,c) => s + parseInt(c.qty||0), 0);
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">À livrer aujourd'hui</span><span style="font-weight:700;color:${dueToday>0?'var(--yellow)':'var(--green)'}">${dueToday}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Commandes en prod</span><span style="font-weight:700;color:var(--orange)">${inProd}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Pièces en cours</span><span style="font-weight:700;">${qtyInProd}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Total commandes</span><span style="font-weight:700;">${commandes.length}</span></div>
+    </div>`;
+}
+
+// ─── DRAG & DROP ───
+function dragStart(id) {
+  dragId = id;
+  const el = document.getElementById('card-' + id);
+  if (el) el.classList.add('dragging');
+}
+function dragEnd() {
+  if (dragId) {
+    const el = document.getElementById('card-' + dragId);
+    if (el) el.classList.remove('dragging');
+  }
+  document.querySelectorAll('.col-body').forEach(c => c.classList.remove('dragover'));
+}
+function dragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('dragover');
+}
+function drop(e) {
+  e.preventDefault();
+  const col = e.currentTarget.dataset.col;
+  e.currentTarget.classList.remove('dragover');
+  if (!dragId) return;
+  const cmd = commandes.find(c => c.id === dragId);
+  if (cmd) { cmd.col = col; save(); render(); }
+  dragId = null;
+}
+
+// ─── ADVANCE ───
+function advanceCmd(id) {
+  const cmd = commandes.find(c => c.id === id);
+  if (!cmd) return;
+  const next = NEXT_COL[cmd.col];
+  if (next) { cmd.col = next; save(); render(); }
+}
+
+// ─── DELETE ───
+function deleteCmd(id) {
+  if (!confirm('Supprimer cette commande du planning ?')) return;
+  commandes = commandes.filter(c => c.id !== id);
+  save(); render();
+}
+
+// ─── ADD MODAL ───
+function openAddModal() {
+  document.getElementById('addModal').classList.add('open');
+}
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('open');
+}
+
+function saveCommande() {
+  const client = document.getElementById('f-client').value.trim();
+  const desc = document.getElementById('f-desc').value.trim();
+  if (!client || !desc) { alert('Client et description obligatoires.'); return; }
+  const now = new Date();
+  const priority = document.getElementById('f-priority').value;
+  let deadlineDefault = document.getElementById('f-deadline').value;
+  if (!deadlineDefault) {
+    const d = new Date(Date.now() + (priority==='express'?8:priority==='urgent'?24:48)*3600*1000);
+    deadlineDefault = d.toISOString().slice(0,16);
+  }
+  const cmd = {
+    id: 'cmd-' + Date.now(),
+    client,
+    ref: document.getElementById('f-ref').value.trim() || ('CMD-' + Date.now().toString().slice(-6)),
+    canal: document.getElementById('f-canal').value,
+    desc,
+    type: document.getElementById('f-type').value,
+    machine: document.getElementById('f-machine').value,
+    qty: parseInt(document.getElementById('f-qty').value) || 1,
+    deadline: deadlineDefault,
+    priority,
+    notes: document.getElementById('f-notes').value.trim(),
+    col: 'attente',
+    createdAt: now.toISOString()
+  };
+  commandes.unshift(cmd);
+  save(); render(); closeAddModal();
+  // reset
+  ['f-client','f-ref','f-desc','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-qty').value = '1';
+  const dl = new Date(Date.now() + 48*3600*1000); dl.setMinutes(0);
+  document.getElementById('f-deadline').value = dl.toISOString().slice(0,16);
+}
+
+// ─── DETAIL MODAL ───
+function closeDetailModal() { document.getElementById('detailModal').classList.remove('open'); }
+
+// ════════════════════════════════════════
+//  MODAL RÉSERVATION
+// ════════════════════════════════════════
+function openReservationModal(cmdId) {
+  currentReservationId = cmdId;
+  const cmd = commandes.find(c => c.id === cmdId);
+  if (!cmd) return;
+
+  // Info commande en lecture seule
+  document.getElementById('r-cmd-info').innerHTML =
+    `<strong>${cmd.ref}</strong> — ${cmd.client} &nbsp;|&nbsp; ${cmd.desc.substring(0,80)}… &nbsp;|&nbsp; Qté: <strong>${cmd.qty}</strong>`;
+
+  // Pré-remplissage si réservation existante
+  const res = cmd.reservation || {};
+  const typeVal = res.type || 'magasin';
+  document.querySelectorAll('input[name="r-type-radio"]').forEach(r => {
+    r.checked = (r.value === typeVal);
+  });
+  document.getElementById('r-produit').value = res.produit || cmd.desc.substring(0, 120);
+  document.getElementById('r-qte').value = res.qte || cmd.qty;
+  document.getElementById('r-montant').value = res.montant || '';
+  document.getElementById('r-notes').value = res.notes || cmd.notes || '';
+  document.getElementById('r-feedback').value = res.feedback || '';
+  document.getElementById('r-status').value = res.status || 'en_attente';
+  document.getElementById('r-contact').value = res.contactMethod || 'telephone';
+
+  updateFournisseurSelect(res.fournisseurId || '');
+  toggleReservationType();
+  document.getElementById('reservationModal').classList.add('open');
+}
+
+function closeReservationModal() {
+  document.getElementById('reservationModal').classList.remove('open');
+}
+
+function toggleReservationType() {
+  const selected = document.querySelector('input[name="r-type-radio"]:checked');
+  const type = selected ? selected.value : 'magasin';
+  const bloc = document.getElementById('r-bloc-fournisseur');
+  if (type === 'magasin') {
+    bloc.style.display = 'none';
+    // Stock magasin = confirmé automatiquement
+    document.getElementById('r-status').value = 'confirme';
+  } else {
+    bloc.style.display = 'block';
+    // Filtrer fournisseurs par type
+    updateFournisseurSelect('');
+    const filterType = type === 'fournisseur_local' ? 'local' : 'etranger';
+    const opts = document.getElementById('r-fournisseur').options;
+    for (let i = 1; i < opts.length; i++) {
+      opts[i].style.display = opts[i].dataset.type === filterType ? '' : 'none';
+    }
+    onFournisseurChange();
+  }
+}
+
+function updateFournisseurSelect(selectedId) {
+  const sel = document.getElementById('r-fournisseur');
+  sel.innerHTML = '<option value="">-- Sélectionner un fournisseur --</option>';
+  fournisseurs.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = f.nom + ' (' + f.pays + ')';
+    opt.dataset.type = f.type;
+    if (f.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  onFournisseurChange();
+}
+
+function onFournisseurChange() {
+  const id = document.getElementById('r-fournisseur').value;
+  const info = document.getElementById('r-fournisseur-info');
+  const f = fournisseurs.find(x => x.id === id);
+  if (f) {
+    info.style.display = 'block';
+    info.innerHTML = `
+      <strong>${f.nom}</strong> — ${f.pays}<br>
+      ${f.telephone ? '📞 <a href="tel:' + f.telephone + '" style="color:var(--teal);">' + f.telephone + '</a>&emsp;' : ''}
+      ${f.email ? '📧 <a href="mailto:' + f.email + '" style="color:var(--teal);">' + f.email + '</a>' : ''}<br>
+      ${f.produits ? '<em style="color:var(--text-muted);">Produits : ' + f.produits + '</em>' : ''}
+      ${f.notes ? '<br><span style="color:var(--text-muted);">' + f.notes + '</span>' : ''}
+    `;
+  } else {
+    info.style.display = 'none';
+  }
+}
+
+function saveReservation() {
+  const cmd = commandes.find(c => c.id === currentReservationId);
+  if (!cmd) return;
+
+  const selectedRadio = document.querySelector('input[name="r-type-radio"]:checked');
+  const type = selectedRadio ? selectedRadio.value : 'magasin';
+  const fournisseurId = document.getElementById('r-fournisseur').value;
+  const fournisseur = fournisseurs.find(f => f.id === fournisseurId);
+  const status = type === 'magasin' ? 'confirme' : document.getElementById('r-status').value;
+
+  cmd.reservation = {
+    type,
+    fournisseurId,
+    fournisseurNom: fournisseur ? fournisseur.nom : '',
+    contactMethod: document.getElementById('r-contact').value,
+    produit: document.getElementById('r-produit').value.trim(),
+    qte: parseInt(document.getElementById('r-qte').value) || cmd.qty,
+    montant: document.getElementById('r-montant').value.trim(),
+    notes: document.getElementById('r-notes').value.trim(),
+    feedback: document.getElementById('r-feedback').value.trim(),
+    status,
+    dateReservation: cmd.reservation?.dateReservation || new Date().toISOString(),
+    dateConfirmation: (status === 'confirme' && !cmd.reservation?.dateConfirmation)
+      ? new Date().toISOString()
+      : (cmd.reservation?.dateConfirmation || null),
+  };
+
+  // Déplacer vers la colonne réservation si on vient de matiere
+  if (cmd.col === 'matiere') cmd.col = 'reservation';
+
+  // Créer ou mettre à jour l'entrée dans la liste d'achats (si fournisseur externe)
+  if (type !== 'magasin') {
+    const existing = achats.find(a => a.cmdId === cmd.id);
+    if (!existing) {
+      achats.push({
+        id: 'ach-' + Date.now(),
+        cmdId: cmd.id,
+        cmdRef: cmd.ref,
+        cmdClient: cmd.client,
+        fournisseurId,
+        fournisseurNom: fournisseur ? fournisseur.nom : 'Inconnu',
+        produit: cmd.reservation.produit,
+        qte: cmd.reservation.qte,
+        montant: cmd.reservation.montant || '0',
+        status: status === 'confirme' ? 'commande' : 'en_attente',
+        dateCreation: new Date().toISOString(),
+        notes: cmd.reservation.notes,
+      });
+    } else {
+      existing.fournisseurId = fournisseurId;
+      existing.fournisseurNom = fournisseur ? fournisseur.nom : existing.fournisseurNom;
+      existing.montant = cmd.reservation.montant || existing.montant;
+      existing.status = status === 'confirme' ? 'commande' : (status === 'non_disponible' ? 'en_attente' : existing.status);
+      existing.notes = cmd.reservation.notes;
+      existing.produit = cmd.reservation.produit;
+      existing.qte = cmd.reservation.qte;
+    }
+    saveAchats();
+  }
+
+  save();
+  render();
+  closeReservationModal();
+}
+
+// ════════════════════════════════════════
+//  MODAL FOURNISSEURS
+// ════════════════════════════════════════
+function openFournisseursModal() {
+  renderFournisseursList();
+  document.getElementById('fourn-form').style.display = 'none';
+  document.getElementById('fournisseursModal').classList.add('open');
+}
+function closeFournisseursModal() {
+  document.getElementById('fournisseursModal').classList.remove('open');
+}
+
+function openAddFournisseurForm() {
+  editingFournisseurId = null;
+  document.getElementById('fourn-form-title').textContent = '✏️ Nouveau fournisseur';
+  ['ff-id','ff-nom','ff-tel','ff-email','ff-pays','ff-produits','ff-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('ff-type').value = 'local';
+  document.getElementById('fourn-form').style.display = 'block';
+  document.getElementById('fourn-form').scrollIntoView({ behavior:'smooth' });
+}
+
+function editFournisseur(id) {
+  const f = fournisseurs.find(x => x.id === id);
+  if (!f) return;
+  editingFournisseurId = id;
+  document.getElementById('fourn-form-title').textContent = '✏️ Modifier — ' + f.nom;
+  document.getElementById('ff-id').value = f.id;
+  document.getElementById('ff-nom').value = f.nom;
+  document.getElementById('ff-type').value = f.type;
+  document.getElementById('ff-tel').value = f.telephone || '';
+  document.getElementById('ff-email').value = f.email || '';
+  document.getElementById('ff-pays').value = f.pays || '';
+  document.getElementById('ff-produits').value = f.produits || '';
+  document.getElementById('ff-notes').value = f.notes || '';
+  document.getElementById('fourn-form').style.display = 'block';
+  document.getElementById('fourn-form').scrollIntoView({ behavior:'smooth' });
+}
+
+function cancelFournisseurForm() {
+  document.getElementById('fourn-form').style.display = 'none';
+  editingFournisseurId = null;
+}
+
+function saveFournisseur() {
+  const nom = document.getElementById('ff-nom').value.trim();
+  if (!nom) { alert('Le nom du fournisseur est obligatoire.'); return; }
+  const data = {
+    nom,
+    type: document.getElementById('ff-type').value,
+    telephone: document.getElementById('ff-tel').value.trim(),
+    email: document.getElementById('ff-email').value.trim(),
+    pays: document.getElementById('ff-pays').value.trim(),
+    produits: document.getElementById('ff-produits').value.trim(),
+    notes: document.getElementById('ff-notes').value.trim(),
+  };
+  if (editingFournisseurId) {
+    const idx = fournisseurs.findIndex(f => f.id === editingFournisseurId);
+    if (idx >= 0) fournisseurs[idx] = { id: editingFournisseurId, ...data };
+  } else {
+    fournisseurs.push({ id: 'f-' + Date.now(), ...data });
+  }
+  saveFournisseurs();
+  cancelFournisseurForm();
+  renderFournisseursList();
+}
+
+function deleteFournisseur(id) {
+  if (!confirm('Supprimer ce fournisseur ?')) return;
+  fournisseurs = fournisseurs.filter(f => f.id !== id);
+  saveFournisseurs();
+  renderFournisseursList();
+}
+
+function renderFournisseursList() {
+  const el = document.getElementById('fourn-list');
+  if (fournisseurs.length === 0) {
+    el.innerHTML = '<div class="empty">Aucun fournisseur enregistré. Cliquez sur "+ Ajouter".</div>';
+    return;
+  }
+  el.innerHTML = fournisseurs.map(f => {
+    const typeLabel = f.type === 'local' ? '🚚 Local' : '✈️ Étranger';
+    return `<div class="fourn-card">
+      <div class="fourn-header">
+        <div>
+          <span class="fourn-name">${f.nom}</span>
+          &nbsp;<span class="fourn-type-badge ${f.type}">${typeLabel}</span>
+        </div>
+        <div class="fourn-actions">
+          <button class="fourn-btn fourn-btn-edit" onclick="editFournisseur('${f.id}')">✏️ Modifier</button>
+          <button class="fourn-btn fourn-btn-del" onclick="deleteFournisseur('${f.id}')">✕</button>
+        </div>
+      </div>
+      <div class="fourn-contact">
+        ${f.telephone ? '<span>📞 <a href="tel:' + f.telephone + '" style="color:var(--teal);">' + f.telephone + '</a></span>' : ''}
+        ${f.email ? '<span>📧 <a href="mailto:' + f.email + '" style="color:var(--teal);">' + f.email + '</a></span>' : ''}
+        ${f.pays ? '<span>📍 ' + f.pays + '</span>' : ''}
+      </div>
+      ${f.produits ? '<div class="fourn-produits">Produits : ' + f.produits + '</div>' : ''}
+      ${f.notes ? '<div style="font-size:10px;color:var(--text-muted);margin-top:3px;font-style:italic;">' + f.notes + '</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════
+//  MODAL ACHATS — COMPTABILITÉ
+// ════════════════════════════════════════
+function openAchatsModal() {
+  renderAchatsList();
+  document.getElementById('achatsModal').classList.add('open');
+}
+function closeAchatsModal() {
+  document.getElementById('achatsModal').classList.remove('open');
+}
+
+function renderAchatsList() {
+  const el = document.getElementById('achats-list');
+  const filter = document.getElementById('ach-filter').value;
+  let list = achats;
+  if (filter) list = achats.filter(a => a.status === filter);
+
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty">Aucun achat enregistré' + (filter ? ' pour ce statut' : '') + '.</div>';
+    document.getElementById('achats-total-val').textContent = '0 XPF';
+    return;
+  }
+
+  const statusLabels = { en_attente:'⏳ En attente', commande:'📋 Commandé', recu:'📦 Reçu', facture:'🧾 Facturé' };
+  const total = list.reduce((s, a) => s + (parseFloat(a.montant)||0) * (parseInt(a.qte)||1), 0);
+
+  el.innerHTML = list.map(a => `
+    <div class="achat-row">
+      <div style="font-weight:700;color:var(--orange);font-size:10px;">${a.cmdRef || '—'}</div>
+      <div>
+        <div style="font-weight:600;">${a.cmdClient || '—'}</div>
+        <div style="color:var(--text-muted);font-size:10px;">${(a.produit||'').substring(0,40)}${(a.produit||'').length>40?'…':''}</div>
+      </div>
+      <div style="color:var(--text-muted);">${a.fournisseurNom || '—'}</div>
+      <div style="text-align:center;">${a.qte || '—'}</div>
+      <div>
+        <select onchange="updateAchatStatus('${a.id}', this.value)"
+          style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:10px;color:var(--text);cursor:pointer;width:100%;">
+          ${['en_attente','commande','recu','facture'].map(s =>
+            `<option value="${s}" ${a.status===s?'selected':''}>${statusLabels[s]}</option>`
+          ).join('')}
+        </select>
+      </div>
+      <div style="text-align:right;font-weight:600;">${a.montant ? Number(a.montant).toLocaleString('fr-FR') + ' XPF' : '—'}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('achats-total-val').textContent =
+    total.toLocaleString('fr-FR') + ' XPF';
+}
+
+function updateAchatStatus(id, newStatus) {
+  const a = achats.find(x => x.id === id);
+  if (a) { a.status = newStatus; saveAchats(); renderAchatsList(); }
+}
+
+function exportAchats() {
+  const filter = document.getElementById('ach-filter').value;
+  let list = filter ? achats.filter(a => a.status === filter) : achats;
+  const header = 'Réf commande,Client,Produit,Fournisseur,Qté,Montant XPF,Statut,Date création,Notes';
+  const rows = list.map(a =>
+    [a.cmdRef, a.cmdClient,
+     '"'+(a.produit||'').replace(/"/g,'""')+'"',
+     a.fournisseurNom, a.qte, a.montant||0, a.status,
+     new Date(a.dateCreation).toLocaleDateString('fr-FR'),
+     '"'+(a.notes||'').replace(/"/g,'""')+'"'
+    ].join(',')
+  );
+  const csv = [header,...rows].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a2 = document.createElement('a');
+  a2.href = url; a2.download = 'achats_hcs_' + new Date().toISOString().slice(0,10) + '.csv';
+  a2.click(); URL.revokeObjectURL(url);
+}
+
+// ─── EXPORT ───
+function exportPlanning() {
+  const header = 'Ref,Client,Canal,Description,Type,Machine,Qté,Deadline,Priorité,Statut,Notes';
+  const rows = commandes.map(c =>
+    [c.ref,c.client,c.canal,'"'+c.desc.replace(/"/g,'""')+'"',c.type,c.machine,c.qty,c.deadline,c.priority,COL_LABELS[c.col]||c.col,'"'+(c.notes||'').replace(/"/g,'""')+'"'].join(',')
+  );
+  const csv = [header,...rows].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'planning_hcs_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ─── CLOSE MODAL ON BG CLICK ───
+document.getElementById('addModal').addEventListener('click', function(e) {
+  if (e.target === this) closeAddModal();
+});
+document.getElementById('detailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDetailModal();
+});
+document.getElementById('reservationModal').addEventListener('click', function(e) {
+  if (e.target === this) closeReservationModal();
+});
+document.getElementById('fournisseursModal').addEventListener('click', function(e) {
+  if (e.target === this) closeFournisseursModal();
+});
+document.getElementById('achatsModal').addEventListener('click', function(e) {
+  if (e.target === this) closeAchatsModal();
+});
+
+// ─── AUTO REFRESH ALERTES ───
+setInterval(() => { renderAlerts(); renderStats(); }, 60000);
+</script>
+</body>
+</html>
