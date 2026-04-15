@@ -1115,9 +1115,11 @@ function _dashActivities(items) {
 function renderIframe(src, container) {
   container.style.padding = '0';
   container.style.overflow = 'hidden';
+  // Anti-cache : force le rechargement à chaque navigation
+  const v = Date.now();
   container.innerHTML = `
     <iframe
-      src="${src}"
+      src="${src}?v=${v}"
       style="width:100%; height:calc(100vh - 60px); border:none; display:block;"
       allow="clipboard-read; clipboard-write"
     ></iframe>
