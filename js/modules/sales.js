@@ -37,7 +37,7 @@ const Sales = (() => {
   ];
 
   const STATUTS_FAC = [
-    'Brouillon', 'Envoyé', 'Payé partiel', 'Payé', 'En retard'
+    'Brouillon', 'Envoyé', 'Payé partiel', 'Payé', 'En retard', 'Annulé'
   ];
 
   const BADGE_DEVIS = {
@@ -61,7 +61,8 @@ const Sales = (() => {
     'Envoyé':       'badge-blue',
     'Payé partiel': 'badge-orange',
     'Payé':         'badge-green',
-    'En retard':    'badge-red'
+    'En retard':    'badge-red',
+    'Annulé':       'badge-red'
   };
 
   const METHODES_PAIEMENT = ['Espèces', 'Carte bancaire', 'Virement', 'Chèque'];
@@ -132,6 +133,106 @@ const Sales = (() => {
   /** Somme des paiements enregistrés */
   function _totalPaiements(paiements) {
     return (paiements || []).reduce((s, p) => s + (p.montant || 0), 0);
+  }
+
+  /** Sauvegarde un document HTML dans le dossier Dropbox du client + log ERP */
+  async function _sauverDocDropbox(client, filename, htmlContent, type) {
+    if (!client) return;
+    try {
+      const res = await fetch('http://localhost:7879/save-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client, filename, content_html: htmlContent })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast(`📁 Dropbox : ${filename}`, 'info');
+        fetch('https://highcoffeeshirts.com/erp/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': 'hcs-erp-2026' },
+          body: JSON.stringify({
+            nom: filename, client, type,
+            url: data.path,
+            date: new Date().toISOString().slice(0, 10)
+          })
+        }).catch(() => {});
+      }
+    } catch (_) { /* serveur non démarré — silencieux */ }
+  }
+
+  /** Nettoie un nom pour un nom de fichier valide */
+  function _safeFilename(s) {
+    return (s || '').replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
+  }
+
+  /** Picker position atelier — affiche un modal de sélection rapide */
+  function _showPositionPicker(positions, callback) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+    const items = positions.map(pos => `
+      <button class="pos-pick-btn" data-pos="${_esc(pos)}"
+        style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+          background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;
+          padding:10px 14px;font-size:13px;color:var(--text-primary);cursor:pointer;
+          transition:border .15s,background .15s;">
+        ${_esc(pos)}
+      </button>`).join('');
+
+    overlay.innerHTML = `
+      <div style="background:var(--bg-card);border-radius:16px;max-width:420px;width:100%;
+        box-shadow:0 8px 40px rgba(0,0,0,.4);overflow:hidden;">
+        <div style="background:var(--bg-elevated);padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);">
+          <span style="font-size:18px;">📍</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--text-primary);">Position atelier</div>
+            <div style="font-size:11px;color:var(--text-muted);">Choisir l'emplacement du visuel sur le vêtement</div>
+          </div>
+          <button id="pos-close" style="margin-left:auto;background:rgba(255,255,255,.1);border:none;
+            color:var(--text-secondary);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px;">✕</button>
+        </div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;">
+          ${items}
+        </div>
+        <div style="padding:10px 16px;border-top:1px solid var(--border);text-align:right;">
+          <button id="pos-skip" style="background:transparent;border:none;color:var(--text-muted);
+            font-size:12px;cursor:pointer;text-decoration:underline;">Ignorer pour l'instant</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelectorAll('.pos-pick-btn').forEach(btn => {
+      btn.addEventListener('mouseenter', () => {
+        btn.style.background = 'var(--bg-elevated)';
+        btn.style.borderColor = 'var(--accent-blue)';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.background = 'var(--bg-surface)';
+        btn.style.borderColor = 'var(--border)';
+      });
+      btn.addEventListener('click', () => {
+        overlay.remove();
+        callback(btn.dataset.pos);
+      });
+    });
+
+    overlay.querySelector('#pos-close')?.addEventListener('click', () => { overlay.remove(); callback(null); });
+    overlay.querySelector('#pos-skip')?.addEventListener('click', () => { overlay.remove(); callback(null); });
+  }
+
+  /** Crée le dossier Dropbox client du mois en cours (silencieux si serveur absent) */
+  async function _createDropboxFolder(clientName) {
+    if (!clientName) return;
+    try {
+      const res = await fetch('http://localhost:7879/create-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client: clientName })
+      });
+      const data = await res.json();
+      if (data.created) toast(`📁 Dossier Dropbox créé : ${clientName}`, 'info');
+    } catch (_) { /* serveur non démarré — silencieux */ }
   }
 
   /** Nom d'un contact depuis son id */
@@ -223,12 +324,21 @@ const Sales = (() => {
       (l.qte || 0) * (l.prixUnitaire || 0) * (1 - (l.remise || 0) / 100)
     );
 
+    /* Vérifier si le produit sélectionné a des variantes */
+    const produitLigne = l.produitId ? Store.getById('produits', l.produitId) : null;
+    const hasVariantes = produitLigne && (produitLigne.variantes || []).length > 0;
+
     return `
       <tr data-line="${i}">
         <td>
           <select class="line-input" data-field="produitId" data-line="${i}">
             ${_produitOptions(l.produitId)}
           </select>
+          ${hasVariantes ? `<button class="btn btn-ghost btn-sm" data-pick-variante="${i}"
+            title="Choisir une variante"
+            style="margin-top:3px;font-size:10px;padding:2px 6px;width:100%;justify-content:center;">
+            ⚡ Variantes
+          </button>` : ''}
         </td>
         <td>
           <input type="text" class="line-input" data-field="description"
@@ -355,16 +465,53 @@ const Sales = (() => {
         const produit = Store.getById('produits', el.value);
         if (produit) {
           _state.lignes[idx].produitId    = el.value;
-          _state.lignes[idx].description  = produit.nom;
           _state.lignes[idx].prixUnitaire = produit.prix || 0;
-          /* TVA : 13% pour les services, 16% pour les produits */
-          _state.lignes[idx].tauxTVA = (produit.categorie === 'Service') ? 13 : 16;
-          /* Appliquer immédiatement le palier selon la qte actuelle */
+          _state.lignes[idx].tauxTVA      = (produit.categorie === 'Service') ? 13 : 16;
+          /* Description : nom du produit + description courte si dispo */
+          const descParts = [produit.nom];
+          if (produit.description) descParts.push(produit.description);
+          _state.lignes[idx].description = descParts.join(' — ');
           _applyPalierPrix(idx);
+          _refreshLineTable();
+          /* Auto-ouvrir le picker variantes puis position atelier */
+          const hasVariantes = (produit.variantes || []).length > 0 &&
+            typeof Inventory !== 'undefined' && Inventory.showVariantePicker;
+          const hasPositions = (produit.positionsAtelier || []).length > 0;
+
+          const _openPositionPicker = () => {
+            if (!hasPositions) return;
+            _showPositionPicker(produit.positionsAtelier, (position) => {
+              if (!position) return;
+              _state.lignes[idx].positionAtelier = position;
+              const base = _state.lignes[idx].description || produit.nom;
+              if (!base.includes(position)) {
+                _state.lignes[idx].description = `${base} — ${position}`;
+              }
+              _refreshLineTable();
+            });
+          };
+
+          if (hasVariantes) {
+            Inventory.showVariantePicker(produit, (variante, descriptionAuto) => {
+              if (!variante) return;
+              const SKIP_VAR = new Set(['ref', 'prix', 'cout', 'quantite', 'customDims']);
+              Object.keys(variante).forEach(k => {
+                if (!SKIP_VAR.has(k) && variante[k]) _state.lignes[idx][k] = variante[k];
+              });
+              _state.lignes[idx].prixUnitaire = variante.prix || _state.lignes[idx].prixUnitaire;
+              _state.lignes[idx].description  = descriptionAuto || produit.nom;
+              _applyPalierPrix(idx);
+              _refreshLineTable();
+              _openPositionPicker();
+            });
+          } else {
+            _openPositionPicker();
+          }
         } else {
-          _state.lignes[idx].produitId = '';
+          _state.lignes[idx].produitId   = '';
+          _state.lignes[idx].description = '';
+          _refreshLineTable();
         }
-        _refreshLineTable(); // redessiner pour afficher les nouvelles valeurs
         return;
       }
 
@@ -402,10 +549,37 @@ const Sales = (() => {
 
     /* Supprimer une ligne */
     tbody.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-remove]');
-      if (!btn) return;
-      _state.lignes.splice(parseInt(btn.dataset.remove, 10), 1);
-      _refreshLineTable();
+      const btnRemove = e.target.closest('[data-remove]');
+      if (btnRemove) {
+        _state.lignes.splice(parseInt(btnRemove.dataset.remove, 10), 1);
+        _refreshLineTable();
+        return;
+      }
+
+      /* Picker de variantes */
+      const btnPick = e.target.closest('[data-pick-variante]');
+      if (btnPick) {
+        const idx = parseInt(btnPick.dataset.pickVariante, 10);
+        const ligne = _state.lignes[idx];
+        const produit = ligne.produitId ? Store.getById('produits', ligne.produitId) : null;
+        if (!produit || !(produit.variantes || []).length) return;
+        if (typeof Inventory !== 'undefined' && Inventory.showVariantePicker) {
+          Inventory.showVariantePicker(produit, (variante, descriptionAuto) => {
+            if (!variante) return;
+            /* Copier tous les attributs de la variante sur la ligne */
+            const SKIP_VAR = new Set(['ref', 'prix', 'cout', 'quantite', 'customDims']);
+            Object.keys(variante).forEach(k => {
+              if (!SKIP_VAR.has(k) && variante[k]) {
+                _state.lignes[idx][k] = variante[k];
+              }
+            });
+            _state.lignes[idx].prixUnitaire = variante.prix    || ligne.prixUnitaire || 0;
+            _state.lignes[idx].description  = descriptionAuto  || ligne.description  || produit.nom;
+            _applyPalierPrix(idx);
+            _refreshLineTable();
+          });
+        }
+      }
     });
   }
 
@@ -511,6 +685,85 @@ const Sales = (() => {
     tbody.innerHTML = _state.lignes.map((l, i) => _renderLineRow(l, i)).join('');
     _updateTotals();
     /* La délégation sur tbody est toujours active — pas besoin de rebind */
+  }
+
+  /* ----------------------------------------------------------------
+     SUIVI BON DE COMMANDE — barre de progression entre devis/cmd/facture
+     ---------------------------------------------------------------- */
+  function _renderSuiviBDC(doc, docType) {
+    if (!doc) return '';
+
+    let devisDoc = null, cmdDoc = null, facDoc = null;
+
+    if (docType === 'devis') {
+      devisDoc = doc;
+      cmdDoc   = Store.getAll('commandes').find(c => c.quoteId === doc.id) || null;
+      facDoc   = Store.getAll('factures').find(f => f.devisId === doc.id)  || null;
+    } else if (docType === 'facture') {
+      facDoc   = doc;
+      if (doc.devisId)    devisDoc = Store.getById('devis', doc.devisId)    || null;
+      if (doc.commandeId) cmdDoc   = Store.getById('commandes', doc.commandeId) || null;
+    } else if (docType === 'commande') {
+      cmdDoc   = doc;
+      if (doc.quoteId) devisDoc = Store.getById('devis', doc.quoteId) || null;
+      facDoc   = Store.getAll('factures').find(f => f.commandeId === doc.id) || null;
+    }
+
+    if (!devisDoc && !cmdDoc && !facDoc) return '';
+
+    /* Valeur de référence = total du devis ou commande ou facture */
+    const valRef    = (devisDoc?.totalTTC || cmdDoc?.totalTTC || facDoc?.totalTTC || 0);
+    const totalFac  = facDoc?.totalTTC || 0;
+    const totalPaye = _totalPaiements(facDoc?.paiements);
+    const reste     = Math.max(0, totalFac - totalPaye);
+    const pct       = valRef > 0 ? Math.min(100, Math.round((totalPaye / valRef) * 100)) : 0;
+    const pctFac    = valRef > 0 ? Math.min(100, Math.round((totalFac / valRef) * 100)) : 0;
+
+    const step = (ref, label, amount, color) => ref
+      ? `<div style="display:flex;align-items:center;gap:6px;">
+           <span style="font-size:11px;color:var(--text-muted);">${label}</span>
+           <span style="font-size:12px;font-family:var(--font-mono);font-weight:600;color:${color};">
+             ${_esc(ref)}
+           </span>
+           ${amount ? `<span style="font-size:11px;color:var(--text-muted);">${_fmt(amount)}</span>` : ''}
+         </div>`
+      : '';
+
+    return `
+      <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;
+        padding:12px 16px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;">
+
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;
+            letter-spacing:.05em;">Suivi bon de commande</span>
+          <span style="font-size:12px;font-family:var(--font-mono);color:var(--text-primary);font-weight:700;">
+            ${_fmt(valRef)} XPF
+          </span>
+          ${pct > 0 ? `<span style="font-size:11px;color:var(--accent-green);">✓ ${pct}% réglé</span>` : ''}
+        </div>
+
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          ${step(devisDoc?.ref, '📄 Devis', devisDoc?.totalTTC, 'var(--text-primary)')}
+          ${devisDoc && (cmdDoc || facDoc) ? '<span style="color:var(--text-muted);">›</span>' : ''}
+          ${step(cmdDoc?.reference || cmdDoc?.ref, '📦 Commande', cmdDoc?.totalTTC, 'var(--accent-blue)')}
+          ${cmdDoc && facDoc ? '<span style="color:var(--text-muted);">›</span>' : ''}
+          ${!cmdDoc && devisDoc && facDoc ? '<span style="color:var(--text-muted);">›</span>' : ''}
+          ${step(facDoc?.ref, '🧾 Facture', facDoc?.totalTTC, 'var(--accent-green)')}
+        </div>
+
+        ${totalFac > 0 ? `
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;height:6px;background:var(--bg-card);border-radius:3px;overflow:hidden;position:relative;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:${pctFac}%;background:var(--accent-blue);border-radius:3px;"></div>
+            <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:var(--accent-green);border-radius:3px;transition:width .4s;"></div>
+          </div>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">
+            Payé : <strong style="color:var(--accent-green);">${_fmt(totalPaye)}</strong>
+            ${reste > 0 ? ` · Reste : <strong style="color:var(--accent-red);">${_fmt(reste)}</strong>` : ''}
+          </span>
+        </div>` : ''}
+
+      </div>`;
   }
 
   /* ----------------------------------------------------------------
@@ -723,7 +976,18 @@ const Sales = (() => {
           }
         },
         { key: 'totalTTC', label: 'Total TTC',  render: (v) => `<span class="mono">${_fmt(v)}</span>` },
-        { key: 'statut',   label: 'Statut',     type: 'badge', badgeMap: BADGE_DEVIS }
+        { key: 'statut',   label: 'Statut',     type: 'badge', badgeMap: BADGE_DEVIS },
+        { type: 'actions', width: '60px', actions: [
+            { label: '🗑', className: 'btn btn-ghost btn-sm', onClick: (row) => {
+                showConfirm(`Supprimer le devis ${row.ref || row.id} ?`, () => {
+                  Store.remove('devis', row.id);
+                  toast('Devis supprimé.', 'success');
+                  _goList('quotes', toolbar, area);
+                });
+              }
+            }
+          ]
+        }
       ],
       onRowClick: (item) => _goForm('quotes', item.id, toolbar, area),
       emptyMsg:   'Aucun devis. Cliquez sur "+ Nouveau Devis" pour commencer.'
@@ -748,7 +1012,7 @@ const Sales = (() => {
     /* Toolbar : retour + boutons d'actions */
     toolbar.innerHTML = `
       <button class="btn btn-ghost btn-sm" id="btn-back">← Retour</button>
-      ${_quoteActionBtns(statut, isNew)}`;
+      ${_quoteActionBtns(statut, isNew, doc)}`;
 
     document.getElementById('btn-back')
       ?.addEventListener('click', () => _goList('quotes', toolbar, area));
@@ -771,6 +1035,7 @@ const Sales = (() => {
 
     area.innerHTML = `
       ${_renderFormHeader(ref, statut, BADGE_DEVIS, reglChip)}
+      ${isNew ? '' : _renderSuiviBDC(doc, 'devis')}
 
       <!-- Informations générales -->
       <div class="form-section">
@@ -982,31 +1247,24 @@ const Sales = (() => {
     });
   }
 
-  /** Crée une facture partielle pour le montant restant */
+  /** Crée une facture (Brouillon) reprenant toutes les lignes du devis */
   function _createPartialInvoice(devis, reste, area) {
-    const ref = _genRef('FAC', 'factures');
-    const ligne = {
-      id:            'l-' + Date.now(),
-      produit:       `Acompte sur devis ${devis.ref}`,
-      qte:           1,
-      prixUnitaire:  Math.round(reste / 1.13),  // montant HT depuis TTC
-      remise:        0
-    };
-    const totaux = _calcTotaux([ligne]);
+    const ref    = _genRef('FAC', 'factures');
+    const totaux = _calcTotaux(devis.lignes);
     Store.create('factures', {
       ref,
-      _type:         'Facture',
-      contactId:     devis.contactId,
-      client:        devis.client,
-      date:          new Date().toISOString().slice(0, 10),
-      statut:        'Brouillon',
-      devisId:       devis.id,
-      lignes:        [ligne],
-      paiements:     [],
+      _type:        'Facture',
+      contactId:    devis.contactId,
+      client:       devis.client,
+      date:         new Date().toISOString().slice(0, 10),
+      statut:       'Brouillon',
+      devisId:      devis.id,
+      lignes:       devis.lignes,
+      paiements:    [],
       ...totaux,
-      notes:         `Facture partielle — solde restant sur ${devis.ref}`
+      notes:        `Facture — ${devis.ref} — Reste à régler : ${_fmt(reste)}`
     });
-    toast(`📄 Facture partielle ${ref} créée (${_fmt(reste)}).`, 'success');
+    toast(`📄 Facture ${ref} créée depuis ${devis.ref} (reste : ${_fmt(reste)}).`, 'success');
   }
 
   /**
@@ -1027,61 +1285,147 @@ const Sales = (() => {
       type:    'Paiement'
     }));
 
-    let lignesFac, totauxFac, facStatut, typeLabel;
+    /* Toujours reprendre les lignes complètes du devis.
+       Le paiement partiel est tracké via paiements[] — reste = totalTTC - Σpaiements */
+    const lignesFac = devis.lignes;
+    const totauxFac = totauxDevis;
+    const facStatut = isTotal ? 'Payé' : 'Payé partiel';
+    const typeLabel = isTotal ? 'totale' : 'partielle';
 
-    if (isTotal) {
-      /* Facture totale : reprend toutes les lignes du devis */
-      lignesFac  = devis.lignes;
-      totauxFac  = totauxDevis;
-      facStatut  = 'Payé';
-      typeLabel  = 'totale';
-    } else {
-      /* Facture partielle : montant HT calculé depuis TTC (TVA produits 16%) */
-      const htAcompte = Math.round(totalRegle / 1.16);
-      const ligne = {
-        id:           `l-${Date.now()}`,
-        produit:      `Acompte sur devis ${devis.ref}`,
-        qte:          1,
-        prixUnitaire: htAcompte,
-        remise:       0
-      };
-      lignesFac = [ligne];
-      totauxFac = _calcTotaux(lignesFac);
-      facStatut = 'Payé partiel';
-      typeLabel = 'partielle';
-    }
-
+    const today   = new Date().toISOString().slice(0, 10);
     const facData = {
-      _type:     'Facture',
-      contactId: devis.contactId,
-      client:    devis.client,
-      date:      new Date().toISOString().slice(0, 10),
-      statut:    facStatut,
-      devisId:   devis.id,
-      lignes:    lignesFac,
-      paiements: facPaiements,
-      notes:     `Facture ${typeLabel} — ${devis.ref}${resteAPayer > 0.01 ? ` — Reste à payer : ${_fmt(resteAPayer)}` : ''}`,
-      ...totauxFac
+      _type:      'Facture',
+      contactId:  devis.contactId,
+      client:     devis.client,
+      client_nom: devis.client,      /* MySQL: colonne legacy */
+      client_id:  devis.contactId,   /* MySQL: colonne legacy */
+      date:       today,
+      statut:     facStatut,
+      devisId:    devis.id,
+      devis_id:   devis.id,          /* MySQL: colonne legacy */
+      lignes:     lignesFac,
+      paiements:  facPaiements,
+      notes:      `Facture ${typeLabel} — ${devis.ref}${resteAPayer > 0.01 ? ` — Reste à payer : ${_fmt(resteAPayer)}` : ''}`,
+      ...totauxFac,
+      total_ht:   totauxFac.totalHT,  /* MySQL: colonne legacy */
+      total_ttc:  totauxFac.totalTTC, /* MySQL: colonne legacy */
+      total_tva:  totauxFac.totalTVA, /* MySQL: colonne legacy */
     };
 
     /* Cherche une facture déjà liée à ce devis */
     const existante = Store.getAll('factures').find(f => f.devisId === devis.id);
+    let facRef;
 
     if (existante) {
       /* Mise à jour de la facture existante */
+      facRef = existante.ref;
       Store.update('factures', existante.id, facData);
-      toast(`📄 Facture ${existante.ref} mise à jour (${typeLabel}, ${_fmt(totalRegle)} réglé).`, 'info');
+      toast(`📄 Facture ${facRef} mise à jour (${typeLabel}, ${_fmt(totalRegle)} réglé).`, 'info');
     } else {
       /* Création d'une nouvelle facture */
-      const facRef = _genRef('FAC', 'factures');
+      facRef = _genRef('FAC', 'factures');
       Store.create('factures', { ref: facRef, ...facData });
       toast(`📄 Facture ${facRef} créée (${typeLabel}, ${_fmt(totalRegle)} réglé).`, 'success');
     }
+
+    /* ----------------------------------------------------------------
+       ÉCRITURES COMPTABLES AUTOMATIQUES
+       Supprimer les écritures précédentes de cette pièce, puis recréer
+       ---------------------------------------------------------------- */
+    const now = new Date().toISOString();
+
+    /* Nettoyer les anciennes écritures automatiques pour cette pièce */
+    Store.getAll('ecritures')
+      .filter(e => e.pieceRef === facRef && e.type === 'vente')
+      .forEach(e => Store.remove('ecritures', e.id));
+
+    /* 1 — Constatation de la vente : Débit Clients / Crédit Ventes + TVA */
+    const totalHT  = totauxFac.totalHT  || 0;
+    const totalTVA = (totauxFac.totalTTC || 0) - totalHT;
+    const totalTTC = totauxFac.totalTTC  || 0;
+
+    Store.create('ecritures', {
+      date: today, createdAt: now,
+      compte:   '411000',
+      journal:  'Ventes',
+      libelle:  `Vente — ${devis.client} / ${facRef}`,
+      debit:    Math.round(totalTTC),
+      credit:   0,
+      pieceRef: facRef,
+      type:     'vente'
+    });
+    Store.create('ecritures', {
+      date: today, createdAt: now,
+      compte:   '700000',
+      journal:  'Ventes',
+      libelle:  `CA — ${devis.client} / ${facRef}`,
+      debit:    0,
+      credit:   Math.round(totalHT),
+      pieceRef: facRef,
+      type:     'vente'
+    });
+    if (totalTVA > 0) {
+      Store.create('ecritures', {
+        date: today, createdAt: now,
+        compte:   '445700',
+        journal:  'Ventes',
+        libelle:  `TVA collectée — ${facRef}`,
+        debit:    0,
+        credit:   Math.round(totalTVA),
+        pieceRef: facRef,
+        type:     'vente'
+      });
+    }
+
+    /* 2 — Règlements reçus : Débit Trésorerie / Crédit Clients */
+    const COMPTE_TRESORERIE = {
+      'Espèces':   '530000', // Caisse
+      'Chèque':    '512000',
+      'Virement':  '512000',
+      'CB':        '512000',
+      'Carte':     '512000',
+      'Mobile':    '512000',
+      'Mixte':     '512000'
+    };
+
+    facPaiements.forEach(p => {
+      const compteTresor = COMPTE_TRESORERIE[p.methode] || '512000';
+      const libTresor    = compteTresor === '530000' ? 'Caisse' : 'Banque';
+
+      /* Débit trésorerie */
+      Store.create('ecritures', {
+        date: today, createdAt: now,
+        compte:   compteTresor,
+        journal:  'Trésorerie',
+        libelle:  `${libTresor} — ${p.methode} / ${facRef}`,
+        debit:    Math.round(p.montant || 0),
+        credit:   0,
+        pieceRef: facRef,
+        type:     'vente'
+      });
+      /* Crédit 411 Clients */
+      Store.create('ecritures', {
+        date: today, createdAt: now,
+        compte:   '411000',
+        journal:  'Trésorerie',
+        libelle:  `Règlement ${devis.client} — ${facRef}`,
+        debit:    0,
+        credit:   Math.round(p.montant || 0),
+        pieceRef: facRef,
+        type:     'vente'
+      });
+    });
   }
 
-  function _quoteActionBtns(statut, isNew) {
+  function _quoteActionBtns(statut, isNew, doc = null) {
     if (isNew) return '';
+
+    /* Vérifie si une facture ou commande est déjà liée à ce devis */
+    const factureLiee  = doc ? Store.getAll('factures').find(f => f.devisId === doc.id) : null;
+    const commandeLiee = doc ? Store.getAll('commandes').find(c => c.quoteId === doc.id) : null;
+
     const btns = [];
+    btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="apercu" title="Aperçu du document devis">📄 Aperçu</button>`);
     if (statut === 'Brouillon') {
       btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="envoyer">📤 Envoyer</button>`);
     }
@@ -1089,13 +1433,26 @@ const Sales = (() => {
       btns.push(`<button class="btn btn-success btn-sm" data-q-action="confirmer">✔ Confirmer</button>`);
       btns.push(`<button class="btn btn-danger btn-sm"  data-q-action="annuler">✕ Annuler</button>`);
     }
-    /* Conversion facture disponible dès "Envoyé" (client valide) ou "Confirmé" */
     if (['Envoyé', 'Confirmé'].includes(statut)) {
-      btns.push(`<button class="btn btn-success btn-sm" data-q-action="facturer" title="Le client valide — convertir en facture">🧾 → Facture</button>`);
+      if (factureLiee) {
+        /* Facture déjà créée → lien direct, bouton désactivé */
+        btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="voir-facture" data-linked-id="${factureLiee.id}"
+          title="Ouvrir la facture liée ${factureLiee.ref}" style="color:var(--accent-green);">
+          🧾 ${_esc(factureLiee.ref)} ↗</button>`);
+      } else {
+        btns.push(`<button class="btn btn-success btn-sm" data-q-action="facturer" title="Convertir en facture">🧾 → Facture</button>`);
+      }
     }
     if (statut === 'Confirmé') {
-      btns.push(`<button class="btn btn-primary btn-sm" data-q-action="convertir">📦 → Commande</button>`);
+      if (commandeLiee) {
+        btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="voir-commande" data-linked-id="${commandeLiee.id}"
+          title="Ouvrir la commande liée ${commandeLiee.reference || commandeLiee.ref}" style="color:var(--accent-blue);">
+          📦 ${_esc(commandeLiee.reference || commandeLiee.ref)} ↗</button>`);
+      } else {
+        btns.push(`<button class="btn btn-primary btn-sm" data-q-action="convertir">📦 → Commande</button>`);
+      }
     }
+    btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="supprimer" style="color:var(--accent-red);margin-left:8px;" title="Supprimer ce devis">🗑 Supprimer</button>`);
     return btns.join('');
   }
 
@@ -1103,16 +1460,47 @@ const Sales = (() => {
     /* Création rapide client depuis la liste déroulante */
     _bindClientSelectCreation('q-client');
 
+    /* Re-peupler le select client après sync MySQL (contacts chargés async) */
+    (async () => {
+      await new Promise(r => setTimeout(r, 500));
+      const sel = document.getElementById('q-client');
+      if (!sel) return;
+      const currentVal = sel.value;
+      const contacts = Store.getAll('contacts');
+      if (contacts.length + 2 > sel.options.length) {
+        while (sel.options.length > 2) sel.remove(2);
+        contacts.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.text  = _esc(c.nom);
+          opt.selected = c.id === currentVal || c.id === doc?.contactId;
+          sel.appendChild(opt);
+        });
+      }
+    })();
+
     /* Remise client spéciale : appliquée dès la sélection */
     document.getElementById('q-client')?.addEventListener('change', () => {
       _applyRemiseClient('q-client');
     });
 
-    /* Sauvegarder */
-    document.getElementById('q-save')?.addEventListener('click', () => {
+    /* Sauvegarder — guard anti double-clic */
+    document.getElementById('q-save')?.addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = '…';
+      setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = '✔ Sauvegarder'; } }, 3000);
+
       const contactId = document.getElementById('q-client')?.value;
-      if (!contactId || contactId === '__new__') { toast('Veuillez sélectionner un client.', 'error'); return; }
-      if (_state.lignes.length === 0) { toast('Ajoutez au moins un article.', 'error'); return; }
+      if (!contactId || contactId === '__new__') {
+        btn.disabled = false; btn.textContent = '✔ Sauvegarder';
+        toast('Veuillez sélectionner un client.', 'error'); return;
+      }
+      if (_state.lignes.length === 0) {
+        btn.disabled = false; btn.textContent = '✔ Sauvegarder';
+        toast('Ajoutez au moins un article.', 'error'); return;
+      }
 
       /* Collecter les montants saisis dans le DOM (évite désync) */
       area.querySelectorAll('.reg-montant').forEach(inp => {
@@ -1139,21 +1527,34 @@ const Sales = (() => {
         ? 'Confirmé'
         : (doc?.statut || 'Brouillon');
 
+      const clientNom = _contactNom(contactId);
+      const dateExp   = document.getElementById('q-validite')?.value || '';
       const record = {
         ref,
-        _type:          'Devis',
+        _type:           'Devis',
         contactId,
-        client:         _contactNom(contactId),
-        date:           document.getElementById('q-date')?.value    || '',
-        dateExpiration: document.getElementById('q-validite')?.value || '',
+        client:          clientNom,
+        client_nom:      clientNom,      /* MySQL: colonne legacy */
+        client_id:       contactId,      /* MySQL: colonne legacy */
+        date:            document.getElementById('q-date')?.value || '',
+        dateExpiration:  dateExp,
+        date_expiration: dateExp,        /* MySQL: colonne legacy */
+        date_validite:   dateExp,        /* MySQL: colonne legacy */
         modeReglement,
+        mode_reglement:  modeReglement,  /* MySQL: colonne legacy */
         paiementsDevis,
+        paiements_devis: paiementsDevis, /* MySQL: colonne legacy */
         totalRegle,
+        total_regle:     totalRegle,     /* MySQL: colonne legacy */
         resteAPayer,
-        notes:          document.getElementById('q-notes')?.value   || '',
-        statut:         statutFinal,
-        lignes:         _state.lignes,
-        ...totaux
+        reste_a_payer:   resteAPayer,    /* MySQL: colonne legacy */
+        notes:           document.getElementById('q-notes')?.value || '',
+        statut:          statutFinal,
+        lignes:          _state.lignes,
+        ...totaux,
+        total_ht:        totaux.totalHT,  /* MySQL: colonne legacy */
+        total_ttc:       totaux.totalTTC, /* MySQL: colonne legacy */
+        total_tva:       totaux.totalTVA, /* MySQL: colonne legacy */
       };
 
       /* 1 — Sauvegarder le devis */
@@ -1161,6 +1562,7 @@ const Sales = (() => {
       if (isNew) {
         savedDevis = Store.create('devis', record);
         toast('Devis créé.', 'success');
+        _createDropboxFolder(record.client);
       } else {
         Store.update('devis', doc.id, record);
         savedDevis = { ...record, id: doc.id };
@@ -1183,6 +1585,11 @@ const Sales = (() => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.qAction;
 
+        if (action === 'apercu') {
+          _previewDevis(doc, toolbar, area);
+          return;
+        }
+
         if (action === 'convertir') {
           _convertQuoteToOrder(doc, toolbar, area);
           return;
@@ -1190,6 +1597,27 @@ const Sales = (() => {
 
         if (action === 'facturer') {
           _createInvoiceFromQuote(doc, toolbar, area);
+          return;
+        }
+
+        if (action === 'voir-facture') {
+          const facId = btn.dataset.linkedId;
+          if (facId) { _goForm('invoices', facId, toolbar, area); }
+          return;
+        }
+
+        if (action === 'voir-commande') {
+          const cmdId = btn.dataset.linkedId;
+          if (cmdId) { _goForm('orders', cmdId, toolbar, area); }
+          return;
+        }
+
+        if (action === 'supprimer') {
+          showConfirm(`Supprimer le devis ${doc.ref} ? Cette action est irréversible.`, () => {
+            Store.remove('devis', doc.id);
+            toast(`Devis ${doc.ref} supprimé.`, 'success');
+            _goList('quotes', toolbar, area);
+          });
           return;
         }
 
@@ -1203,6 +1631,450 @@ const Sales = (() => {
         }
       });
     });
+  }
+
+  /* ----------------------------------------------------------------
+     APERÇU DEVIS — document mis en forme + options impression / facture
+     ---------------------------------------------------------------- */
+
+  /**
+   * Ouvre une fenêtre d'aperçu du devis avec mise en forme professionnelle.
+   * Propose d'imprimer le document et, si le statut le permet, de convertir en facture.
+   */
+  /* Paramètres de mise en forme des documents (stockés en localStorage) */
+  function _getDocParams() {
+    const defaults = {
+      entreprise:   'HCS — High Coffee Shirts',
+      slogan:       'Tenue · Sublimation · DTF · Broderie · Impression textile',
+      adresse:      'Tahiti, Polynésie française',
+      telephone:    '',
+      email:        'contact@highcoffeeshirts.com',
+      website:      'highcoffeeshirts.com',
+      logoUrl:      '',
+      accentColor:  '#4a5fff',
+      footerText:   'Merci de votre confiance — High Coffee Shirts',
+      conditions:   '',
+      gmailFrom:    'highcoffeeshirt@gmail.com'
+    };
+    try {
+      return { ...defaults, ...JSON.parse(localStorage.getItem('hcs_doc_params') || '{}') };
+    } catch { return defaults; }
+  }
+
+  function _previewDevis(devis, toolbar, area) {
+    const contact      = Store.getById('contacts', devis.contactId) || {};
+    const peutFacturer = ['Envoyé', 'Confirmé'].includes(devis.statut);
+    const p            = _getDocParams();
+
+    /* Calcul des totaux ligne par ligne pour affichage détaillé */
+    const lignesHtml = (devis.lignes || []).map(l => {
+      const brut   = (l.qte || 0) * (l.prixUnitaire || 0);
+      const remise = brut * ((l.remise || 0) / 100);
+      const ht     = brut - remise;
+      const taux   = (l.tauxTVA !== undefined ? l.tauxTVA : 16);
+      const tva    = Math.round(ht * taux / 100);
+      const ttc    = Math.round(ht + tva);
+      return `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">
+            ${_esc(l.produit || l.description || '—')}
+            ${l.description && l.produit ? `<br><span style="color:#6b7280;font-size:11px;">${_esc(l.description)}</span>` : ''}
+          </td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${l.qte || 0}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;font-family:monospace;">${_fmt(l.prixUnitaire || 0)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${l.remise ? l.remise + ' %' : '—'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px;color:#6b7280;">${taux} %</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;font-weight:600;font-family:monospace;">${_fmt(ttc)}</td>
+        </tr>`;
+    }).join('');
+
+    /* Ligne de règlements déjà enregistrés */
+    const reglHtml = (devis.paiementsDevis || []).filter(p => p.montant > 0).map(p =>
+      `<div style="display:flex;justify-content:space-between;font-size:12px;color:#374151;padding:3px 0;">
+        <span>${REG_ICONS[p.mode] || '💰'} ${_esc(p.mode)}</span>
+        <span style="font-family:monospace;font-weight:600;">${_fmt(p.montant)}</span>
+      </div>`
+    ).join('');
+
+    /* Statut badge couleurs */
+    const BADGE_COLORS = {
+      'Brouillon': { bg: '#f3f4f6', color: '#374151' },
+      'Envoyé':    { bg: '#dbeafe', color: '#1d4ed8' },
+      'Confirmé':  { bg: '#dcfce7', color: '#15803d' },
+      'Annulé':    { bg: '#fee2e2', color: '#dc2626' }
+    };
+    const badgeStyle = BADGE_COLORS[devis.statut] || BADGE_COLORS['Brouillon'];
+
+    const documentHtml = `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Devis ${_esc(devis.ref)}</title>
+        <style>
+          * { margin:0; padding:0; box-sizing:border-box; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; color:#111827; background:#fff; }
+          .page { max-width:800px; margin:0 auto; padding:40px 32px; }
+
+          /* En-tête société */
+          .header { display:flex; justify-content:space-between; align-items:flex-start;
+                    padding-bottom:24px; border-bottom:3px solid #4a5fff; margin-bottom:28px; }
+          .brand-name { font-size:22px; font-weight:800; color:#4a5fff; letter-spacing:-0.5px; }
+          .brand-sub  { font-size:11px; color:#6b7280; margin-top:2px; }
+          .brand-contact { text-align:right; font-size:11px; color:#6b7280; line-height:1.8; }
+
+          /* Bloc doc info */
+          .doc-meta { display:flex; justify-content:space-between; align-items:flex-start;
+                      margin-bottom:28px; }
+          .doc-title { font-size:26px; font-weight:800; color:#111827; }
+          .doc-ref   { font-size:13px; color:#6b7280; font-family:monospace; margin-top:4px; }
+          .doc-badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:11px;
+                       font-weight:700; background:${badgeStyle.bg}; color:${badgeStyle.color};
+                       margin-top:8px; }
+          .doc-dates { text-align:right; font-size:12px; color:#374151; line-height:2; }
+          .doc-dates strong { color:#111827; }
+
+          /* Bloc client */
+          .section-title { font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;
+                           letter-spacing:1px; margin-bottom:8px; }
+          .client-box { background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;
+                        padding:14px 18px; margin-bottom:28px; }
+          .client-name { font-size:15px; font-weight:700; color:#111827; margin-bottom:4px; }
+          .client-detail { font-size:12px; color:#6b7280; line-height:1.8; }
+
+          /* Tableau articles */
+          table { width:100%; border-collapse:collapse; margin-bottom:24px; }
+          thead th { background:#4a5fff; color:#fff; padding:10px 10px; text-align:left;
+                     font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+          thead th:not(:first-child) { text-align:center; }
+          thead th:last-child { text-align:right; }
+          tbody tr:last-child td { border-bottom:none; }
+
+          /* Totaux */
+          .totaux { display:flex; justify-content:flex-end; margin-bottom:24px; }
+          .totaux-box { width:280px; }
+          .totaux-row { display:flex; justify-content:space-between; padding:5px 0;
+                        font-size:13px; color:#374151; border-bottom:1px solid #f3f4f6; }
+          .totaux-row.ttc { font-size:16px; font-weight:800; color:#111827;
+                            border-top:2px solid #4a5fff; border-bottom:none;
+                            padding-top:10px; margin-top:4px; }
+          .mono { font-family:monospace; }
+
+          /* Règlements */
+          .regl-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;
+                      padding:12px 16px; margin-bottom:24px; }
+          .regl-title { font-size:11px; font-weight:700; color:#15803d; margin-bottom:8px; }
+
+          /* Notes */
+          .notes-box { background:#fffbeb; border:1px solid #fde68a; border-radius:8px;
+                       padding:12px 16px; margin-bottom:28px; font-size:12px; color:#374151;
+                       line-height:1.7; }
+
+          /* Footer doc */
+          .doc-footer { text-align:center; font-size:10px; color:#9ca3af;
+                        border-top:1px solid #e5e7eb; padding-top:16px; margin-top:8px; }
+
+          /* Boutons interface (masqués à l'impression) */
+          .ui-actions { display:flex; gap:10px; justify-content:flex-end;
+                        padding:16px 0 4px 0; margin-bottom:16px; }
+          .btn-print   { padding:9px 20px; background:#4a5fff; color:#fff; border:none;
+                         border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
+          .btn-facture { padding:9px 20px; background:#22c55e; color:#fff; border:none;
+                         border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
+          .btn-email   { padding:9px 20px; background:#f97316; color:#fff; border:none;
+                         border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
+          .btn-close   { padding:9px 16px; background:#f3f4f6; color:#374151; border:none;
+                         border-radius:8px; font-size:13px; cursor:pointer; }
+          .email-tip   { background:#fffbeb; border:1px solid #fde68a; border-radius:8px;
+                         padding:12px 16px; font-size:12px; color:#374151; margin-bottom:12px;
+                         display:none; line-height:1.7; }
+
+          @media print {
+            .ui-actions { display:none !important; }
+            body { padding:0; }
+            .page { padding:20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="page">
+
+          <!-- Boutons interface -->
+          <div class="email-tip" id="email-tip">
+            <strong>📧 Comment envoyer par email :</strong><br>
+            1. Clique sur <strong>🖨 Imprimer</strong> → dans la boîte d'impression, choisis <strong>"Enregistrer en PDF"</strong><br>
+            2. Reviens ici et clique <strong>📧 Composer l'email</strong> — ton client de messagerie s'ouvrira avec le devis pré-rempli<br>
+            3. Joint le PDF que tu viens de sauvegarder et envoie !
+          </div>
+          <div class="ui-actions">
+            <button class="btn-close" onclick="window.close()">✕ Fermer</button>
+            ${peutFacturer
+              ? `<button class="btn-facture" id="btn-doc-facturer">🧾 Convertir en Facture</button>`
+              : ''}
+            <button class="btn-email" id="btn-doc-email">📧 Envoyer par email</button>
+            <button class="btn-print" id="btn-doc-print">🖨 Imprimer / PDF</button>
+          </div>
+
+          <!-- En-tête société -->
+          <div class="header">
+            <div style="display:flex;align-items:center;gap:14px;">
+              ${p.logoUrl ? `<img src="${p.logoUrl}" style="height:52px;width:auto;object-fit:contain;" alt="logo">` : ''}
+              <div>
+                <div class="brand-name" style="color:${p.accentColor};">${_esc(p.entreprise)}</div>
+                <div class="brand-sub">${_esc(p.slogan)}</div>
+              </div>
+            </div>
+            <div class="brand-contact">
+              ${p.adresse ? _esc(p.adresse) + '<br>' : ''}
+              ${p.telephone ? '📞 ' + _esc(p.telephone) + '<br>' : ''}
+              ${p.email ? _esc(p.email) + '<br>' : ''}
+              ${p.website ? _esc(p.website) : ''}
+            </div>
+          </div>
+
+          <!-- Identité du document -->
+          <div class="doc-meta">
+            <div>
+              <div class="doc-title">DEVIS</div>
+              <div class="doc-ref">${_esc(devis.ref)}</div>
+              <div class="doc-badge">${_esc(devis.statut)}</div>
+            </div>
+            <div class="doc-dates">
+              <div>Date : <strong>${_fmtDate(devis.date)}</strong></div>
+              ${devis.dateExpiration
+                ? `<div>Validité : <strong>${_fmtDate(devis.dateExpiration)}</strong></div>`
+                : ''}
+            </div>
+          </div>
+
+          <!-- Client -->
+          <div class="section-title">Client</div>
+          <div class="client-box">
+            <div class="client-name">${_esc(devis.client || contact.nom || '—')}</div>
+            <div class="client-detail">
+              ${contact.email ? `📧 ${_esc(contact.email)}<br>` : ''}
+              ${contact.tel   ? `📞 ${_esc(contact.tel)}<br>`   : ''}
+              ${contact.type  ? `🏷 ${_esc(contact.type)}`      : ''}
+            </div>
+          </div>
+
+          <!-- Articles -->
+          <div class="section-title">Articles</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40%;">Désignation</th>
+                <th style="width:8%;">Qté</th>
+                <th style="width:14%;">PU HT</th>
+                <th style="width:10%;">Remise</th>
+                <th style="width:10%;">TVA</th>
+                <th style="width:18%;">Total TTC</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lignesHtml || '<tr><td colspan="6" style="padding:16px;text-align:center;color:#6b7280;">Aucun article</td></tr>'}
+            </tbody>
+          </table>
+
+          <!-- Totaux -->
+          <div class="totaux">
+            <div class="totaux-box">
+              <div class="totaux-row">
+                <span>Total HT</span>
+                <span class="mono">${_fmt(devis.totalHT || 0)}</span>
+              </div>
+              <div class="totaux-row">
+                <span>TVA</span>
+                <span class="mono">${_fmt(devis.totalTVA || 0)}</span>
+              </div>
+              <div class="totaux-row ttc">
+                <span>Total TTC</span>
+                <span class="mono">${_fmt(devis.totalTTC || 0)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Règlements enregistrés -->
+          ${reglHtml ? `
+          <div class="regl-box">
+            <div class="regl-title">✅ Règlements enregistrés</div>
+            ${reglHtml}
+            ${devis.resteAPayer > 0.01
+              ? `<div style="font-size:12px;color:#dc2626;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid #bbf7d0;">
+                  Reste à payer : ${_fmt(devis.resteAPayer)}
+                </div>`
+              : `<div style="font-size:12px;color:#15803d;font-weight:700;margin-top:8px;">✔ Entièrement réglé</div>`}
+          </div>` : ''}
+
+          <!-- Notes / Conditions -->
+          ${devis.notes ? `
+          <div class="section-title">Notes &amp; Conditions</div>
+          <div class="notes-box">${_esc(devis.notes).replace(/\n/g, '<br>')}</div>` : ''}
+
+          <!-- Fiche atelier (uniquement si au moins une ligne a une position) -->
+          ${(() => {
+            const lignesAvecPos = (devis.lignes || []).filter(l => l.positionAtelier);
+            if (!lignesAvecPos.length) return '';
+            return `
+              <div style="margin-top:24px;border-top:2px dashed #e5e7eb;padding-top:16px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;
+                  letter-spacing:1px;color:#6b7280;margin-bottom:10px;">📋 Fiche Atelier</div>
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="background:#f3f4f6;">
+                      <th style="padding:6px 10px;text-align:left;font-weight:700;color:#374151;">Article</th>
+                      <th style="padding:6px 10px;text-align:center;font-weight:700;color:#374151;">Qté</th>
+                      <th style="padding:6px 10px;text-align:left;font-weight:700;color:#374151;">Position atelier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${lignesAvecPos.map(l => `
+                      <tr style="border-bottom:1px solid #f3f4f6;">
+                        <td style="padding:7px 10px;">${_esc(l.produit || l.description || '—')}</td>
+                        <td style="padding:7px 10px;text-align:center;font-weight:600;">${l.qte || 1}</td>
+                        <td style="padding:7px 10px;">
+                          <span style="background:#eff6ff;color:#1d4ed8;border-radius:6px;
+                            padding:3px 10px;font-weight:600;">
+                            ${_esc(l.positionAtelier)}
+                          </span>
+                        </td>
+                      </tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>`;
+          })()}
+
+          <!-- Pied de page -->
+          <div class="doc-footer">
+            ${p.footerText ? _esc(p.footerText) + '<br>' : ''}
+            ${p.conditions ? '<em>' + _esc(p.conditions) + '</em><br>' : ''}
+            Document généré le ${new Date().toLocaleDateString('fr-FR')} — HCS ERP
+          </div>
+
+        </div>
+      </body>
+      </html>`;
+
+    /* Ouvrir dans une nouvelle fenêtre navigateur */
+    const win = window.open('', '_blank', 'width=860,height=750,scrollbars=yes,toolbar=no,menubar=no');
+    if (!win) {
+      toast('Le navigateur a bloqué l\'ouverture de la fenêtre. Autorisez les popups pour ce site.', 'warning');
+      return;
+    }
+    win.document.write(documentHtml);
+    win.document.close();
+
+    /* Bouton "Convertir en Facture" dans la nouvelle fenêtre */
+    if (peutFacturer) {
+      win.document.getElementById('btn-doc-facturer')?.addEventListener('click', () => {
+        win.close();
+        _createInvoiceFromQuote(devis, toolbar, area);
+      });
+    }
+
+    /* Bouton "Imprimer / PDF" — sauvegarde automatiquement dans Dropbox + ERP */
+    win.document.getElementById('btn-doc-print')?.addEventListener('click', async () => {
+      const filename = `${_safeFilename(devis.client)}_devis_${_safeFilename(devis.ref)}.html`;
+      const htmlContent = '<!DOCTYPE html>' + win.document.documentElement.outerHTML;
+      await _sauverDocDropbox(devis.client, filename, htmlContent, 'Devis');
+      win.print();
+    });
+
+    /* Bouton "Envoyer par email" — génère un mailto: avec le résumé du devis */
+    win.document.getElementById('btn-doc-email')?.addEventListener('click', () => {
+      /* Afficher le guide étape par étape */
+      const tip = win.document.getElementById('email-tip');
+      if (tip) tip.style.display = tip.style.display === 'block' ? 'none' : 'block';
+
+      /* Construire le corps de l'email */
+      const lignesTxt = (devis.lignes || []).map(l => {
+        const brut = (l.qte || 0) * (l.prixUnitaire || 0);
+        const ht   = brut * (1 - ((l.remise || 0) / 100));
+        const taux = (l.tauxTVA !== undefined ? l.tauxTVA : 16) / 100;
+        const ttc  = Math.round(ht * (1 + taux));
+        return `- ${l.produit || l.description || '?'} × ${l.qte || 0}  →  ${ttc.toLocaleString('fr-FR')} XPF`;
+      }).join('\n');
+
+      const corps = [
+        `Bonjour,`,
+        ``,
+        `Veuillez trouver ci-joint le devis ${devis.ref} établi à votre attention.`,
+        ``,
+        `─── Récapitulatif ───`,
+        `Référence : ${devis.ref}`,
+        `Date      : ${devis.date || ''}`,
+        devis.dateExpiration ? `Validité  : ${devis.dateExpiration}` : '',
+        ``,
+        `Articles :`,
+        lignesTxt,
+        ``,
+        `Total HT  : ${(devis.totalHT || 0).toLocaleString('fr-FR')} XPF`,
+        `TVA       : ${(devis.totalTVA || 0).toLocaleString('fr-FR')} XPF`,
+        `Total TTC : ${(devis.totalTTC || 0).toLocaleString('fr-FR')} XPF`,
+        ``,
+        devis.notes ? `Conditions : ${devis.notes}` : '',
+        ``,
+        `Pour toute question, n'hésitez pas à nous contacter.`,
+        ``,
+        `Cordialement,`,
+        _getDocParams().entreprise,
+        _getDocParams().email
+      ].filter(l => l !== '').join('\n');
+
+      const pDoc  = _getDocParams();
+      const email = (contact.email || '').trim();
+      const sujet = encodeURIComponent(`Devis ${devis.ref} — ${pDoc.entreprise}`);
+      const body  = encodeURIComponent(corps);
+
+      /* Ouvre directement Gmail Compose (boîte highcoffeeshirt@gmail.com) */
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&from=${encodeURIComponent(pDoc.gmailFrom)}&to=${encodeURIComponent(email)}&su=${sujet}&body=${body}`;
+      win.open(gmailUrl, '_blank');
+    });
+  }
+
+  /** Détecte le type de production depuis les lignes du devis */
+  function _detectTypeProduction(lignes) {
+    const txt = (lignes || []).map(l => `${l.produit || ''} ${l.description || ''}`).join(' ').toLowerCase();
+    if (/vinyl|vinyle|plotter/i.test(txt))    return 'vinyle';
+    if (/dtf|transfert/i.test(txt))           return 'dtf';
+    if (/broderie|broder/i.test(txt))         return 'broderie';
+    if (/casquette|cap/i.test(txt))           return 'casquette';
+    if (/sublim/i.test(txt))                  return 'sublimation';
+    return 'dtf';
+  }
+
+  /** Synchronise une commande ERP → carte Planning dashboard (hcs_planning) */
+  function _pushPlanningCard(devis, cmdRef) {
+    try {
+      const planning = JSON.parse(localStorage.getItem('hcs_planning') || '[]');
+      /* Évite les doublons si la carte existe déjà */
+      if (planning.some(c => c.ref === devis.ref)) return;
+
+      const totalQte = (devis.lignes || []).reduce((s, l) => s + (l.qte || 1), 0);
+      const desc = (devis.lignes || [])
+        .map(l => `${l.qte || 1}× ${l.produit || l.description || '—'}`)
+        .join(' + ');
+
+      planning.push({
+        id:        'erp-' + Date.now(),
+        client:    devis.client || '',
+        ref:       devis.ref,
+        cmdRef:    cmdRef,
+        canal:     'ERP',
+        desc:      desc,
+        type:      _detectTypeProduction(devis.lignes),
+        machine:   '',
+        qty:       totalQte,
+        deadline:  devis.dateLivraison
+          ? new Date(devis.dateLivraison).toISOString()
+          : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+        priority:  'normal',
+        notes:     devis.notes || '',
+        col:       'attente',
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('hcs_planning', JSON.stringify(planning));
+    } catch (e) { /* silencieux */ }
   }
 
   function _convertQuoteToOrder(devis, toolbar, area) {
@@ -1226,7 +2098,8 @@ const Sales = (() => {
           notes:        devis.notes || ''
         });
         Store.update('devis', devis.id, { statut: 'Confirmé' });
-        toast(`✔ Commande ${ref} créée depuis ${devis.ref}.`, 'success');
+        _pushPlanningCard(devis, ref);
+        toast(`✔ Commande ${ref} créée + carte ajoutée au planning.`, 'success');
         _goList('quotes', toolbar, area);
       }
     );
@@ -1267,15 +2140,12 @@ const Sales = (() => {
         let totalTTC = devis.totalTTC;
 
         if (isAcompte && data.montantAcompte) {
-          const montant = parseFloat(data.montantAcompte) || 0;
-          /* Ligne unique acompte — HT depuis TTC (TVA 16% produits) */
-          lignes = [{
-            produitId:    '',
-            description:  `Acompte sur devis ${_esc(devis.ref)}`,
-            qte:          1,
-            prixUnitaire: Math.round(montant / 1.16),
-            remise:       0
-          }];
+          const montantAc = parseFloat(data.montantAcompte) || 0;
+          const ratio = devis.totalTTC > 0 ? montantAc / devis.totalTTC : 1;
+          lignes = devis.lignes.map(l => ({
+            ...l,
+            prixUnitaire: Math.round((l.prixUnitaire || 0) * ratio)
+          }));
           const t = _calcTotaux(lignes);
           totalHT  = t.totalHT;
           totalTVA = t.totalTVA;
@@ -1613,17 +2483,6 @@ const Sales = (() => {
           const next = btn.dataset.next;
           showConfirm(`Passer la commande en "${next}" ?`, () => {
             Store.update('commandes', doc.id, { statut: next });
-
-            /* Réservation stock automatique à la confirmation */
-            if (next === 'Confirmé') {
-              _reserverStockCommande(doc);
-            }
-
-            /* Mise à jour facture liée lors de la livraison */
-            if (next === 'Livré') {
-              _mettreAJourFactureLivraison(doc);
-            }
-
             toast(`Commande : ${next}`, 'success');
             _goList('orders', toolbar, area);
           });
@@ -1776,7 +2635,18 @@ const Sales = (() => {
             return `<span class="mono" style="color:${color};font-weight:600;">${_fmt(v)}</span>`;
           }
         },
-        { key: 'statut',   label: 'Statut', type: 'badge', badgeMap: BADGE_FAC }
+        { key: 'statut',   label: 'Statut', type: 'badge', badgeMap: BADGE_FAC },
+        { type: 'actions', width: '60px', actions: [
+            { label: '🗑', className: 'btn btn-ghost btn-sm', title: 'Annuler', onClick: (row) => {
+                showConfirm(`Annuler la facture ${row.ref || row.id} ? (statut → Annulé, non supprimée)`, () => {
+                  Store.update('factures', row.id, { statut: 'Annulé' });
+                  toast(`Facture ${row.ref} annulée.`, 'success');
+                  _goList('invoices', toolbar, area);
+                });
+              }
+            }
+          ]
+        }
       ],
       onRowClick: (item) => _goForm('invoices', item.id, toolbar, area),
       emptyMsg:   'Aucune facture.'
@@ -1800,9 +2670,21 @@ const Sales = (() => {
     const statut = doc?.statut || 'Brouillon';
     const chips  = doc?.commandeId ? `<span class="chip">📦 ${_esc(doc.commandeId)}</span>` : '';
 
+    /* Lien vers le devis d'origine si la facture est liée */
+    const devisLie = doc?.devisId ? Store.getById('devis', doc.devisId) : null;
+    const btnDevisLie = devisLie
+      ? `<button class="btn btn-ghost btn-sm" id="btn-voir-devis"
+          title="Ouvrir le devis ${devisLie.ref}" style="color:var(--accent-blue);">
+          📄 ${_esc(devisLie.ref)} ↗</button>`
+      : '';
+
     toolbar.innerHTML = `
       <button class="btn btn-ghost btn-sm" id="btn-back">← Retour</button>
+      ${btnDevisLie}
       ${_invoiceActionBtns(statut, isNew)}`;
+
+    document.getElementById('btn-voir-devis')
+      ?.addEventListener('click', () => _goForm('quotes', devisLie.id, toolbar, area));
 
     document.getElementById('btn-back')
       ?.addEventListener('click', () => _goList('invoices', toolbar, area));
@@ -1813,6 +2695,7 @@ const Sales = (() => {
 
     area.innerHTML = `
       ${_renderFormHeader(ref, statut, BADGE_FAC, chips)}
+      ${isNew ? '' : _renderSuiviBDC(doc, 'facture')}
 
       <div class="form-section">
         <div class="form-section-title">Informations générales</div>
@@ -1872,6 +2755,7 @@ const Sales = (() => {
   function _invoiceActionBtns(statut, isNew) {
     if (isNew) return '';
     const btns = [];
+    btns.push(`<button class="btn btn-ghost btn-sm" data-i-action="apercu" title="Aperçu + Dropbox">📄 Aperçu</button>`);
     if (statut === 'Brouillon') {
       btns.push(`<button class="btn btn-ghost btn-sm" data-i-action="envoyer">📤 Envoyer</button>`);
     }
@@ -1879,6 +2763,127 @@ const Sales = (() => {
       btns.push(`<span class="badge badge-red" style="align-self:center;">⏰ En retard</span>`);
     }
     return btns.join('');
+  }
+
+  function _previewFacture(facture) {
+    const contact  = Store.getById('contacts', facture.contactId) || {};
+    const paiements = (facture.paiements || []).filter(p => (p.montant || 0) > 0);
+    const totalPaye = _totalPaiements(paiements);
+    const reste     = Math.max(0, (facture.totalTTC || 0) - totalPaye);
+    const estReglee = reste <= 0;
+    const typeDoc   = estReglee ? 'Facture réglée' : 'Facture partielle';
+
+    const lignesHtml = (facture.lignes || []).map(l => {
+      const brut   = (l.qte || 0) * (l.prixUnitaire || 0);
+      const remise = brut * ((l.remise || 0) / 100);
+      const ht     = brut - remise;
+      const taux   = (l.tauxTVA !== undefined ? l.tauxTVA : 16);
+      const tva    = Math.round(ht * taux / 100);
+      const ttc    = Math.round(ht + tva);
+      return `<tr>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${_esc(l.produit || l.description || '—')}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${l.qte || 0}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;font-family:monospace;">${_fmt(l.prixUnitaire || 0)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${l.remise ? l.remise + ' %' : '—'}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;font-weight:600;font-family:monospace;">${_fmt(ttc)}</td>
+      </tr>`;
+    }).join('');
+
+    const paiHtml = paiements.length
+      ? paiements.map(p => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;">
+          <span>${REG_ICONS[p.mode] || '💰'} ${_esc(p.mode)}</span>
+          <span style="font-family:monospace;font-weight:600;">${_fmt(p.montant)}</span>
+        </div>`).join('')
+      : '<div style="color:#9ca3af;font-size:12px;">Aucun paiement enregistré</div>';
+
+    const docHtml = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+      <title>Facture ${_esc(facture.ref)}</title>
+      <style>
+        body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#f9fafb;color:#111827;}
+        .page{max-width:760px;margin:0 auto;background:#fff;padding:40px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+        .ui-actions{display:flex;gap:10px;justify-content:flex-end;padding:0 0 16px;}
+        .btn-print{padding:9px 20px;background:#4a5fff;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+        .btn-close{padding:9px 20px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+        .brand-name{font-size:22px;font-weight:800;color:#111827;}
+        .brand-sub{font-size:11px;color:#6b7280;margin-top:2px;}
+        .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #e5e7eb;}
+        .doc-title{font-size:28px;font-weight:800;color:#4a5fff;}
+        .doc-ref{font-size:15px;font-weight:600;color:#374151;margin:4px 0;}
+        .doc-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;
+          background:${estReglee?'#dcfce7':'#fef9c3'};color:${estReglee?'#15803d':'#854d0e'};}
+        .doc-meta{display:flex;justify-content:space-between;margin-bottom:24px;}
+        .section-title{font-size:11px;font-weight:700;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;margin:20px 0 8px;}
+        .client-name{font-size:16px;font-weight:700;color:#111827;}
+        .client-box{background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:24px;}
+        table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+        th{background:#f3f4f6;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:#6b7280;}
+        .totals-box{background:#f9fafb;border-radius:8px;padding:16px;margin-top:16px;}
+        .total-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#374151;}
+        .total-final{font-size:16px;font-weight:800;border-top:2px solid #e5e7eb;padding-top:8px;margin-top:8px;}
+        .reste-box{margin-top:12px;padding:10px 16px;border-radius:8px;font-weight:700;font-size:14px;
+          background:${estReglee?'#dcfce7':'#fff7ed'};color:${estReglee?'#15803d':'#c2410c'};}
+        .paiements-box{background:#f0fdf4;border-radius:8px;padding:12px 16px;margin-top:12px;}
+        @media print{.ui-actions{display:none!important;}body{padding:0;}}.page{box-shadow:none;}
+      </style></head><body><div class="page">
+      <div class="ui-actions">
+        <button class="btn-close" onclick="window.close()">✕ Fermer</button>
+        <button class="btn-print" id="btn-fac-print">🖨 Imprimer / PDF</button>
+      </div>
+      <div class="header">
+        <div><div class="brand-name">HCS — High Coffee Shirts</div>
+          <div class="brand-sub">Tenue · Sublimation · DTF · Broderie · Impression textile</div></div>
+        <div style="text-align:right;font-size:12px;color:#6b7280;">Tahiti, Polynésie française<br>contact@highcoffeeshirts.com</div>
+      </div>
+      <div class="doc-meta">
+        <div><div class="doc-title">FACTURE</div>
+          <div class="doc-ref">${_esc(facture.ref)}</div>
+          <div class="doc-badge">${typeDoc}</div></div>
+        <div style="text-align:right;font-size:13px;color:#374151;">
+          <div>Date : <strong>${_fmtDate(facture.date)}</strong></div>
+          ${facture.dateEcheance ? `<div>Échéance : <strong>${_fmtDate(facture.dateEcheance)}</strong></div>` : ''}
+        </div>
+      </div>
+      <div class="section-title">Client</div>
+      <div class="client-box">
+        <div class="client-name">${_esc(facture.client || contact.nom || '—')}</div>
+        ${contact.email ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">📧 ${_esc(contact.email)}</div>` : ''}
+        ${contact.telephone ? `<div style="font-size:12px;color:#6b7280;">📞 ${_esc(contact.telephone)}</div>` : ''}
+      </div>
+      <div class="section-title">Articles</div>
+      <table><thead><tr>
+        <th>Article</th><th style="text-align:center;">Qté</th>
+        <th style="text-align:right;">P.U.</th><th style="text-align:center;">Remise</th>
+        <th style="text-align:right;">TTC</th>
+      </tr></thead><tbody>${lignesHtml}</tbody></table>
+      <div class="totals-box">
+        <div class="total-row"><span>Total HT</span><span style="font-family:monospace;">${_fmt(facture.totalHT || 0)}</span></div>
+        <div class="total-row"><span>TVA</span><span style="font-family:monospace;">${_fmt(facture.totalTVA || 0)}</span></div>
+        <div class="total-row total-final"><span>Total TTC</span><span style="font-family:monospace;">${_fmt(facture.totalTTC || 0)}</span></div>
+      </div>
+      <div class="section-title">Paiements</div>
+      <div class="paiements-box">${paiHtml}
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#374151;padding:6px 0 0;border-top:1px solid #d1fae5;margin-top:8px;">
+          <span>Total encaissé</span><span style="font-family:monospace;font-weight:700;">${_fmt(totalPaye)}</span>
+        </div>
+      </div>
+      <div class="reste-box">${estReglee ? '✅ Facture entièrement réglée' : `⚠️ Reste à payer : ${_fmt(reste)}`}</div>
+      <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:24px;">
+        Document généré le ${new Date().toLocaleDateString('fr-FR')} — HCS ERP
+      </div>
+    </div></body></html>`;
+
+    const win = window.open('', '_blank', 'width=860,height=750,scrollbars=yes,toolbar=no,menubar=no');
+    if (!win) { toast('Popup bloquée — autorise les popups pour ce site.', 'warning'); return; }
+    win.document.write(docHtml);
+    win.document.close();
+
+    win.document.getElementById('btn-fac-print')?.addEventListener('click', async () => {
+      const typeSlug  = estReglee ? 'reglee' : 'partielle';
+      const filename  = `${_safeFilename(facture.client)}_facture_${typeSlug}_${_safeFilename(facture.ref)}.html`;
+      const htmlContent = '<!DOCTYPE html>' + win.document.documentElement.outerHTML;
+      await _sauverDocDropbox(facture.client, filename, htmlContent, typeDoc);
+      win.print();
+    });
   }
 
   /* ---- Section paiements ---- */
@@ -2041,10 +3046,6 @@ const Sales = (() => {
 
         if (newStatut === 'Payé') {
           toast('Facture intégralement réglée ! Écritures comptables générées. ✅', 'success', 4500);
-          /* Archiver la commande liée */
-          if (doc.commandeId) {
-            Store.update('commandes', doc.commandeId, { statut: 'Terminé', archivedAt: new Date().toISOString() });
-          }
         } else {
           toast(`Paiement de ${_fmt(montant)} enregistré.`, 'success');
         }
@@ -2134,6 +3135,10 @@ const Sales = (() => {
 
     toolbar.querySelectorAll('[data-i-action]').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (btn.dataset.iAction === 'apercu') {
+          _previewFacture(doc);
+          return;
+        }
         if (btn.dataset.iAction === 'envoyer') {
           showConfirm('Marquer cette facture comme envoyée ?', () => {
             Store.update('factures', doc.id, { statut: 'Envoyé' });
@@ -2206,67 +3211,14 @@ const Sales = (() => {
           lignes:     cmd.lignes.map(l => ({ ...l, qteRealisee: 0 })),
           notes:      cmd.notes || ''
         });
-
-        /* ── Créer aussi la fiche atelier dans commandes_atelier (MySQL) ── */
-        _creerFicheAtelier(cmd, ref);
-
         /* Passer la commande en production */
         if (cmd.statut === 'Confirmé') {
           Store.update('commandes', cmd.id, { statut: 'En production' });
         }
-        toast(`✔ Bon de production ${ref} créé + fiche atelier planifiée.`, 'success');
+        toast(`✔ Bon de production ${ref} créé.`, 'success');
         _goList('orders', toolbar, area);
       }
     );
-  }
-
-  /**
-   * Crée la fiche atelier dans commandes_atelier (sync MySQL via Store).
-   * Chaque ligne de commande crée une tâche dans l'atelier.
-   */
-  function _creerFicheAtelier(cmd, refBP) {
-    const today = new Date().toISOString().slice(0, 10);
-
-    (cmd.lignes || []).forEach((l, i) => {
-      /* Déterminer le poste selon la technique ou la description */
-      const desc = (l.description || l.technique || '').toUpperCase();
-      let poste = 'Général';
-      if (desc.includes('DTF'))     poste = 'DTF';
-      else if (desc.includes('VINYLE') || desc.includes('VINYL')) poste = 'Vinyle';
-      else if (desc.includes('STICKER') || desc.includes('AUTOCOLLANT')) poste = 'Sticker';
-
-      Store.create('commandes_atelier', {
-        ref:          `${refBP}-L${i + 1}`,
-        commandeId:   cmd.id,
-        cmdRef:       cmd.ref,
-        bpRef:        refBP,
-        client:       cmd.client,
-        produit:      l.description || l.produit || '',
-        qte:          l.qte || 1,
-        technique:    l.technique || poste,
-        poste,
-        operateur:    '',
-        dateDebut:    today,
-        dateFin:      cmd.dateLivraison || today,
-        statut:       'En attente',
-        priorite:     'Normale',
-        progression:  0,
-        notes:        l.notes_design || cmd.notes || ''
-      });
-    });
-
-    /* Créer aussi une entrée dans planning_atelier */
-    Store.create('planning_atelier', {
-      ref:         refBP,
-      commandeId:  cmd.id,
-      cmdRef:      cmd.ref,
-      client:      cmd.client,
-      dateDebut:   today,
-      dateFin:     cmd.dateLivraison || today,
-      statut:      'Planifié',
-      lignes:      cmd.lignes || [],
-      notes:       cmd.notes || ''
-    });
   }
 
   /* ================================================================
@@ -2674,11 +3626,11 @@ const Sales = (() => {
     `);
 
     document.getElementById('qc-cancel')?.addEventListener('click', () => closeModal());
-    document.getElementById('qc-save')?.addEventListener('click', () => {
+    document.getElementById('qc-save')?.addEventListener('click', async () => {
       const nom = (document.getElementById('qc-nom')?.value || '').trim();
       if (!nom) { toast('Le nom est obligatoire.', 'error'); return; }
 
-      /* Création dans le store */
+      /* 1 — Sauvegarde localStorage (instantanée) */
       const newClient = Store.create('contacts', {
         nom,
         type:      document.getElementById('qc-type')?.value    || '',
@@ -2689,7 +3641,7 @@ const Sales = (() => {
       });
       Store.addAuditLog(`Créé client "${nom}" (création rapide)`, 'ventes');
 
-      /* Injecter et sélectionner le nouveau client dans le select cible */
+      /* 2 — Injecter et sélectionner dans le select */
       closeModal();
       const sel = document.getElementById(selectId);
       if (sel) {
@@ -2699,7 +3651,22 @@ const Sales = (() => {
         opt.selected = true;
         sel.appendChild(opt);
       }
-      toast(`Client "${_esc(nom)}" créé et sélectionné.`, 'success');
+
+      /* 3 — Vérifier la sync MySQL et afficher le statut */
+      if (window.MYSQL) {
+        try {
+          const ping = await window.MYSQL.ping();
+          if (ping.ok) {
+            toast(`✅ Client "${_esc(nom)}" créé — enregistré dans la base MySQL.`, 'success');
+          } else {
+            toast(`⚠ Client "${_esc(nom)}" créé en local — MySQL hors-ligne (sera sync à la reconnexion).`, 'warning');
+          }
+        } catch (_) {
+          toast(`⚠ Client "${_esc(nom)}" créé en local — MySQL non disponible.`, 'warning');
+        }
+      } else {
+        toast(`Client "${_esc(nom)}" créé.`, 'success');
+      }
     });
   }
 
@@ -3205,6 +4172,132 @@ const Sales = (() => {
      init(toolbar, area, viewId) — appelé par app.js
      ================================================================ */
 
+  /* ----------------------------------------------------------------
+     PARAMÈTRES DE MISE EN FORME DES DOCUMENTS
+     ---------------------------------------------------------------- */
+  function _renderDocParams(toolbar, area) {
+    const p = _getDocParams();
+    toolbar.innerHTML = `<span style="font-weight:600;font-size:14px;">⚙ Paramètres documents</span>`;
+
+    area.innerHTML = `
+      <div style="max-width:640px;margin:0 auto;padding:24px 0;">
+        <div class="form-section">
+          <div class="form-section-title">Identité de l'entreprise</div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1;">
+              <label class="form-label">Nom de l'entreprise</label>
+              <input class="form-control" id="dp-entreprise" value="${_esc(p.entreprise)}">
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label class="form-label">Slogan / sous-titre</label>
+              <input class="form-control" id="dp-slogan" value="${_esc(p.slogan)}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Adresse</label>
+              <input class="form-control" id="dp-adresse" value="${_esc(p.adresse)}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Téléphone</label>
+              <input class="form-control" id="dp-telephone" value="${_esc(p.telephone)}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email de contact</label>
+              <input class="form-control" type="email" id="dp-email" value="${_esc(p.email)}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Site web</label>
+              <input class="form-control" id="dp-website" value="${_esc(p.website)}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Gmail d'envoi (bouton email)</label>
+              <input class="form-control" type="email" id="dp-gmail" value="${_esc(p.gmailFrom)}" placeholder="votre@gmail.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">URL Logo (image)</label>
+              <input class="form-control" id="dp-logo" value="${_esc(p.logoUrl)}" placeholder="https://… ou data:image/…">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Mise en forme visuelle</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Couleur principale</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="color" id="dp-color" value="${p.accentColor}"
+                  style="width:44px;height:36px;border:none;cursor:pointer;border-radius:6px;">
+                <input class="form-control" id="dp-color-txt" value="${_esc(p.accentColor)}"
+                  placeholder="#4a5fff" style="font-family:monospace;">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Textes du document</div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1;">
+              <label class="form-label">Pied de page</label>
+              <input class="form-control" id="dp-footer" value="${_esc(p.footerText)}">
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label class="form-label">Conditions générales / mentions légales</label>
+              <textarea class="form-control" id="dp-conditions" rows="3" style="resize:vertical;">${_esc(p.conditions)}</textarea>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:8px;">
+          <button class="btn btn-ghost" id="dp-preview">👁 Aperçu</button>
+          <button class="btn btn-primary" id="dp-save">✔ Enregistrer</button>
+        </div>
+      </div>`;
+
+    /* Sync color picker ↔ text input */
+    document.getElementById('dp-color')?.addEventListener('input', (e) => {
+      const t = document.getElementById('dp-color-txt');
+      if (t) t.value = e.target.value;
+    });
+    document.getElementById('dp-color-txt')?.addEventListener('input', (e) => {
+      const c = document.getElementById('dp-color');
+      if (c && /^#[0-9a-fA-F]{6}$/.test(e.target.value)) c.value = e.target.value;
+    });
+
+    /* Enregistrer */
+    document.getElementById('dp-save')?.addEventListener('click', () => {
+      const params = {
+        entreprise:  document.getElementById('dp-entreprise')?.value.trim() || p.entreprise,
+        slogan:      document.getElementById('dp-slogan')?.value.trim()     || '',
+        adresse:     document.getElementById('dp-adresse')?.value.trim()    || '',
+        telephone:   document.getElementById('dp-telephone')?.value.trim()  || '',
+        email:       document.getElementById('dp-email')?.value.trim()      || '',
+        website:     document.getElementById('dp-website')?.value.trim()    || '',
+        gmailFrom:   document.getElementById('dp-gmail')?.value.trim()      || '',
+        logoUrl:     document.getElementById('dp-logo')?.value.trim()       || '',
+        accentColor: document.getElementById('dp-color-txt')?.value.trim()  || '#4a5fff',
+        footerText:  document.getElementById('dp-footer')?.value.trim()     || '',
+        conditions:  document.getElementById('dp-conditions')?.value.trim() || '',
+      };
+      localStorage.setItem('hcs_doc_params', JSON.stringify(params));
+      toast('Paramètres documents sauvegardés.', 'success');
+    });
+
+    /* Aperçu rapide */
+    document.getElementById('dp-preview')?.addEventListener('click', () => {
+      /* Sauvegarder d'abord */
+      document.getElementById('dp-save')?.click();
+      /* Créer un devis fictif pour la preview */
+      const fakeDevis = {
+        ref: 'DEV-2026-APERCU', statut: 'Brouillon', date: new Date().toISOString().slice(0,10),
+        client: 'Client Exemple', contactId: null,
+        lignes: [{ description: 'Produit exemple', qte: 2, prixUnitaire: 2500, remise: 0, tauxTVA: 16 }],
+        totalHT: 5000, totalTVA: 800, totalTTC: 5800, notes: ''
+      };
+      _previewDevis(fakeDevis, toolbar, area);
+    });
+  }
+
   function init(toolbar, area, viewId) {
     /* Changement de vue → reset mode liste */
     if (viewId !== _state.view) {
@@ -3233,93 +4326,13 @@ const Sales = (() => {
       case 'invoices':     _renderInvoicesList(toolbar, area); break;
       case 'receipts':     _renderReceiptsList(toolbar, area); break;
       case 'sales-report': _renderSalesReport(toolbar, area);  break;
+      case 'doc-params':   _renderDocParams(toolbar, area);    break;
       default:
         area.innerHTML = `
           <div class="table-empty">
             <div class="empty-icon">🛒</div>
             <p>Vue Ventes "${_esc(viewId)}" inconnue.</p>
           </div>`;
-    }
-  }
-
-  /* ================================================================
-     RÉSERVATION STOCK À LA CONFIRMATION (Étape 3)
-     Vérifie le stock et crée une alerte + commande fournisseur si besoin
-     ================================================================ */
-  function _reserverStockCommande(cmd) {
-    if (!Array.isArray(cmd.lignes)) return;
-    const produits = Store.getAll('produits');
-    const ruptures = [];
-
-    cmd.lignes.forEach(l => {
-      if (!l.produitId) return;
-      const prod = produits.find(p => p.id === l.produitId);
-      if (!prod) return;
-      const qteCmd    = Number(l.qte) || 0;
-      const stockActu = Number(prod.stock) || 0;
-      const stockApresCMD = stockActu - qteCmd;
-
-      if (stockApresCMD < 0) {
-        ruptures.push({ produit: prod, qteManquante: Math.abs(stockApresCMD), prod });
-      }
-    });
-
-    if (ruptures.length > 0) {
-      /* Alerte stock insuffisant */
-      const msg = ruptures.map(r =>
-        `${r.produit.nom || 'Produit'} : manque ${r.qteManquante} unité(s)`
-      ).join('\n');
-      toast(`⚠ Stock insuffisant !\n${msg}\nCommande fournisseur créée automatiquement.`, 'warning', 6000);
-
-      /* Créer une commande fournisseur automatique (bon d'achat) */
-      const fournisseurs = Store.getAll('fournisseurs');
-      const fournisseurPrincipal = fournisseurs.find(f =>
-        (f.nom || '').toUpperCase().includes('HTV4U') ||
-        (f.tags || []).includes('principal')
-      ) || fournisseurs[0];
-
-      const lignesAchat = ruptures.map(r => ({
-        produitId:   r.produit.id,
-        description: r.produit.nom,
-        qte:         Math.ceil(r.qteManquante * 1.2), /* +20% de sécurité */
-        prixUnitaire: r.produit.cout || 0
-      }));
-
-      if (lignesAchat.length > 0) {
-        const refBA = 'BA-AUTO-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-5);
-        Store.create('bonsAchat', {
-          reference:   refBA,
-          _type:       'BonAchat',
-          fournisseur: fournisseurPrincipal ? fournisseurPrincipal.nom : 'HTV4U',
-          commandeId:  cmd.id,
-          cmdRef:      cmd.ref,
-          date:        new Date().toISOString().slice(0, 10),
-          statut:      'Brouillon',
-          auto:        true,
-          lignes:      lignesAchat,
-          totalHT:     lignesAchat.reduce((s, l) => s + l.qte * l.prixUnitaire, 0),
-          notes:       `Généré automatiquement depuis commande ${cmd.ref} — stock insuffisant`
-        });
-        toast(`📦 Bon d'achat ${refBA} créé pour réapprovisionner.`, 'info', 4000);
-      }
-    }
-  }
-
-  /* ================================================================
-     MISE À JOUR FACTURE LORS DE LA LIVRAISON (Étape 7)
-     ================================================================ */
-  function _mettreAJourFactureLivraison(cmd) {
-    /* Chercher les factures liées à cette commande */
-    const factures = Store.getAll('factures').filter(f =>
-      f.commandeId === cmd.id || f.devisId === cmd.quoteId
-    );
-    factures.forEach(fac => {
-      if (fac.statut === 'Brouillon' || fac.statut === 'Envoyé') {
-        Store.update('factures', fac.id, { statut: 'Envoyé' });
-      }
-    });
-    if (factures.length > 0) {
-      toast(`📄 Facture(s) passées en "En attente paiement".`, 'info', 3000);
     }
   }
 

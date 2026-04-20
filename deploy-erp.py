@@ -6,6 +6,7 @@ Usage : python deploy-erp.py
 
 import ftplib
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -17,7 +18,11 @@ if sys.stdout.encoding != 'utf-8':
 FTP_HOST   = os.environ.get("FTP_HOST",   "ftp.highcoffeeshirts.com")
 FTP_USER   = os.environ.get("FTP_USER",   "VOTRE_LOGIN_FTP")
 FTP_PASS   = os.environ.get("FTP_PASS",   "VOTRE_MOT_DE_PASSE_FTP")
-REMOTE_DIR = os.environ.get("REMOTE_DIR", "/public_html/erp")
+_REMOTE_RAW = os.environ.get("REMOTE_DIR", "/public_html/erp")
+# Git Bash sur Windows convertit /public_html/erp → C:/Program Files/Git/public_html/erp
+# On extrait la partie utile qui commence par /public_html
+_m = re.search(r'(/public_html.*)', _REMOTE_RAW.replace('\\', '/'))
+REMOTE_DIR = _m.group(1) if _m else _REMOTE_RAW
 LOCAL_DIR  = Path(__file__).parent.resolve()
 
 # ── FICHIERS / DOSSIERS EXCLUS ─────────────────────────────────

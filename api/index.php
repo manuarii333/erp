@@ -99,6 +99,7 @@ $allowedTables = [
     'planning_atelier',
     'landing_pages',
     'assets',
+    'taches_agents',
 ];
 
 if (!$resource || !in_array($resource, $allowedTables, true)) {

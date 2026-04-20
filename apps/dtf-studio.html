@@ -919,6 +919,72 @@ function rmImg(e) {
 function tg(el) { el.classList.toggle('on'); saveFields(); }
 
 // ============================================================
+// LOAD FROM HCS DESIGNER — reçoit un logo via localStorage
+// ============================================================
+function loadFromHCSDesigner() {
+  try {
+    const raw = localStorage.getItem('hcs_dtf_to_studio');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data._ts && Date.now() - data._ts > 60000) {
+      localStorage.removeItem('hcs_dtf_to_studio'); return;
+    }
+    localStorage.removeItem('hcs_dtf_to_studio');
+
+    // Injecter l'image dans l'état S
+    S.imgData = data.dataURL;
+    S.imgMime = 'image/png';
+
+    // Mettre à jour le DOM
+    document.getElementById('prevImg').src = S.imgData;
+    document.getElementById('prevName').textContent = data.name + '.png';
+    document.getElementById('prevSz').textContent = 'HCS Designer';
+    document.getElementById('upph').style.display = 'none';
+    document.getElementById('prevCont').style.display = 'flex';
+    document.getElementById('uz').classList.add('has');
+
+    // Pré-remplir thème / collection / contexte si fournis
+    if (data.theme) {
+      const iTheme = document.getElementById('iTheme');
+      if (iTheme) iTheme.value = data.theme;
+    }
+    if (data.name) {
+      const iColl = document.getElementById('iColl');
+      if (iColl) iColl.value = data.name;
+    }
+    if (data.context) {
+      const iCtx = document.getElementById('iCtx');
+      if (iCtx) iCtx.value = data.context;
+    }
+
+    // Bandeau de confirmation
+    const uz = document.getElementById('uz');
+    if (uz) {
+      let banner = document.getElementById('designer-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'designer-banner';
+        banner.style.cssText = [
+          'display:flex;align-items:center;gap:8px',
+          'margin:10px 0 0',
+          'padding:8px 14px',
+          'background:rgba(14,124,123,0.12)',
+          'border:1px solid rgba(14,124,123,0.4)',
+          'border-radius:9px',
+          "font-family:'Space Mono',monospace",
+          'font-size:10px;color:#0e7c7b;letter-spacing:1px'
+        ].join(';');
+        banner.textContent = '\u29e1 Prototype re\u00e7u depuis HCS Designer \u2014 pr\u00eat pour l\u2019analyse IA';
+        uz.parentNode.insertBefore(banner, uz.nextSibling);
+      }
+    }
+
+    if (typeof saveFields === 'function') saveFields();
+  } catch(e) { /* silencieux */ }
+}
+window.loadFromHCSDesigner = loadFromHCSDesigner;
+
+// ============================================================
 // STEP 2 — ANALYZE
 // ============================================================
 async function analyze() {
@@ -3260,6 +3326,14 @@ async function ouvrirHistoriqueERP() {
 
 // Restaurer les clés au chargement
 window.addEventListener('load', loadKeys);
+
+// Auto-trigger si ouvert depuis HCS Designer
+window.addEventListener('load', function() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('from') === 'designer') {
+    setTimeout(loadFromHCSDesigner, 350);
+  }
+});
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="../hcs-hub-ecosystem/hcs-hub-ecosystem/hcs-hub.js"></script>

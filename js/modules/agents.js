@@ -125,15 +125,167 @@ Réponds toujours en français. Monnaie : XPF (franc CFP).`
     }
   ];
 
+  /* ================================================================
+     OUTILS ERP — disponibles pour tous les agents via Claude tool_use
+     ================================================================ */
+  const ERP_TOOLS = [
+    {
+      name: 'erp_get_commandes',
+      description: 'Récupère les commandes récentes depuis l\'ERP HCS (clients, montants, statuts).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          limit:  { type: 'number', description: 'Nombre de commandes (défaut 10, max 50)' },
+          statut: { type: 'string', description: 'Filtrer par statut : en_cours, confirmée, livrée, annulée' }
+        }
+      }
+    },
+    {
+      name: 'erp_get_produits',
+      description: 'Récupère les produits et niveaux de stock de l\'ERP HCS.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Nombre de produits (défaut 50)' }
+        }
+      }
+    },
+    {
+      name: 'erp_get_contacts',
+      description: 'Recherche des clients et contacts dans l\'ERP HCS.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Terme de recherche : nom, email, entreprise' },
+          limit: { type: 'number', description: 'Nombre de résultats (défaut 10)' }
+        }
+      }
+    },
+    {
+      name: 'erp_get_planning',
+      description: 'Récupère le planning atelier et les ordres de fabrication en cours.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Nombre d\'entrées (défaut 20)' }
+        }
+      }
+    },
+    {
+      name: 'erp_create_devis',
+      description: 'Crée un nouveau devis dans l\'ERP HCS. Calcule automatiquement le TTC (TVA 16%).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          client_nom:  { type: 'string', description: 'Nom du client' },
+          montant_ht:  { type: 'number', description: 'Montant HT en XPF' },
+          description: { type: 'string', description: 'Objet / description du devis' },
+          statut:      { type: 'string', description: 'brouillon | envoyé | accepté (défaut: brouillon)' }
+        },
+        required: ['client_nom', 'montant_ht']
+      }
+    },
+    {
+      name: 'erp_create_tache',
+      description: 'Crée une tâche dans l\'ERP et l\'assigne à l\'agent courant.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          titre:       { type: 'string', description: 'Titre court de la tâche' },
+          description: { type: 'string', description: 'Détail de la tâche' },
+          priorite:    { type: 'string', description: 'basse | normale | haute | urgente' },
+          echeance:    { type: 'string', description: 'Date limite format YYYY-MM-DD' }
+        },
+        required: ['titre']
+      }
+    },
+    {
+      name: 'erp_ouvrir_app',
+      description: `Ouvre une application ou une vue dans l'ERP HCS.
+Apps disponibles :
+- dashboard > overview | activity
+- ventes > quotes (devis) | orders (commandes) | invoices (factures) | contacts | pipeline
+- production > planning | mo (ordres fab.) | bom | work-centers
+- stock > products | categories | stock-moves | suppliers | po
+- caisse > caisse-pos
+- comptabilite > tableau-de-bord | depenses | pl-report | bilan
+- rh > employes | conges | planning-rh
+- outils > picwish-pipeline | content-generator | atelier-production | triage-dashboard | commercial-dashboard | stock-dashboard | finance-dashboard | ocr-scanner | supervision-dashboard | boutique-assistant | admin-photos-produits | signmaster-guide
+- agents > dashboard | chat | sessions`,
+      input_schema: {
+        type: 'object',
+        properties: {
+          app:  { type: 'string', description: 'ID de l\'application (ex: ventes, outils, production)' },
+          view: { type: 'string', description: 'ID de la vue (ex: quotes, picwish-pipeline, planning)' }
+        },
+        required: ['app', 'view']
+      }
+    },
+    {
+      name: 'erp_picwish',
+      description: 'Ouvre le pipeline PicWish de détourage d\'image dans l\'ERP.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', description: 'Message à afficher à l\'utilisateur avant d\'ouvrir PicWish' }
+        }
+      }
+    },
+    {
+      name: 'erp_content_generator',
+      description: 'Ouvre le générateur de contenu marketing HCS (posts réseaux sociaux, descriptions produits).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', description: 'Message à afficher avant d\'ouvrir le générateur' }
+        }
+      }
+    },
+    {
+      name: 'erp_dtf_studio',
+      description: 'Ouvre DTF Studio — composition et préparation des fichiers DTF pour impression.',
+      input_schema: { type: 'object', properties: {} }
+    },
+    {
+      name: 'erp_mockup_forge',
+      description: 'Ouvre MockupForge v12 — générateur de mockups produits HCS (t-shirts, polos, casquettes).',
+      input_schema: { type: 'object', properties: {} }
+    },
+    {
+      name: 'erp_mockup_studio',
+      description: 'Ouvre T-Shirt Mockup Studio — studio de mockup textile interactif.',
+      input_schema: { type: 'object', properties: {} }
+    },
+    {
+      name: 'erp_dtf_plaques',
+      description: 'Ouvre DTF Plaques Transfert — calcul et impression des plaques de transfert DTF.',
+      input_schema: { type: 'object', properties: {} }
+    },
+    {
+      name: 'erp_dtf_atelier',
+      description: 'Ouvre un atelier DTF. Choisir BN20 (Yannick) ou USA selon la machine utilisée.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          machine: { type: 'string', description: 'bn20 (imprimante Yannick) | usa (imprimante USA)' }
+        }
+      }
+    }
+  ];
+
   /* Clés de stockage localStorage */
-  const STORAGE_KEY_API  = 'hcs_agents_api_key';
-  const STORAGE_KEY_SESS = 'hcs_agents_sessions';
+  const STORAGE_KEY_API    = 'hcs_agents_api_key';
+  const STORAGE_KEY_SESS   = 'hcs_agents_sessions';
+  const STORAGE_KEY_MEM    = 'hcs_agents_shared_memory';
+  const STORAGE_KEY_HIST   = 'hcs_agents_histories';
 
   /* État interne du module */
-  let _currentAgent  = null;  // agent sélectionné pour le chat
-  let _chatHistory   = [];    // historique messages du chat actif
-  let _sessions      = [];    // toutes les sessions sauvegardées
-  let _container     = null;  // référence au conteneur principal
+  let _currentAgent    = null;  // agent sélectionné pour le chat
+  let _chatHistory     = [];    // historique messages du chat actif
+  let _sessions        = [];    // toutes les sessions sauvegardées
+  let _container       = null;  // référence au conteneur principal
+  let _agentHistories  = {};    // historique par agent { agentId: [...messages] }
+  let _sharedFacts     = [];    // faits partagés entre tous les agents
 
   /* ----------------------------------------------------------------
      ENTRÉE PUBLIQUE : init(toolbarEl, containerEl, view)
@@ -142,8 +294,9 @@ Réponds toujours en français. Monnaie : XPF (franc CFP).`
   function init(toolbarEl, containerEl, view) {
     _container = containerEl;
 
-    /* Charger les sessions depuis localStorage */
+    /* Charger les sessions et la mémoire partagée depuis localStorage */
     _loadSessions();
+    _loadMemory();
 
     /* Rendre la toolbar selon la vue */
     _renderToolbar(toolbarEl, view);
@@ -249,6 +402,28 @@ Réponds toujours en français. Monnaie : XPF (franc CFP).`
           <button class="btn btn-ghost btn-sm btn-clear-chat" id="btn-clear-chat">
             🗑 Effacer le chat
           </button>
+
+          <!-- Mémoire partagée inter-agents -->
+          <div class="chat-sidebar-section">
+            <label class="form-label">🧠 Mémoire partagée
+              <span style="font-size:10px;color:var(--text-muted);margin-left:4px">${_sharedFacts.length} fait(s)</span>
+            </label>
+            <div class="shared-memory-list" id="shared-memory-list">
+              ${_sharedFacts.length === 0
+                ? `<p style="font-size:11px;color:var(--text-muted)">Aucun fait mémorisé.<br>Cliquez sur 📌 pour mémoriser un fait.</p>`
+                : _sharedFacts.map((f, i) => `
+                  <div class="memory-fact" style="display:flex;align-items:flex-start;gap:4px;margin-bottom:4px">
+                    <span style="font-size:10px;color:var(--text-muted);flex:1">${_esc(f)}</span>
+                    <button class="btn btn-ghost btn-sm btn-del-fact" data-idx="${i}" style="padding:0 4px;font-size:11px;min-width:unset">✕</button>
+                  </div>`).join('')
+              }
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px">
+              <input id="new-fact-input" class="form-input" style="font-size:11px;padding:4px 8px"
+                placeholder="Ajouter un fait…" />
+              <button class="btn btn-primary btn-sm" id="btn-add-fact" style="min-width:unset;padding:4px 8px">📌</button>
+            </div>
+          </div>
         </aside>
 
         <!-- Zone principale de chat -->
@@ -300,8 +475,16 @@ Réponds toujours en français. Monnaie : XPF (franc CFP).`
     /* Sélection d'un autre agent */
     el.querySelectorAll('.agent-select-item').forEach(btn => {
       btn.addEventListener('click', () => {
+        /* Sauvegarder l'historique de l'agent courant avant de changer */
+        if (_currentAgent) {
+          _agentHistories[_currentAgent.id] = [..._chatHistory];
+          _saveMemory();
+        }
         _selectAgent(btn.dataset.agentId);
-        _chatHistory = []; // réinitialise l'historique au changement d'agent
+        /* Restaurer l'historique du nouvel agent (ou démarrer vide) */
+        _chatHistory = _agentHistories[_currentAgent.id]
+          ? [..._agentHistories[_currentAgent.id]]
+          : [];
         _renderChat(el);
       });
     });
@@ -309,7 +492,38 @@ Réponds toujours en français. Monnaie : XPF (franc CFP).`
     /* Effacer le chat */
     el.querySelector('#btn-clear-chat').addEventListener('click', () => {
       _chatHistory = [];
+      if (_currentAgent) {
+        _agentHistories[_currentAgent.id] = [];
+        _saveMemory();
+      }
       _renderChat(el);
+    });
+
+    /* Ajouter un fait en mémoire partagée */
+    const addFactBtn = el.querySelector('#btn-add-fact');
+    const factInput  = el.querySelector('#new-fact-input');
+    if (addFactBtn && factInput) {
+      addFactBtn.addEventListener('click', () => {
+        const fact = factInput.value.trim();
+        if (!fact) return;
+        _sharedFacts.push(fact);
+        _saveMemory();
+        factInput.value = '';
+        _renderChat(el);
+      });
+      factInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { addFactBtn.click(); }
+      });
+    }
+
+    /* Supprimer un fait de la mémoire partagée */
+    el.querySelectorAll('.btn-del-fact').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        _sharedFacts.splice(idx, 1);
+        _saveMemory();
+        _renderChat(el);
+      });
     });
 
     /* Envoi du message (bouton) */
@@ -375,57 +589,203 @@ Réponds toujours en français. Monnaie : XPF (franc CFP).`
     _updateMessages(el);
 
     try {
-      /* Construire les messages pour l'API (sans le champ 'time' qui n'est pas attendu) */
+      /* Messages pour l'API (sans le champ 'time') */
       const apiMessages = _chatHistory
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .map(m => ({ role: m.role, content: m.content }));
 
-      /* Appel à l'API Anthropic */
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type':         'application/json',
-          'x-api-key':             apiKey,
-          'anthropic-version':     '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model:      agent.modele === 'claude-opus-4-6'
-                        ? 'claude-opus-4-6'
-                        : 'claude-sonnet-4-6',
-          max_tokens: 1024,
-          system:     agent.systemPrompt,
-          messages:   apiMessages
-        })
-      });
+      const systemPrompt = await _buildSystemPrompt(agent);
+      const model = agent.modele === 'claude-opus-4-6' ? 'claude-opus-4-6' : 'claude-sonnet-4-6';
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error?.message || `Erreur HTTP ${response.status}`);
+      /* Boucle tool_use : Claude peut appeler plusieurs outils avant de répondre */
+      let loopMessages = [...apiMessages];
+      let finalReply   = '';
+      let toolsLog     = [];  // trace des outils utilisés pour affichage
+
+      for (let iter = 0; iter < 10; iter++) {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type':         'application/json',
+            'x-api-key':             apiKey,
+            'anthropic-version':     '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model, max_tokens: 2048,
+            system:   systemPrompt,
+            tools:    ERP_TOOLS,
+            messages: loopMessages
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error?.message || `Erreur HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.stop_reason === 'tool_use') {
+          /* Claude veut utiliser un ou plusieurs outils */
+          const toolUseBlocks = data.content.filter(b => b.type === 'tool_use');
+          const toolResults   = [];
+
+          for (const tu of toolUseBlocks) {
+            sendBtn.textContent = `⚙️ ${tu.name.replace('erp_', '')}…`;
+            toolsLog.push(tu.name);
+            const result = await _executeTool(tu.name, tu.input);
+            toolResults.push({
+              type:        'tool_result',
+              tool_use_id: tu.id,
+              content:     JSON.stringify(result)
+            });
+          }
+
+          /* Ajouter le tour assistant (avec tool_use) et le tour user (avec tool_result) */
+          loopMessages.push({ role: 'assistant', content: data.content });
+          loopMessages.push({ role: 'user',      content: toolResults });
+
+        } else {
+          /* Réponse finale texte */
+          finalReply = data.content?.find(b => b.type === 'text')?.text || '(réponse vide)';
+          break;
+        }
       }
 
-      const data = await response.json();
-      const reply = data.content?.[0]?.text || '(réponse vide)';
+      /* Préfixe indiquant les outils utilisés */
+      if (toolsLog.length > 0) {
+        const outils = toolsLog.map(t => t.replace('erp_', '').replace(/_/g, ' ')).join(', ');
+        finalReply = `*[Outils ERP utilisés : ${outils}]*\n\n${finalReply}`;
+      }
 
-      /* Ajouter la réponse de l'agent */
-      _chatHistory.push({
-        role:    'assistant',
-        content: reply,
-        time:    _now()
-      });
+      /* Ajouter la réponse de l'agent à l'historique */
+      _chatHistory.push({ role: 'assistant', content: finalReply, time: _now() });
 
-      /* Sauvegarder la session */
-      _saveSession(agent, text, reply);
+      /* Sauvegarder la session et la mémoire */
+      _saveSession(agent, text, finalReply);
+      _agentHistories[agent.id] = [..._chatHistory];
+      _saveMemory();
 
     } catch (err) {
       _showError(errorEl, `❌ ${err.message}`);
-      /* Retirer le message utilisateur en cas d'erreur */
       _chatHistory.pop();
     } finally {
       sendBtn.disabled    = false;
       sendBtn.textContent = '➤ Envoyer';
       _updateMessages(el);
       _scrollToBottom();
+    }
+  }
+
+  /** Exécute un outil ERP et retourne le résultat en JSON */
+  async function _executeTool(name, input) {
+    if (typeof window.MYSQL === 'undefined') return { error: 'MySQL non disponible' };
+    try {
+      switch (name) {
+        case 'erp_get_commandes':
+          return await window.MYSQL.getAll('commandes', {
+            sort: 'created_at', order: 'desc',
+            limit: Math.min(input.limit || 10, 50)
+          });
+
+        case 'erp_get_produits':
+          return await window.MYSQL.getAll('produits', { limit: input.limit || 50 });
+
+        case 'erp_get_contacts':
+          return input.query
+            ? await window.MYSQL.search('contacts', input.query)
+            : await window.MYSQL.getAll('contacts', { limit: input.limit || 10 });
+
+        case 'erp_get_planning':
+          return await window.MYSQL.getAll('planning_atelier', {
+            sort: 'created_at', order: 'desc', limit: input.limit || 20
+          });
+
+        case 'erp_create_devis': {
+          const ht  = Number(input.montant_ht);
+          const ttc = Math.round(ht * 1.16);
+          return await window.MYSQL.create('devis', {
+            client_nom:  input.client_nom,
+            montant_ht:  ht,
+            montant_ttc: ttc,
+            tva:         Math.round(ht * 0.16),
+            description: input.description || '',
+            statut:      input.statut || 'brouillon',
+            date_devis:  new Date().toISOString().split('T')[0]
+          });
+        }
+
+        case 'erp_create_tache':
+          return createTache(input.titre, {
+            description: input.description || '',
+            priorite:    input.priorite   || 'normale',
+            echeance:    input.echeance   || null,
+            source:      'chat'
+          });
+
+        case 'erp_ouvrir_app':
+          if (typeof openApp === 'function') {
+            openApp(input.app);
+            if (input.view && typeof openView === 'function') {
+              setTimeout(() => openView(input.view), 80);
+            }
+            return { ok: true, message: `Navigation vers ${input.app} > ${input.view}` };
+          }
+          return { error: 'Fonction de navigation non disponible' };
+
+        case 'erp_picwish':
+          if (typeof openApp === 'function') {
+            openApp('outils');
+            setTimeout(() => openView('picwish-pipeline'), 80);
+            return { ok: true, message: 'PicWish Pipeline ouvert' };
+          }
+          return { error: 'Navigation non disponible' };
+
+        case 'erp_content_generator':
+          if (typeof openApp === 'function') {
+            openApp('outils');
+            setTimeout(() => openView('content-generator'), 80);
+            return { ok: true, message: 'Content Generator ouvert' };
+          }
+          return { error: 'Navigation non disponible' };
+
+        case 'erp_dtf_studio':
+          window.open('apps/dtf-studio.html', '_blank', 'noopener,noreferrer');
+          return { ok: true, message: 'DTF Studio ouvert dans un nouvel onglet' };
+
+        case 'erp_mockup_forge':
+          window.open('apps/mockup-forge-v12.html', '_blank', 'noopener,noreferrer');
+          return { ok: true, message: 'MockupForge v12 ouvert dans un nouvel onglet' };
+
+        case 'erp_mockup_studio':
+          window.open('apps/tshirt-mockup-studio.html', '_blank', 'noopener,noreferrer');
+          return { ok: true, message: 'T-Shirt Mockup Studio ouvert dans un nouvel onglet' };
+
+        case 'erp_dtf_plaques':
+          if (typeof openApp === 'function') {
+            openApp('outils');
+            setTimeout(() => openView('dtf-plaques-transfert'), 80);
+            return { ok: true, message: 'DTF Plaques Transfert ouvert' };
+          }
+          return { error: 'Navigation non disponible' };
+
+        case 'erp_dtf_atelier': {
+          const machine = (input.machine || 'bn20').toLowerCase();
+          const viewId  = machine === 'usa' ? 'dtf-atelier-usa' : 'dtf-atelier-bn20-yannick';
+          if (typeof openApp === 'function') {
+            openApp('outils');
+            setTimeout(() => openView(viewId), 80);
+            return { ok: true, message: `DTF Atelier ${machine.toUpperCase()} ouvert` };
+          }
+          return { error: 'Navigation non disponible' };
+        }
+
+        default:
+          return { error: `Outil inconnu : ${name}` };
+      }
+    } catch (e) {
+      return { error: e.message };
     }
   }
 
@@ -548,6 +908,116 @@ Réponds toujours en français. Monnaie : XPF (franc CFP).`
     _currentAgent = AGENTS_LIST.find(a => a.id === agentId) || AGENTS_LIST[0];
   }
 
+  /**
+   * Construit le system prompt complet :
+   * - prompt de base de l'agent
+   * - mémoire partagée inter-agents
+   * - données ERP temps réel (MySQL)
+   */
+  async function _buildSystemPrompt(agent) {
+    let prompt = agent.systemPrompt;
+
+    /* Mémoire partagée inter-agents */
+    if (_sharedFacts.length > 0) {
+      prompt += `\n\n## Contexte partagé entre agents (mémoire commune)\n`;
+      prompt += _sharedFacts.map(f => `- ${f}`).join('\n');
+      prompt += `\n\nCes informations ont été mémorisées lors d'échanges avec d'autres agents HCS. Utilise-les pour répondre de façon cohérente.`;
+    }
+
+    /* Données ERP en temps réel depuis MySQL */
+    const erpCtx = await _fetchERPContext();
+    if (erpCtx) prompt += erpCtx;
+
+    return prompt;
+  }
+
+  /**
+   * Interroge MySQL pour obtenir un snapshot ERP récent.
+   * Retourne une chaîne formatée prête à injecter dans le system prompt.
+   * Silencieux en cas d'erreur (ne bloque pas le chat).
+   */
+  async function _fetchERPContext() {
+    if (typeof window.MYSQL === 'undefined') return null;
+
+    try {
+      /* Requêtes parallèles — on prend les plus récentes, limit pour ne pas surcharger le prompt */
+      const [commandes, produits, contacts, taches] = await Promise.all([
+        window.MYSQL.getAll('commandes',       { sort: 'created_at', order: 'desc', limit: 10 }).catch(() => []),
+        window.MYSQL.getAll('produits',        { limit: 50 }).catch(() => []),
+        window.MYSQL.getAll('contacts',        { limit: 1 }).catch(() => []),
+        window.MYSQL.getAll('taches_agents',   { sort: 'created_at', order: 'desc', limit: 10 }).catch(() => []),
+      ]);
+
+      /* Compter les contacts séparément sans charger tout */
+      const nbContacts = contacts.length > 0 ? '≥1' : '0';
+
+      /* Commandes urgentes = statut en_cours ou en attente */
+      const cmdEnCours = commandes.filter(c =>
+        ['en_cours','en attente','confirmée'].includes((c.statut || '').toLowerCase())
+      );
+
+      /* Stock faible = quantité ≤ 5 */
+      const stockFaible = produits.filter(p => Number(p.quantite || p.stock || 0) <= 5);
+
+      /* Tâches agents non terminées */
+      const tachesActives = taches.filter(t => t.statut === 'todo' || t.statut === 'en_cours');
+
+      let ctx = `\n\n## Données ERP — temps réel (${new Date().toLocaleString('fr-FR')})\n`;
+
+      ctx += `\n### Commandes (${commandes.length} récentes)\n`;
+      if (commandes.length === 0) {
+        ctx += `- Aucune commande récente.\n`;
+      } else {
+        ctx += `- En cours / à traiter : ${cmdEnCours.length}\n`;
+        commandes.slice(0, 5).forEach(c => {
+          ctx += `- [${c.statut || '?'}] ${c.client_nom || c.client || 'Client inconnu'} — ${c.montant_ttc ? Number(c.montant_ttc).toLocaleString('fr-FR') + ' XPF' : ''} (${c.date_commande || c.created_at || ''})\n`;
+        });
+      }
+
+      ctx += `\n### Stock produits (${produits.length} références)\n`;
+      if (stockFaible.length > 0) {
+        ctx += `⚠️ Stock faible (≤5 unités) : ${stockFaible.map(p => p.nom || p.name).join(', ')}\n`;
+      } else {
+        ctx += `- Aucun stock critique détecté.\n`;
+      }
+
+      ctx += `\n### Tâches agents (${tachesActives.length} actives)\n`;
+      if (tachesActives.length === 0) {
+        ctx += `- Aucune tâche en attente.\n`;
+      } else {
+        tachesActives.slice(0, 5).forEach(t => {
+          ctx += `- [${t.priorite || 'normale'}] ${t.agent_nom || ''} : ${t.titre}\n`;
+        });
+      }
+
+      ctx += `\nMonnaie : XPF (franc CFP). TVA : 16%. Taux USD/XPF ≈ 110.\n`;
+      ctx += `Réponds en te basant sur ces données réelles. Si une information manque, indique-le clairement.\n`;
+
+      return ctx;
+
+    } catch (e) {
+      console.warn('[Agents] _fetchERPContext échoué:', e.message);
+      return null;
+    }
+  }
+
+  /** Charge la mémoire partagée et les historiques depuis localStorage */
+  function _loadMemory() {
+    try {
+      _sharedFacts    = JSON.parse(localStorage.getItem(STORAGE_KEY_MEM)  || '[]');
+      _agentHistories = JSON.parse(localStorage.getItem(STORAGE_KEY_HIST) || '{}');
+    } catch {
+      _sharedFacts    = [];
+      _agentHistories = {};
+    }
+  }
+
+  /** Persiste la mémoire partagée et les historiques dans localStorage */
+  function _saveMemory() {
+    localStorage.setItem(STORAGE_KEY_MEM,  JSON.stringify(_sharedFacts));
+    localStorage.setItem(STORAGE_KEY_HIST, JSON.stringify(_agentHistories));
+  }
+
   /** Charge les sessions depuis localStorage */
   function _loadSessions() {
     try {
@@ -645,9 +1115,59 @@ Réponds toujours en français. Monnaie : XPF (franc CFP).`
     return s;
   }
 
+  /* ================================================================
+     TÂCHES AGENTS — lecture/écriture via Store.js → MySQL
+     ================================================================ */
+
+  /**
+   * Crée une tâche agent dans le Store (sync MySQL automatique).
+   * @param {string} titre
+   * @param {object} opts - { description, priorite, echeance, source, contexte }
+   */
+  function createTache(titre, opts = {}) {
+    if (typeof Store === 'undefined') {
+      console.warn('[Agents] Store non disponible — tâche non sauvegardée MySQL');
+      return null;
+    }
+    const agent = _currentAgent || AGENTS_LIST[0];
+    const record = {
+      agent_id:    agent.id,
+      agent_nom:   agent.nom,
+      agent_icon:  agent.icon,
+      titre:       titre,
+      description: opts.description || '',
+      statut:      'todo',
+      priorite:    opts.priorite    || 'normale',
+      source:      opts.source      || 'chat',
+      contexte:    opts.contexte    ? JSON.stringify(opts.contexte) : '',
+      echeance:    opts.echeance    || null,
+    };
+    return Store.create('taches_agents', record);
+  }
+
+  /**
+   * Retourne toutes les tâches de la collection (triées par date desc).
+   */
+  function getTaches(filtreAgent = null) {
+    if (typeof Store === 'undefined') return [];
+    const all = Store.getAll('taches_agents') || [];
+    if (filtreAgent) return all.filter(t => t.agent_id === filtreAgent);
+    return all;
+  }
+
+  /**
+   * Met à jour le statut d'une tâche.
+   */
+  function updateTacheStatut(tacheId, statut) {
+    if (typeof Store === 'undefined') return;
+    Store.update('taches_agents', tacheId, { statut });
+  }
+
   /* ----------------------------------------------------------------
      API PUBLIQUE
      ---------------------------------------------------------------- */
-  return { init };
+  return { init, createTache, getTaches, updateTacheStatut };
 
 })();
+
+window.Agents = Agents;

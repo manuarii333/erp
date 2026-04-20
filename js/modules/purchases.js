@@ -346,45 +346,6 @@ const Purchases = (() => {
           </div>
         </div>
 
-        <!-- Coût landed (import USD) -->
-        <div style="background:var(--bg-subtle,#F8FAFC);border:1px solid var(--border);
-          border-radius:8px;padding:16px;margin-bottom:24px;">
-          <div style="font-size:13px;font-weight:600;color:var(--text-secondary);
-            text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">
-            💱 Calcul coût landed (import USD)
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" style="font-size:12px;">Total USD fournisseur</label>
-              <input id="po-total-usd" type="number" class="form-input" min="0" step="0.01"
-                value="${bon?.totalUSD || ''}" placeholder="ex : 250.00"
-                ${statut === 'Reçu' || statut === 'Annulé' ? 'disabled' : ''}>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" style="font-size:12px;">Taux USD/XPF</label>
-              <input id="po-taux-change" type="number" class="form-input" min="0" step="0.01"
-                value="${bon?.tauxChange || 119}" placeholder="ex : 119"
-                ${statut === 'Reçu' || statut === 'Annulé' ? 'disabled' : ''}>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" style="font-size:12px;">% Frêt + Douane</label>
-              <input id="po-frais-import" type="number" class="form-input" min="0" step="0.5"
-                value="${bon?.fraisImport || 7}" placeholder="ex : 7"
-                ${statut === 'Reçu' || statut === 'Annulé' ? 'disabled' : ''}>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" style="font-size:12px;">TVA locale %</label>
-              <input id="po-tva-local" type="number" class="form-input" min="0" step="1"
-                value="${bon?.tvaLocal || 16}" placeholder="ex : 16"
-                ${statut === 'Reçu' || statut === 'Annulé' ? 'disabled' : ''}>
-            </div>
-          </div>
-          <div id="po-landed-result" style="background:var(--bg-card,#fff);border-radius:6px;
-            padding:12px;font-size:13px;color:var(--text-secondary);">
-            Saisir un montant USD et le taux pour calculer le coût débarqué.
-          </div>
-        </div>
-
         <!-- Notes -->
         <div class="form-group" style="margin-bottom:24px;">
           <label class="form-label">Notes internes</label>
@@ -399,10 +360,6 @@ const Purchases = (() => {
     /* Bind événements lignes */
     _bindPOLigneEvents(statut);
     _updatePOTotaux();
-
-    /* Bind calcul landed cost */
-    _bindLandedCostEvents();
-    _updateLandedCost();
   }
 
   /* Génère le HTML des lignes */
@@ -573,58 +530,6 @@ const Purchases = (() => {
     if (elTTC) elTTC.textContent = fmt(Math.round(totalTTC));
   }
 
-  /* ── Calcul coût landed (import USD) ── */
-  function _bindLandedCostEvents() {
-    ['po-total-usd', 'po-taux-change', 'po-frais-import', 'po-tva-local'].forEach(id => {
-      document.getElementById(id)?.addEventListener('input', _updateLandedCost);
-    });
-  }
-
-  function _updateLandedCost() {
-    const totalUSD   = parseFloat(document.getElementById('po-total-usd')?.value)   || 0;
-    const tauxChange = parseFloat(document.getElementById('po-taux-change')?.value)  || 119;
-    const fraisImp   = parseFloat(document.getElementById('po-frais-import')?.value) || 7;
-    const tvaLocal   = parseFloat(document.getElementById('po-tva-local')?.value)    || 16;
-    const el = document.getElementById('po-landed-result');
-    if (!el) return;
-
-    if (totalUSD <= 0) {
-      el.innerHTML = 'Saisir un montant USD et le taux pour calculer le coût débarqué.';
-      return;
-    }
-
-    /* Formule : USD × taux × (1 + frais/100) × (1 + TVA/100) */
-    const enXPF       = totalUSD * tauxChange;
-    const avecFrais   = enXPF * (1 + fraisImp / 100);
-    const coutLanded  = avecFrais * (1 + tvaLocal / 100);
-
-    el.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">En XPF brut</div>
-          <div style="font-weight:600;font-family:var(--font-mono);">${Math.round(enXPF).toLocaleString()} XPF</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">+ Frêt/Douane (${fraisImp}%)</div>
-          <div style="font-weight:600;font-family:var(--font-mono);">${Math.round(avecFrais).toLocaleString()} XPF</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">+ TVA ${tvaLocal}%</div>
-          <div style="font-weight:600;font-family:var(--font-mono);color:#16A34A;">${Math.round(coutLanded).toLocaleString()} XPF</div>
-        </div>
-        <div style="border-left:2px solid var(--accent-blue,#4a5fff);padding-left:8px;">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Coût LANDED TOTAL</div>
-          <div style="font-size:16px;font-weight:700;font-family:var(--font-mono);color:var(--accent-blue,#4a5fff);">
-            ${Math.round(coutLanded).toLocaleString()} XPF
-          </div>
-        </div>
-      </div>
-      <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
-        Formule : ${totalUSD} USD × ${tauxChange} × 1.${String(fraisImp).padStart(2,'0')} × 1.${String(tvaLocal).padStart(2,'0')}
-        = ${Math.round(coutLanded).toLocaleString()} XPF TTC livré
-      </div>`;
-  }
-
   /* Sauvegarde le BC avec le statut indiqué */
   function _savePO(statut) {
     const fournisseur = document.getElementById('po-fournisseur')?.value;
@@ -642,30 +547,15 @@ const Purchases = (() => {
     const totalHT  = _state.lignes.reduce((s, l) => s + (l.qte || 0) * (l.prixUnitaire || 0), 0);
     const totalTTC = calcTTC(totalHT);
 
-    /* Données coût landed */
-    const totalUSD   = parseFloat(document.getElementById('po-total-usd')?.value)   || 0;
-    const tauxChange = parseFloat(document.getElementById('po-taux-change')?.value)  || 119;
-    const fraisImp   = parseFloat(document.getElementById('po-frais-import')?.value) || 7;
-    const tvaLocal   = parseFloat(document.getElementById('po-tva-local')?.value)    || 16;
-    const coutLanded = totalUSD > 0
-      ? Math.round(totalUSD * tauxChange * (1 + fraisImp / 100) * (1 + tvaLocal / 100))
-      : 0;
-
     const data = {
       fournisseur,
       date,
       echeance,
       notes,
       statut,
-      lignes:      deepClone(_state.lignes),
-      totalHT:     Math.round(totalHT),
-      totalTTC:    Math.round(totalTTC),
-      /* Données import USD */
-      totalUSD,
-      tauxChange,
-      fraisImport: fraisImp,
-      tvaLocal,
-      coutLanded
+      lignes:   deepClone(_state.lignes),
+      totalHT:  Math.round(totalHT),
+      totalTTC: Math.round(totalTTC)
     };
 
     if (_state.currentId) {

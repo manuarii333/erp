@@ -50,7 +50,8 @@ const APPS = [
       { id: 'contacts',  label: 'Contacts',  icon: '👤', section: 'Clients' },
       { id: 'pipeline',  label: 'Pipeline',  icon: '⊞',  section: 'Clients' },
       { id: 'receipts',     label: 'Bons de livraison', icon: '📋', section: 'Réception' },
-      { id: 'sales-report', label: 'Rapport',           icon: '📈', section: 'Rapports'  }
+      { id: 'sales-report', label: 'Rapport',           icon: '📈', section: 'Rapports'  },
+      { id: 'doc-params',   label: 'Mise en forme',    icon: '🎨', section: 'Paramètres' }
     ]
   },
   {
@@ -61,6 +62,7 @@ const APPS = [
     pinned: true,
     views: [
       { id: 'planning',     label: 'Planning',       icon: '📅', section: 'Atelier'    },
+      { id: 'hcs-designer', label: '⬡ HCS Designer', icon: '🎨', section: 'Atelier'    },
       { id: 'mo',           label: 'Ordres de fab.', icon: '🔧', section: 'Atelier'    },
       { id: 'bom',          label: 'Nomenclatures',  icon: '📐', section: 'Paramètres' },
       { id: 'work-centers', label: 'Postes',         icon: '🏭', section: 'Paramètres' }
@@ -114,7 +116,7 @@ const APPS = [
     label: 'Comptabilité',
     icon: '💰',
     color: '#00d4aa',
-    pinned: false,
+    pinned: true,
     views: [
       { id: 'tableau-de-bord', label: 'Tableau de bord',    icon: '📊', section: 'Vue globale' },
       { id: 'conseiller',      label: 'Copilote financier',  icon: '🧠', section: 'Vue globale' },
@@ -127,7 +129,21 @@ const APPS = [
       { id: 'bilan',           label: 'Bilan',               icon: '⚖',  section: 'Rapports'    },
       { id: 'balance',         label: 'Balance',             icon: '📊', section: 'Rapports'    },
       { id: 'tax-report',      label: 'Rapport TVA',         icon: '📑', section: 'Rapports'    },
-      { id: 'assistant',       label: '✨ Assistant Comptable', icon: '🤖', section: 'IA'       }
+      { id: 'stats-ventes',   label: 'Stats ventes & TVA',  icon: '📦', section: 'Rapports'    },
+      { id: 'assistant',       label: '✨ Assistant Comptable', icon: '🤖', section: 'IA'       },
+      { id: 'session',         label: '💾 Session / Backup',   icon: '🛡', section: 'IA'       }
+    ]
+  },
+  {
+    id: 'agents',
+    label: 'Agents IA',
+    icon: '🤖',
+    color: '#00d4aa',
+    pinned: true,
+    views: [
+      { id: 'dashboard', label: 'Tableau de bord', icon: '⬡',  section: 'Agents IA' },
+      { id: 'chat',      label: 'Chat agents',     icon: '💬', section: 'Agents IA' },
+      { id: 'sessions',  label: 'Historique',      icon: '📋', section: 'Agents IA' }
     ]
   },
   {
@@ -156,23 +172,10 @@ const APPS = [
     ]
   },
   {
-    id: 'agents',
-    label: 'Agents IA',
-    icon: '⬡',
-    color: '#4a5fff',
-    pinned: true,
-    views: [
-      { id: 'dashboard', label: 'Dashboard',  icon: '⬡',  section: 'Agents' },
-      { id: 'chat',      label: 'Chat',        icon: '💬', section: 'Agents' },
-      { id: 'sessions',  label: 'Sessions',    icon: '📋', section: 'Agents' }
-    ]
-  },
-  {
     id: 'outils',
     label: 'Outils HCS',
     icon: '🔧',
     color: '#6B7280',
-    pinned: false,
     views: [
       { id: 'triage-dashboard',        label: 'Triage & Réception',    icon: '📋', section: 'Opérations'       },
       { id: 'commercial-dashboard',    label: 'Commercial & Devis',    icon: '🤝', section: 'Opérations'       },
@@ -183,7 +186,8 @@ const APPS = [
       { id: 'dtf-plaques-transfert',   label: 'DTF Plaques Transfert', icon: '🖨', section: 'Production'       },
       { id: 'signmaster-guide',        label: 'SignMaster Guide',      icon: '✂️', section: 'Production'       },
       { id: 'admin-photos-produits',   label: 'Photos Produits',       icon: '📸', section: 'Visuel & Contenu' },
-      { id: 'picwish-pipeline',        label: 'PicWish Pipeline',      icon: '🖼',  section: 'Visuel & Contenu' },
+      { id: 'hcs-designer',            label: '⬡ HCS Designer',        icon: '🎨', section: 'Visuel & Contenu' },
+      { id: 'picwish-pipeline',        label: 'PicWish Pipeline',      icon: '🖼',  section: 'Visuel & Contenu', external: true, url: 'apps/picwish-pipeline.html' },
       { id: 'content-generator',       label: 'Content Generator',     icon: '✍️', section: 'Visuel & Contenu' },
       { id: 'stock-dashboard',         label: 'Stock Dashboard',       icon: '📦', section: 'Gestion'          },
       { id: 'finance-dashboard',       label: 'Finance Dashboard',     icon: '💰', section: 'Gestion'          },
@@ -192,9 +196,20 @@ const APPS = [
       { id: 'supervision-dashboard',   label: 'Supervision',           icon: '👁',  section: 'Supervision'      },
       { id: 'routine-dashboard',       label: 'Routines',              icon: '🔄', section: 'Supervision'      },
       { id: 'vocal-dashboard',         label: 'Agent Vocal',           icon: '🎙', section: 'Supervision'      },
-      { id: 'audit-dashboard',         label: '🔍 Audit ERP',          icon: '🔍', section: 'Supervision'      },
-      { id: 'migration-db',            label: '🗄️ Migration DB',        icon: '🗄️', section: 'Gestion'          },
-      { id: 'apps-hcs',                label: 'Applications HCS',      icon: '🚀', section: 'Applications'     }
+      { id: 'advisor',                  label: '⬡ Grace — Advisor IA',  icon: '🤖', section: 'Supervision'      },
+      { id: 'dev-studio',               label: 'Dev Studio',            icon: '🛠',  section: 'Développement'    },
+      /* ── Applications HCS externes ── */
+      { id: 'ext-andromeda',   label: 'Andromeda Builder', icon: '📡', section: 'Applications HCS', external: true, url: '../campaign/andromeda-campaign.html' },
+      { id: 'mockup-forge-v12', label: 'MockupForge v12',   icon: '🖼️', section: 'Applications HCS' },
+      { id: 'ext-dtf-composer',label: 'DTF Composer v4',   icon: '🎨', section: 'Applications HCS', external: true, url: '../agents/agent3_visuel/dtf-composer-v4.html' },
+      { id: 'dtf-calculator-hcs-v2',               label: 'Calculateur DTF',        icon: '🧮', section: 'Applications HCS' },
+      { id: 'calculateur-vinyl-hcs',               label: 'Calculateur Vinyle',      icon: '✂️', section: 'Applications HCS' },
+      { id: 'calculateur-transfert-thermocollant', label: 'Calculateur Transfert',   icon: '♨️', section: 'Applications HCS' },
+      { id: 'product-creator',                     label: 'Product Creator CSV',     icon: '📦', section: 'Applications HCS' },
+      { id: 'ext-hcs-builder', label: 'HCS Builder v2',    icon: '🏗️', section: 'Applications HCS', external: true, url: '../hcs-builder-v2-fixed.html' },
+      { id: 'ext-pass-hcs',    label: 'Pass HCS',          icon: '🎫', section: 'Applications HCS', external: true, url: '../hcs-hub-ecosystem/hcs-hub-ecosystem/hcs-pass-test.html' },
+      { id: 'ext-hub',         label: 'HCS Hub',           icon: '🗄️', section: 'Applications HCS', external: true, url: '../hcs-hub.html' },
+      { id: 'ext-cockpit',     label: 'HCS Cockpit',       icon: '🚀', section: 'Applications HCS', external: true, url: '../hcs-hub-ecosystem/hcs-hub-ecosystem/hcs-cockpit.html' }
     ]
   }
 ];
@@ -224,6 +239,25 @@ function initApp() {
   if (typeof Advisor !== 'undefined') {
     setTimeout(() => Advisor.runAtLogin(), 1500);
   }
+
+  /* Listener : reçoit les produits depuis Product Creator (iframe) */
+  window.addEventListener('message', async (e) => {
+    if (!e.data || e.data.type !== 'HCS_SAVE_PRODUCTS') return;
+    const list = e.data.products || [];
+    if (list.length === 0) return;
+    let ok = 0, err = 0;
+    for (const p of list) {
+      try {
+        await Store.create('products', p);
+        ok++;
+      } catch (_) { err++; }
+    }
+    const msg = err === 0
+      ? `${ok} produit(s) enregistré(s) dans l'ERP ✓`
+      : `${ok} OK · ${err} erreur(s)`;
+    if (typeof showToast === 'function') showToast(msg, err ? 'warning' : 'success');
+    else alert(msg);
+  });
 }
 
 /* ----------------------------------------------------------------
@@ -245,12 +279,24 @@ function renderTopbar() {
   const moreApps      = allAccessible.filter(app => app.pinned === false);
 
   /* Modules principaux */
-  menu.innerHTML = pinnedApps.map(app => `
-    <button class="app-item" data-app="${app.id}" onclick="openApp('${app.id}')">
+  menu.innerHTML = pinnedApps.map(app => {
+    const btn = `<button class="app-item" data-app="${app.id}" onclick="openApp('${app.id}')">
       <span class="app-icon">${app.icon}</span>
       <span class="app-label">${app.label}</span>
+    </button>`;
+    if (app.id === 'ventes') {
+      return btn + `
+    <button class="app-item app-shortcut" onclick="openApp('ventes');setTimeout(()=>openView('quotes'),80)" title="Devis">
+      <span class="app-icon">📄</span>
+      <span class="app-label">Devis</span>
     </button>
-  `).join('');
+    <button class="app-item app-shortcut" onclick="openApp('ventes');setTimeout(()=>openView('invoices'),80)" title="Factures">
+      <span class="app-icon">🧾</span>
+      <span class="app-label">Factures</span>
+    </button>`;
+    }
+    return btn;
+  }).join('');
 
   /* Bouton "⋯ Plus" pour les modules secondaires */
   if (moreApps.length > 0) {
@@ -347,12 +393,6 @@ function openApp(appId) {
     btn.classList.toggle('active', btn.dataset.app === appId);
   });
 
-  // Bouton retour accueil : visible partout sauf sur le dashboard lui-même
-  const btnHome = document.getElementById('btn-home-erp');
-  if (btnHome) {
-    btnHome.style.display = (appId === 'dashboard') ? 'none' : 'inline-flex';
-  }
-
   // Rendre la sidebar
   renderSidebar(app);
 
@@ -384,17 +424,21 @@ function renderSidebar(app) {
   Object.entries(sections).forEach(([section, views]) => {
     if (section) {
       html += `<div class="sidebar-section">
-        <div class="sidebar-section-label">${section}</div>
-        <div class="sidebar-section-items">`;
+        <div class="sidebar-section-label">${section}</div>`;
     }
     views.forEach(v => {
+      const extBadge = v.external
+        ? `<span style="font-size:9px;opacity:.45;margin-left:auto;flex-shrink:0;">↗</span>`
+        : '';
       html += `
-        <button class="sidebar-item" data-view="${v.id}" onclick="openView('${v.id}')" title="${v.label}">
+        <button class="sidebar-item" data-view="${v.id}" onclick="openView('${v.id}')"
+          title="${v.label}${v.external ? ' — ouvre dans un nouvel onglet' : ''}">
           <span class="item-icon">${v.icon}</span>
           <span class="item-label">${v.label}</span>
+          ${extBadge}
         </button>`;
     });
-    if (section) html += '</div></div>';
+    if (section) html += '</div>';
   });
 
   menu.innerHTML = html;
@@ -459,6 +503,9 @@ function renderView() {
       // La vue Planning charge le dashboard standalone en iframe
       if (view === 'planning') {
         renderIframe('modules/planning-dashboard.html', container);
+      } else if (view === 'hcs-designer') {
+        // Agent HCS Designer : DTF Studio + Lecture Devis + Envoi Atelier
+        renderIframe('modules/hcs-designer.html', container);
       } else if (typeof Manufacturing !== 'undefined') {
         Manufacturing.init(document.getElementById('toolbar-actions'), container, view);
       }
@@ -473,16 +520,7 @@ function renderView() {
         Accounting.init(document.getElementById('toolbar-actions'), container, view);
       }
       break;
-    case 'rh':
-      if (typeof RH !== 'undefined') {
-        RH.init(document.getElementById('toolbar-actions'), container, view);
-      }
-      break;
-    case 'agents':
-      if (typeof Agents !== 'undefined') {
-        Agents.init(document.getElementById('toolbar-actions'), container, view);
-      }
-      break;
+    case 'rh':           renderRH(view, container);           break;
     case 'parametres':
       if (typeof Users !== 'undefined') {
         Users.init(document.getElementById('toolbar-actions'), container, view);
@@ -496,27 +534,38 @@ function renderView() {
     case 'caisse':
       renderIframe(`modules/${view}.html`, container);
       break;
-    case 'outils':
-      /* Vues natives rendues directement (sans iframe) */
-      if (view === 'apps-hcs') {
-        renderAppsHCS(container);
-      } else if (view === 'audit-dashboard') {
-        if (typeof Audit !== 'undefined') {
-          Audit.init(document.getElementById('toolbar-actions'), container, view);
-        }
-      } else if (view === 'migration-db') {
-        if (typeof Migrate !== 'undefined') {
-          Migrate.init(document.getElementById('toolbar-actions'), container, view);
-        }
-      /* Ces vues utilisent la version apps/ (plus récente) */
-      } else if (view === 'picwish-pipeline') {
-        renderIframe('apps/picwish-pipeline.html', container);
-      } else if (view === 'dtf-plaques-transfert') {
-        renderIframe('apps/dtf-plaques-transfert.html', container);
+    case 'agents':
+      container.style.padding = '';
+      container.style.overflow = '';
+      if (typeof Agents !== 'undefined') {
+        Agents.init(document.getElementById('toolbar-actions'), container, view);
       } else {
-        renderIframe(`modules/${view}.html`, container);
+        container.innerHTML = `<div class="table-empty"><p>🤖 Module Agents IA non chargé — vérifiez js/modules/agents.js</p></div>`;
       }
       break;
+    case 'outils': {
+      /* Vue Advisor IA — rendu inline (pas d'iframe) */
+      if (view === 'advisor') {
+        container.style.padding = '';
+        container.style.overflow = '';
+        if (typeof Advisor !== 'undefined') {
+          Advisor.init(document.getElementById('toolbar-actions'), container);
+        } else {
+          container.innerHTML = `<div class="table-empty"><p>⬡ Module Advisor non chargé — vérifiez js/modules/advisor.js</p></div>`;
+        }
+      } else {
+        /* Vérifier si vue externe (Applications HCS) */
+        const outilsApp = APPS.find(a => a.id === 'outils');
+        const viewDef   = outilsApp ? outilsApp.views.find(v => v.id === view) : null;
+        if (viewDef && viewDef.external && viewDef.url) {
+          window.open(viewDef.url, '_blank');
+          /* Laisser le contenu actuel en place — juste ouvrir le nouvel onglet */
+        } else {
+          renderIframe(`modules/${view}.html`, container);
+        }
+      }
+      break;
+    }
     default:             container.innerHTML = `<div class="table-empty"><p>Module "${app}" à venir.</p></div>`;
   }
 }
@@ -534,8 +583,7 @@ function renderToolbarActions() {
   // Ces modules gèrent leur propre toolbar via leur init()
   if (app === 'crm' || app === 'ventes' || app === 'stock' ||
       app === 'production' || app === 'comptabilite' || app === 'messagerie' ||
-      app === 'caisse' || app === 'outils' || app === 'parametres' ||
-      app === 'rh' || app === 'agents') return;
+      app === 'caisse' || app === 'outils' || app === 'parametres') return;
 
   // Mapping app+vue → boutons (modules sans fichier dédié)
   const actionMap = {
@@ -616,219 +664,6 @@ function closeModal() {
 /* ================================================================
    RENDERERS PAR MODULE
    ================================================================ */
-
-/* ---- APPLICATIONS HCS — liens vers les outils HTML externes ---- */
-function renderAppsHCS(container) {
-
-  /* ----------------------------------------------------------------
-     Palette espresso / caramel / cream (cohérente avec Advisor)
-     ---------------------------------------------------------------- */
-  const C = {
-    espresso : '#1a0e07',
-    dark     : '#2a1508',
-    caramel  : '#c4813a',
-    caramelHo: '#e09a4f',
-    cream    : '#f5ede0',
-    muted    : '#c8b89a',
-    border   : 'rgba(196,129,58,0.22)',
-    cardBg   : 'rgba(196,129,58,0.04)',
-    cardHover: 'rgba(196,129,58,0.10)',
-  };
-
-  /* ----------------------------------------------------------------
-     3 SECTIONS — données : icone, nom, description, chemin réel
-     ---------------------------------------------------------------- */
-  const SECTIONS = [
-    {
-      id    : 'production',
-      label : '🏭 Production & Design',
-      color : '#e09a4f',
-      apps  : [
-        { icon:'🖨️', nom:'DTF Plaques',       url:'apps/dtf-plaques-transfert.html',    desc:'Calcul & impression plaques DTF transfert' },
-        { icon:'🧮', nom:'Calculateur DTF',    url:'apps/dtf-calculator-hcs-v2.html',    desc:'Coûts DTF landed en XPF (douane + TVA)'    },
-        { icon:'🎨', nom:'Calculateur Vinyle', url:'apps/calculateur-vinyl-hcs.html',    desc:'Prix de revient vinyle au cm²'              },
-        { icon:'🖼️', nom:'MockupForge v12',    url:'apps/mockup-forge-v12.html',         desc:'Générateur de mockups produits HCS'         },
-        { icon:'🖨️', nom:'DTF Studio',         url:'apps/dtf-studio.html',               desc:'Studio de composition fichiers DTF'         },
-        { icon:'🖼️', nom:'PicWish Pipeline',   url:'apps/picwish-pipeline.html',         desc:'Pipeline retouche & suppression de fond IA' },
-        { icon:'👕', nom:'T-Shirt Mockup',     url:'apps/tshirt-mockup-studio.html',     desc:'Studio mockup t-shirts & textile'           },
-      ]
-    },
-    {
-      id    : 'marketing',
-      label : '📡 Marketing & Ventes',
-      color : '#4a9fff',
-      apps  : [
-        { icon:'📡', nom:'Andromeda Builder',     url:'apps/andromeda-campaign.html',       desc:'Éditeur de campagnes marketing omnicanal'  },
-        { icon:'🏗️', nom:'HCS Builder v2',        url:'apps/hcs-builder-v2-fixed.html',     desc:'Constructeur de pages & landing pages HCS' },
-        { icon:'🚀', nom:'HCS Cockpit',           url:'apps/hcs-cockpit.html',               desc:'Supervision globale — KPI & ops en direct'  },
-        { icon:'🎨', nom:'Kustom Koncept',        url:'apps/kustomkoncept.html',             desc:'Configurateur deco moto 3D KustomKoncept'  },
-        { icon:'📊', nom:'Scenario A — Demo',     url:'apps/scenario-a-demo.html',           desc:'Démo parcours client — Scenario A'         },
-        { icon:'📊', nom:'Scenario B — Demo',     url:'apps/scenario-b-demo.html',           desc:'Démo parcours client — Scenario B'         },
-      ]
-    },
-    {
-      id    : 'gestion',
-      label : '🗄️ Outils & Gestion',
-      color : '#00d4aa',
-      apps  : [
-        { icon:'🗄️', nom:'HCS Hub',              url:'apps/hcs-hub.html',                   desc:'Tableau de bord centralisé toutes apps'    },
-        { icon:'📊', nom:'HCS Dashboard',         url:'apps/hcs-dashboard.html',             desc:'Indicateurs clés & suivi activité HCS'     },
-        { icon:'📋', nom:'Catalogue Complet',     url:'apps/hcs_catalogue_complet_v2.html',  desc:'Catalogue produits HCS — version complète' },
-        { icon:'📋', nom:'Catalogue Offres',      url:'apps/hcs_catalogue_offres.html',      desc:'Catalogue offres & tarifs clients'         },
-        { icon:'🎫', nom:'HCS Pass Test',         url:'apps/hcs-pass-test.html',             desc:'Pass fidélité textile — test & validation'  },
-        { icon:'🔍', nom:'HCS Diagnostic',        url:'apps/hcs-hub-diagnostic.html',        desc:'Diagnostic & état de santé du Hub HCS'     },
-        { icon:'📐', nom:'Andromeda Verticals',   url:'apps/andromeda-verticals-spec.html',  desc:'Spécifications verticales Andromeda v2'    },
-      ]
-    }
-  ];
-
-  /* ----------------------------------------------------------------
-     TEMPLATE D'UNE CARTE
-     ---------------------------------------------------------------- */
-  function cardHtml(app, accentColor) {
-    return `
-      <div
-        onmouseenter="this.style.background='${C.cardHover}';this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(196,129,58,0.18)'"
-        onmouseleave="this.style.background='${C.cardBg}';this.style.transform='none';this.style.boxShadow='none'"
-        style="
-          background:${C.cardBg};
-          border:1px solid ${C.border};
-          border-top:3px solid ${accentColor};
-          border-radius:8px;
-          padding:16px;
-          display:flex;
-          flex-direction:column;
-          gap:10px;
-          transition:background .15s,transform .15s,box-shadow .15s;
-          cursor:default;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.6rem;flex-shrink:0;line-height:1;">${app.icon}</span>
-          <span style="
-            font-weight:700;
-            font-size:13px;
-            color:${C.cream};
-            line-height:1.3;">
-            ${escapeHtml(app.nom)}
-          </span>
-        </div>
-        <p style="
-          font-size:11.5px;
-          color:${C.muted};
-          margin:0;
-          flex:1;
-          line-height:1.55;">
-          ${escapeHtml(app.desc)}
-        </p>
-        <button
-          onclick="window.open('${app.url.replace(/'/g,"\\'")}','_blank','noopener,noreferrer')"
-          style="
-            padding:7px 0;
-            background:${accentColor};
-            border:none;
-            border-radius:5px;
-            color:${C.espresso};
-            font-size:12px;
-            font-weight:700;
-            cursor:pointer;
-            transition:background .15s;
-            width:100%;"
-          onmouseenter="this.style.background='${C.caramelHo}'"
-          onmouseleave="this.style.background='${accentColor}'">
-          ↗ Ouvrir
-        </button>
-      </div>`;
-  }
-
-  /* ----------------------------------------------------------------
-     TEMPLATE D'UNE SECTION
-     ---------------------------------------------------------------- */
-  function sectionHtml(section) {
-    return `
-      <div style="margin-bottom:32px;">
-        <div style="
-          display:flex;
-          align-items:center;
-          gap:10px;
-          margin-bottom:14px;
-          padding-bottom:10px;
-          border-bottom:1px solid ${C.border};">
-          <span style="
-            font-size:15px;
-            font-weight:700;
-            color:${section.color};
-            letter-spacing:.01em;">
-            ${section.label}
-          </span>
-          <span style="
-            font-size:11px;
-            color:${C.muted};
-            background:rgba(196,129,58,0.08);
-            border:1px solid ${C.border};
-            border-radius:10px;
-            padding:1px 8px;">
-            ${section.apps.length} outils
-          </span>
-        </div>
-        <div style="
-          display:grid;
-          grid-template-columns:repeat(4,1fr);
-          gap:14px;">
-          ${section.apps.map(app => cardHtml(app, section.color)).join('')}
-        </div>
-      </div>`;
-  }
-
-  /* ----------------------------------------------------------------
-     RENDU FINAL
-     ---------------------------------------------------------------- */
-  container.innerHTML = `
-    <div style="
-      padding:28px 32px;
-      background:${C.espresso};
-      min-height:100%;
-      box-sizing:border-box;">
-
-      <!-- En-tête -->
-      <div style="
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        margin-bottom:28px;
-        flex-wrap:wrap;
-        gap:12px;">
-        <div>
-          <h2 style="
-            font-size:20px;
-            font-weight:800;
-            color:${C.cream};
-            margin:0 0 4px;
-            letter-spacing:.01em;">
-            ⬡ Applications HCS
-          </h2>
-          <p style="
-            font-size:12px;
-            color:${C.muted};
-            margin:0;">
-            ${SECTIONS.reduce((t,s) => t + s.apps.length, 0)} outils disponibles — chaque application s'ouvre dans un nouvel onglet
-          </p>
-        </div>
-        <span style="
-          font-size:11px;
-          color:${C.caramel};
-          background:rgba(196,129,58,0.10);
-          border:1px solid ${C.border};
-          border-radius:12px;
-          padding:4px 14px;
-          font-weight:600;">
-          ● Serveur local actif
-        </span>
-      </div>
-
-      <!-- Sections -->
-      ${SECTIONS.map(sectionHtml).join('')}
-    </div>
-  `;
-}
 
 /* ---- DASHBOARD ---- */
 function renderDashboard(view, container) {
@@ -1002,7 +837,7 @@ function renderDashboard(view, container) {
     }
 
     /* Factures impayées */
-    const impayees = (db.factures || []).filter(f => !['Payé','Annulée','Annulé'].includes(f.statut));
+    const impayees = (db.factures || []).filter(f => !['Payé','Payée','Annulée','Annulé'].includes(f.statut));
     if (impayees.length > 0) {
       const totalImp = impayees.reduce((s,f) => s+(f.totalTTC||0), 0);
       alerts.push({ type: 'error', icon: '🧾', msg: `${impayees.length} facture(s) en attente de paiement — ${fmt(totalImp)}` });
@@ -1115,11 +950,9 @@ function _dashActivities(items) {
 function renderIframe(src, container) {
   container.style.padding = '0';
   container.style.overflow = 'hidden';
-  // Anti-cache : force le rechargement à chaque navigation
-  const v = Date.now();
   container.innerHTML = `
     <iframe
-      src="${src}?v=${v}"
+      src="${src}"
       style="width:100%; height:calc(100vh - 60px); border:none; display:block;"
       allow="clipboard-read; clipboard-write"
     ></iframe>
@@ -1127,8 +960,13 @@ function renderIframe(src, container) {
 }
 
 /* ---- RH ---- */
-/* ---- RH — délégué à js/modules/rh.js ---- */
-// Les vues RH (employes, conges, planning-rh) sont dans RH.init()
+function renderRH(view, container) {
+  container.innerHTML = `
+    <div class="table-empty">
+      <div class="empty-icon">👤</div>
+      <p>Module RH — Vue "${view}" à venir</p>
+    </div>`;
+}
 
 /* ---- MESSAGERIE — délégué à js/modules/discuss.js ---- */
 // Les fonctions Discussion (inbox, general, production, ventes) sont dans Discuss.init()

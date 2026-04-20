@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 # ── CONFIGURATION ──────────────────────────────────────────────
-FTP_HOST   = os.environ.get("FTP_HOST",   "ftp.highcoffeeshirts.com")
+FTP_HOST   = os.environ.get("FTP_HOST",   "node41-ca.n0c.com")
 FTP_USER   = os.environ.get("FTP_USER",   "admin@highcoffeeshirts.com")
 FTP_PASS   = os.environ.get("FTP_PASS",   "VO'uL5LE3s")
 REMOTE_DIR = os.environ.get("REMOTE_DIR", "/public_html/erp")

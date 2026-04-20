@@ -136,6 +136,28 @@ const SEED = {
       categorie: 'Services',
       prix: 7500, cout: 3000, stock: 999, stockMin: 0,
       unite: 'h', description: 'Studio graphique HCS, BAT inclus jusqu\'à 3 révisions'
+    },
+    /* --- TEXTILE HCS --- */
+    {
+      id: 'prod-017', sku: 'TUC-001', emoji: '👕',
+      nom: 'T-shirt Unis Coton',
+      categorie: 'Textile',
+      prix: 1800, cout: 600, stock: 0, stockMin: 10,
+      unite: 'pce', description: 'T-shirt uni 100% coton, disponible en plusieurs coloris'
+    },
+    {
+      id: 'prod-018', sku: 'CAP-001', emoji: '🧢',
+      nom: 'Casquette Polyester',
+      categorie: 'Textile',
+      prix: 2200, cout: 750, stock: 0, stockMin: 8,
+      unite: 'pce', description: 'Casquette polyester, fermeture ajustable, personnalisable'
+    },
+    {
+      id: 'prod-019', sku: 'HTV-001', emoji: '🔥',
+      nom: 'Heat Transfer Vinyl',
+      categorie: 'DTF',
+      prix: 950, cout: 300, stock: 0, stockMin: 20,
+      unite: 'pce', description: 'Transfert thermocollant heat transfer vinyl (HTV), pressage à chaud'
     }
   ],
 
@@ -251,6 +273,45 @@ const SEED = {
      FOURNISSEURS (4)
      ============================================================== */
   fournisseurs: [
+    /* ── Fournisseurs HCS — Polynésie française (locaux) ── */
+    {
+      id: 'four-hcs-001', nom: 'Anémone Tahiti',
+      pays: 'Polynésie française', devise: 'XPF',
+      email: 'contact@anemone.pf', telephone: '+689 40 50 00 01',
+      contact: '',
+      delaiLivraison: 2,
+      conditions: 'Crédit 30j. Livraison 24-48h.',
+      notes: 'Fournisseur principal textile. T-shirts, polos, casquettes blank.'
+    },
+    {
+      id: 'four-hcs-002', nom: 'HT4You',
+      pays: 'Polynésie française', devise: 'XPF',
+      email: 'info@ht4you.pf', telephone: '+689 40 50 00 02',
+      contact: '',
+      delaiLivraison: 1,
+      conditions: 'Paiement à la commande. MOQ 10 transferts.',
+      notes: 'Transferts DTF, films, encres. Livraison J+1.'
+    },
+    /* ── Fournisseurs HCS — International ── */
+    {
+      id: 'four-hcs-003', nom: 'AliExpress Pro',
+      pays: 'Chine', devise: 'USD',
+      email: 'supplier@alibaba.com', telephone: '',
+      contact: '',
+      delaiLivraison: 22,
+      conditions: 'Acompte 100%. MOQ 100 pcs.',
+      notes: 'Textile en gros, casquettes, bags. Délai 15-30 jours.'
+    },
+    {
+      id: 'four-hcs-004', nom: 'Stanley/Stella Europe',
+      pays: 'Belgique', devise: 'EUR',
+      email: 'orders@stanleystella.com', telephone: '+32 2 000 0000',
+      contact: '',
+      delaiLivraison: 8,
+      conditions: 'Facture EUR. Livraison DHL.',
+      notes: 'T-shirts bio premium, polos éco. Délai 7-10 jours.'
+    },
+    /* ── Fournisseurs complémentaires ── */
     {
       id: 'four-001', nom: 'DTF Supplies USA',
       pays: 'États-Unis', devise: 'USD',
@@ -1130,8 +1191,8 @@ const SEED = {
 
   /* Méta-données de la base */
   _meta: {
-    version: '1.2.0',
-    seedVersion: '1.2.0',
+    version: '1.3.0',
+    seedVersion: '1.3.0',
     createdAt: new Date().toISOString(),
     counters: {
       devis:              3,
