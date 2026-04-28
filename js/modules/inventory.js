@@ -405,8 +405,8 @@ const Inventory = (() => {
       _pendingImage = produit.image;
     }
 
-    /* Initialiser les variantes depuis le produit existant */
-    _currentVariantes = (produit.variantes || []).map(v => ({ ...v }));
+    /* Initialiser les variantes depuis le produit existant — dédupliquer au chargement */
+    _currentVariantes = _deduplicateVariantes((produit.variantes || []).map(v => ({ ...v })));
 
     /* Toolbar */
     const isArchived = produit.status === 'archived';
@@ -591,7 +591,7 @@ const Inventory = (() => {
           </span>
         </div>
 
-        <div id="product-form-container"></div>
+        <div id="product-form-container" data-current-prod-id="${_state.currentId || ''}"></div>
 
         <!-- Sections variantes — masquées pour produit simple -->
         <div id="variations-sections"
@@ -1565,18 +1565,36 @@ const Inventory = (() => {
         </td>
       </tr>`).join('');
 
-    /* Lignes attributs personnalisés */
-    const customRows = _currentCustomAttrs.map((ca, i) => `
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;" data-ca-idx="${i}">
-        <input type="text" class="form-control" data-ca-nom="${i}"
-          value="${_escI(ca.nom)}" placeholder="Nom attribut (ex: Matière)"
-          style="width:140px;flex-shrink:0;" />
-        <input type="text" class="form-control" data-ca-valeurs="${i}"
-          value="${_escI(ca.valeurs.join(', '))}" placeholder="Valeurs séparées par virgule"
-          style="flex:1;" />
-        <button class="btn btn-ghost btn-sm" data-ca-del="${i}"
-          style="color:var(--accent-red);flex-shrink:0;">✕</button>
-      </div>`).join('');
+    /* Lignes attributs personnalisés — valeurs individuelles éditables */
+    const customRows = _currentCustomAttrs.map((ca, i) => {
+      const valRows = ca.valeurs.map((v, vi) => `
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;" data-ca-val-row="${i}-${vi}">
+          <input type="text" class="form-control" data-ca-val="${i}" data-ca-vi="${vi}"
+            value="${_escI(v)}" placeholder="Valeur…"
+            style="flex:1;height:28px;font-size:12px;" />
+          <button class="btn btn-ghost btn-sm" data-ca-val-del="${i}" data-ca-vi="${vi}"
+            title="Supprimer cette valeur"
+            style="color:var(--accent-red);flex-shrink:0;padding:2px 6px;">✕</button>
+        </div>`).join('');
+
+      return `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;
+        padding:12px;margin-bottom:10px;" data-ca-idx="${i}">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+          <input type="text" class="form-control" data-ca-nom="${i}"
+            value="${_escI(ca.nom)}" placeholder="Nom attribut (ex: Format)"
+            style="flex:1;font-weight:600;" />
+          <button class="btn btn-ghost btn-sm" data-ca-del="${i}"
+            title="Supprimer cet attribut"
+            style="color:var(--accent-red);flex-shrink:0;">🗑 Supprimer</button>
+        </div>
+        <div id="ca-vals-${i}">
+          ${valRows || '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Aucune valeur.</div>'}
+        </div>
+        <button class="btn btn-ghost btn-sm" data-ca-add-val="${i}"
+          style="margin-top:4px;font-size:11px;">+ Ajouter une valeur</button>
+      </div>`;
+    }).join('');
 
     sec.innerHTML = `
       <div style="background:var(--bg-surface);border:1px solid var(--border);
@@ -1671,18 +1689,43 @@ const Inventory = (() => {
       inp.addEventListener('input', () => {
         const i = parseInt(inp.dataset.caNom);
         _currentCustomAttrs[i].nom = inp.value.trim();
+        _updateVarAttrsSummary();
       });
     });
 
-    /* Éditer valeurs attribut personnalisé */
-    sec.querySelectorAll('[data-ca-valeurs]').forEach(inp => {
+    /* Éditer une valeur individuelle */
+    sec.querySelectorAll('[data-ca-val]').forEach(inp => {
       inp.addEventListener('input', () => {
-        const i = parseInt(inp.dataset.caValeurs);
-        _currentCustomAttrs[i].valeurs = inp.value.split(',').map(s => s.trim()).filter(Boolean);
+        const i  = parseInt(inp.dataset.caVal);
+        const vi = parseInt(inp.dataset.caVi);
+        _currentCustomAttrs[i].valeurs[vi] = inp.value.trim();
         if (_attrPrix === _currentCustomAttrs[i].nom) {
           _refreshAvancesSection(sec, produit);
         }
         _updateVarAttrsSummary();
+      });
+    });
+
+    /* Supprimer une valeur individuelle */
+    sec.querySelectorAll('[data-ca-val-del]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i  = parseInt(btn.dataset.caValDel);
+        const vi = parseInt(btn.dataset.caVi);
+        _currentCustomAttrs[i].valeurs.splice(vi, 1);
+        _refreshAvancesSection(sec, produit);
+        _updateVarAttrsSummary();
+      });
+    });
+
+    /* Ajouter une valeur à un attribut */
+    sec.querySelectorAll('[data-ca-add-val]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.dataset.caAddVal);
+        _currentCustomAttrs[i].valeurs.push('');
+        _refreshAvancesSection(sec, produit);
+        /* Focus sur le nouveau champ */
+        const vals = sec.querySelectorAll(`[data-ca-val="${i}"]`);
+        if (vals.length) vals[vals.length - 1].focus();
       });
     });
 
@@ -1780,6 +1823,7 @@ const Inventory = (() => {
             <button class="btn btn-primary btn-sm" id="btn-var-generate">⚡ Générer les variantes</button>
             <button class="btn btn-warning btn-sm" id="btn-var-regenerate">🔄 Régénérer</button>
             <button class="btn btn-ghost btn-sm" id="btn-var-add-manual">+ Ajouter manuellement</button>
+            <button class="btn btn-ghost btn-sm" id="btn-var-dedup" style="color:var(--text-muted);" title="Supprime les variantes dupliquées">🧹 Nettoyer les doublons</button>
             <span id="var-gen-preview" style="font-size:11px;color:var(--text-muted);margin-left:4px;"></span>
           </div>
         </div>
@@ -1942,6 +1986,26 @@ const Inventory = (() => {
       .sort((a, b) => a.qteMin - b.qteMin);
   }
 
+  /**
+   * Déduplique un tableau de variantes.
+   * Clé = tous les champs sauf ref/prix/cout/quantite, normalisés (casse, × → x).
+   * Garde la première occurrence de chaque combinaison d'attributs.
+   */
+  function _deduplicateVariantes(arr) {
+    const META = new Set(['ref', 'prix', 'cout', 'quantite']);
+    const seen = new Set();
+    return arr.filter(v => {
+      const key = Object.entries(v)
+        .filter(([k]) => !META.has(k))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, val]) => `${k}:${String(val).trim().replace(/×/g, 'x').toLowerCase()}`)
+        .join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   /** Génère le HTML du tableau éditable des variantes */
   function _renderVariantesTable() {
     if (_currentVariantes.length === 0) {
@@ -2047,20 +2111,16 @@ const Inventory = (() => {
         );
       });
 
-      /* Clé de déduplication */
-      const makeKey = combo =>
-        Object.entries(combo).sort(([a],[b]) => a.localeCompare(b))
-          .map(([k,v]) => `${k}:${v}`).join('|');
+      /* Clé de déduplication — même logique que _deduplicateVariantes */
+      const META = new Set(['ref', 'prix', 'cout', 'quantite']);
+      const makeKey = obj =>
+        Object.entries(obj)
+          .filter(([k]) => !META.has(k))
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => `${k}:${String(v).trim().replace(/×/g, 'x').toLowerCase()}`)
+          .join('|');
 
-      const existingKeys = new Set(_currentVariantes.map(v => {
-        const c = {};
-        if (v.taille) c.taille = v.taille;
-        _currentCustomAttrs.forEach(ca => {
-          const val = v[ca.nom] !== undefined ? v[ca.nom] : ((v.customDims || {})[ca.nom]);
-          if (val) c[ca.nom] = val;
-        });
-        return makeKey(c);
-      }));
+      const existingKeys = new Set(_currentVariantes.map(makeKey));
 
       let ajouts = 0;
       combos.forEach(combo => {
@@ -2110,6 +2170,21 @@ const Inventory = (() => {
           !confirm('Effacer les variantes existantes et régénérer ?')) return;
       _currentVariantes = [];
       document.getElementById('btn-var-generate')?.click();
+    });
+
+    /* Nettoyer les doublons */
+    document.getElementById('btn-var-dedup')?.addEventListener('click', () => {
+      const avant = _currentVariantes.length;
+      _currentVariantes = _deduplicateVariantes(_currentVariantes);
+      const supprimés = avant - _currentVariantes.length;
+      _refreshVariantesTable();
+      if (typeof toast === 'function') {
+        if (supprimés > 0) {
+          toast(`${supprimés} doublon${supprimés > 1 ? 's' : ''} supprimé${supprimés > 1 ? 's' : ''}.`, 'success');
+        } else {
+          toast('Aucun doublon détecté.', 'info');
+        }
+      }
     });
 
     /* Ajouter manuellement */
@@ -2421,26 +2496,30 @@ const Inventory = (() => {
      ================================================================ */
 
   const _IMPORT_FIELDS = [
-    { key: 'nom',         label: 'Nom produit',   required: true },
+    { key: 'nom',         label: 'Nom produit',      required: true },
+    { key: 'ref',         label: 'Référence / SKU' },
     { key: 'categorie',   label: 'Catégorie' },
-    { key: 'prix',        label: 'Prix vente (XPF)' },
+    { key: 'prix',        label: 'Prix HT (XPF)' },
+    { key: 'tva',         label: 'TVA %' },
+    { key: 'prixTTC',     label: 'Prix TTC (XPF)' },
     { key: 'cout',        label: 'Coût achat (XPF)' },
     { key: 'stock',       label: 'Stock initial' },
     { key: 'unite',       label: 'Unité' },
     { key: 'description', label: 'Description' },
-    { key: 'ref',         label: 'Référence / SKU' },
     { key: 'emoji',       label: 'Emoji' },
   ];
 
   const _IMPORT_ALIASES = {
     nom:         ['nom', 'name', 'produit', 'article', 'libelle', 'designation', 'désignation'],
+    ref:         ['ref', 'référence', 'reference', 'sku', 'code', 'code_article'],
     categorie:   ['categorie', 'catégorie', 'category', 'cat', 'famille', 'type'],
-    prix:        ['prix', 'price', 'prix vente', 'pv', 'tarif', 'prix_vente'],
+    prix:        ['prix', 'prix ht', 'price', 'prix vente', 'pv', 'tarif', 'prix_vente', 'ht'],
+    tva:         ['tva', 'tax', 'taxe', 'vat', 'taux tva', 'taux_tva'],
+    prixTTC:     ['prixttc', 'prix ttc', 'ttc', 'prix_ttc', 'price ttc', 'total ttc'],
     cout:        ['cout', 'coût', 'cost', 'prix achat', 'pa', 'prix_achat', 'achat'],
     stock:       ['stock', 'quantite', 'quantité', 'qty', 'qte', 'inventaire'],
     unite:       ['unite', 'unité', 'unit', 'uom', 'mesure'],
     description: ['description', 'desc', 'details', 'détails', 'notes', 'commentaire'],
-    ref:         ['ref', 'référence', 'reference', 'sku', 'code', 'code_article'],
     emoji:       ['emoji', 'icone', 'icône', 'icon'],
   };
 
@@ -2682,15 +2761,21 @@ const Inventory = (() => {
         };
         const str = (key) => _mapping[key] ? String(row[_mapping[key]] || '').trim() : '';
         try {
+          const prixHT  = num('prix');
+          const tvaPct  = num('tva') || 16;
+          const prixTTC = num('prixTTC') || (prixHT > 0 ? Math.round(prixHT * (1 + tvaPct / 100)) : 0);
+          const prixHTf = prixHT > 0 ? prixHT : (prixTTC > 0 ? Math.round(prixTTC / (1 + tvaPct / 100)) : 0);
           Store.create('produits', {
             nom,
+            ref:         str('ref'),
             categorie:   str('categorie'),
-            prix:        num('prix'),
+            prix:        prixHTf,
+            tva:         tvaPct,
+            prixTTC,
             cout:        num('cout'),
             stock:       Math.round(num('stock')),
             unite:       str('unite') || 'unité',
             description: str('description'),
-            ref:         str('ref'),
             emoji:       str('emoji') || '📦',
             status:      'active',
             variantes:   [],
@@ -2746,10 +2831,11 @@ const Inventory = (() => {
     const cols  = _IMPORT_FIELDS.map(f => f.key);
     const label = _IMPORT_FIELDS.map(f => f.label);
     const example = {
-      nom: 'T-Shirt Blanc Classic', categorie: 'Vêtements',
-      prix: '2500', cout: '800', stock: '50', unite: 'unité',
+      ref: 'TSH-001', nom: 'T-Shirt Blanc Classic', categorie: 'Vêtements',
+      prix: '2155', tva: '16', prixTTC: '2500', cout: '800',
+      stock: '50', unite: 'unité',
       description: 'T-shirt 100% coton peigné — disponible toutes tailles',
-      ref: 'TSH-001', emoji: '👕'
+      emoji: '👕'
     };
     const lines = [
       cols.join(','),
@@ -2770,7 +2856,7 @@ const Inventory = (() => {
       if (typeof toast === 'function') toast('Aucun produit à exporter.', 'info');
       return;
     }
-    const cols = ['nom', 'categorie', 'prix', 'cout', 'stock', 'unite', 'description', 'ref', 'emoji', 'status'];
+    const cols = ['ref', 'nom', 'categorie', 'prix', 'tva', 'prixTTC', 'cout', 'stock', 'unite', 'description', 'emoji', 'status'];
     const header = cols.join(',');
     const rows = produits.map(p =>
       cols.map(k => {
