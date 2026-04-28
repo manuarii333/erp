@@ -98,8 +98,24 @@ $migrations = [
         'variantes'      => 'LONGTEXT NULL',
         'paliers'        => 'LONGTEXT NULL',
         'attr_prix'      => 'VARCHAR(100) NULL',
+        'attr_increments'=> 'LONGTEXT NULL',
         'formats_prix'   => 'LONGTEXT NULL',
         'custom_attrs'   => 'LONGTEXT NULL',
+    ],
+    'bons_achat' => [
+        'store_id'           => 'VARCHAR(100) NULL',
+        'ref'                => 'VARCHAR(50) NULL',
+        'fournisseur'        => 'VARCHAR(255) NULL',
+        'fournisseur_id'     => 'VARCHAR(100) NULL',
+        'date'               => 'DATE NULL',
+        'date_livraison_prevue' => 'DATE NULL',
+        'statut'             => 'VARCHAR(50) NOT NULL DEFAULT "Brouillon"',
+        'lignes'             => 'LONGTEXT NULL',
+        'notes'              => 'TEXT NULL',
+        'devis_origine_id'   => 'VARCHAR(100) NULL',
+        'devis_origine_ref'  => 'VARCHAR(50) NULL',
+        'total_ht'           => 'DECIMAL(12,2) NULL DEFAULT 0',
+        'total_ttc'          => 'DECIMAL(12,2) NULL DEFAULT 0',
     ],
     'fournisseurs' => [
         'store_id'       => 'VARCHAR(100) NULL',
@@ -179,6 +195,35 @@ foreach ($migrations as $table => $colonnes) {
         } catch (Exception $e) {
             $log[] = "❌ `{$table}`.`{$col}`: " . $e->getMessage();
         }
+    }
+}
+
+/* ----------------------------------------------------------------
+   Réparer AUTO_INCREMENT sur les colonnes id des tables principales
+   (au cas où la table existait avant sans AUTO_INCREMENT)
+   ---------------------------------------------------------------- */
+$tablesToFix = ['devis', 'commandes', 'factures', 'produits', 'contacts', 'fournisseurs',
+                'bons_achat', 'commandes_atelier', 'planning_atelier'];
+
+foreach ($tablesToFix as $table) {
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT Extra FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'id'"
+        );
+        $stmt->execute([$table]);
+        $colInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$colInfo) continue;
+
+        if (strpos(strtolower($colInfo['Extra'] ?? ''), 'auto_increment') === false) {
+            $pdo->exec("ALTER TABLE `{$table}` MODIFY `id` INT NOT NULL AUTO_INCREMENT");
+            $log[] = "✅ `{$table}`.`id` — AUTO_INCREMENT ajouté";
+        } else {
+            $log[] = "ℹ `{$table}`.`id` — AUTO_INCREMENT OK";
+        }
+    } catch (Exception $e) {
+        $log[] = "❌ Fix AUTO_INCREMENT `{$table}`: " . $e->getMessage();
     }
 }
 

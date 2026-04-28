@@ -165,19 +165,27 @@ const Sales = (() => {
     return (s || '').replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
   }
 
-  /** Picker position atelier — affiche un modal de sélection rapide */
+  /** Picker position atelier — affiche un modal de sélection rapide
+   *  positions : tableau de strings OU d'objets {nom, taille, prix} */
   function _showPositionPicker(positions, callback) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;';
 
-    const items = positions.map(pos => `
-      <button class="pos-pick-btn" data-pos="${_esc(pos)}"
-        style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    const items = positions.map(pos => {
+      const nom    = typeof pos === 'object' ? pos.nom    : pos;
+      const taille = typeof pos === 'object' ? pos.taille : '';
+      const prix   = typeof pos === 'object' && pos.prix  ? pos.prix : null;
+      const prixStr = prix ? ` — ${prix.toLocaleString('fr-FR')} XPF` : '';
+      return `
+      <button class="pos-pick-btn" data-pos="${_esc(nom)}" data-prix="${prix || ''}"
+        style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;
           background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;
           padding:10px 14px;font-size:13px;color:var(--text-primary);cursor:pointer;
           transition:border .15s,background .15s;">
-        ${_esc(pos)}
-      </button>`).join('');
+        <span>${_esc(nom)}</span>
+        ${taille ? `<span style="font-size:11px;color:var(--text-muted);">${_esc(taille)}${prixStr}</span>` : ''}
+      </button>`;
+    }).join('');
 
     overlay.innerHTML = `
       <div style="background:var(--bg-card);border-radius:16px;max-width:420px;width:100%;
@@ -213,7 +221,7 @@ const Sales = (() => {
       });
       btn.addEventListener('click', () => {
         overlay.remove();
-        callback(btn.dataset.pos);
+        callback({ pos: btn.dataset.pos, prix: btn.dataset.prix ? parseInt(btn.dataset.prix, 10) : null });
       });
     });
 
@@ -244,10 +252,79 @@ const Sales = (() => {
   /** Options <option> pour le select de produits (dans les lignes) — exclut les archivés */
   function _produitOptions(selectedId) {
     const produits = Store.getAll('produits').filter(p => p.status !== 'archived');
-    return `<option value="">— Produit —</option>` +
-      produits.map(p =>
-        `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${_esc(p.emoji || '')} ${_esc(p.nom)}</option>`
-      ).join('');
+    /* Grouper par catégorie pour navigation plus rapide dans la liste */
+    const parCat = {};
+    produits.forEach(p => {
+      const cat = p.categorie || 'Autre';
+      if (!parCat[cat]) parCat[cat] = [];
+      parCat[cat].push(p);
+    });
+    let html = `<option value="">— Produit / Service —</option>`;
+    Object.keys(parCat).sort().forEach(cat => {
+      html += `<optgroup label="${_esc(cat)}">`;
+      parCat[cat].forEach(p => {
+        html += `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${_esc(p.emoji || '')} ${_esc(p.nom)}</option>`;
+      });
+      html += `</optgroup>`;
+    });
+    return html;
+  }
+
+  /**
+   * Flux tendu — à la confirmation du devis, crée une réservation fournisseur local
+   * pour TOUTES les lignes (on réserve la quantité exacte demandée, peu importe le stock).
+   */
+  function _creerReservationFournisseur(devis) {
+    const lignesReservation = (devis.lignes || [])
+      .filter(l => l.produitId && (l.qte || 0) > 0)
+      .map(l => {
+        const produit = Store.getById('produits', l.produitId) || {};
+        return {
+          produitId:    l.produitId,
+          description:  `[RÉS] ${l.description || produit.nom || l.produitId}`,
+          qte:          l.qte,
+          prixUnitaire: produit.cout || l.prixUnitaire || 0,
+          remise:       0,
+          taille:       l.taille       || '',
+          couleur:      l.couleur      || '',
+          technique:    l.technique    || ''
+        };
+      });
+
+    if (lignesReservation.length === 0) return;
+
+    /* Fournisseur local : premier de la liste ou "À définir" */
+    const fournisseurs = Store.getAll('fournisseurs');
+    const fourLocal    = fournisseurs[0] || null;
+    const ref          = _genRef('RES', 'bonsAchat');
+
+    Store.create('bonsAchat', {
+      ref,
+      _type:               'Réservation',
+      fournisseur:         fourLocal ? fourLocal.nom : 'Fournisseur local',
+      fournisseurId:       fourLocal ? fourLocal.id  : '',
+      date:                new Date().toISOString().slice(0, 10),
+      dateLivraisonPrevue: '',
+      statut:              'Réservation',
+      devisOrigineId:      devis.id,
+      devisOrigineRef:     devis.ref,
+      notes:               `Réservation stock fournisseur local — ${devis.ref} — ${devis.client}`,
+      lignes:              lignesReservation
+    });
+
+    toast(
+      `📦 Réservation ${ref} créée chez ${fourLocal ? fourLocal.nom : 'fournisseur local'} (${lignesReservation.length} article(s))`,
+      'success',
+      6000
+    );
+
+    Store.addAuditLog({
+      action:  'reservation_fournisseur',
+      module:  'sales',
+      ref:     devis.ref,
+      bonRef:  ref,
+      detail:  `${lignesReservation.length} article(s) réservé(s) — flux tendu`
+    });
   }
 
   /** Génère le prochain numéro de document */
@@ -290,6 +367,39 @@ const Sales = (() => {
      TABLE DE LIGNES RÉUTILISABLE
      Partagée entre Devis, Commandes, Factures
      ================================================================ */
+
+  /**
+   * Copie les attributs d'une variante dans les champs de la ligne du devis.
+   * - Attributs connus (taille, couleur, coupe…) → champs directs (insensible à la casse)
+   * - Attributs personnalisés (ex: Format Thermocollant) → notes_design
+   */
+  function _copyVarianteFields(variante, idx) {
+    const SKIP = new Set(['ref', 'prix', 'cout', 'quantite', 'customDims']);
+    /* Mapping insensible à la casse vers les champs de la ligne */
+    const KNOWN = {
+      taille: 'taille', size: 'taille',
+      couleur: 'couleur', color: 'couleur', colour: 'couleur',
+      coupe: 'technique',
+      technique: 'technique',
+      emplacement: 'emplacement', placement: 'emplacement',
+    };
+    const custom = [];
+
+    Object.keys(variante).forEach(k => {
+      if (SKIP.has(k) || !variante[k]) return;
+      const target = KNOWN[k.toLowerCase()];
+      if (target) {
+        _state.lignes[idx][target] = variante[k];
+      } else {
+        custom.push(`${k}: ${variante[k]}`);
+      }
+    });
+
+    /* Attributs non reconnus (ex: Format Thermocollant, Aspect) → notes_design */
+    if (custom.length) {
+      _state.lignes[idx].notes_design = custom.join(' — ');
+    }
+  }
 
   /** Génère le HTML complet de la table de lignes */
   function _renderLineTable(lignes) {
@@ -343,7 +453,9 @@ const Sales = (() => {
         <td>
           <input type="text" class="line-input" data-field="description"
             data-line="${i}" value="${_esc(l.description || '')}"
-            placeholder="Description…" />
+            placeholder="Description…"
+            title="${_esc(l.description || '')}"
+            style="width:100%;font-style:${l.description ? 'normal' : 'italic'};" />
           <!-- Variantes textile -->
           <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;">
             <input type="text" class="line-input" data-field="taille" data-line="${i}"
@@ -466,7 +578,9 @@ const Sales = (() => {
         if (produit) {
           _state.lignes[idx].produitId    = el.value;
           _state.lignes[idx].prixUnitaire = produit.prix || 0;
-          _state.lignes[idx].tauxTVA      = (produit.categorie === 'Service') ? 13 : 16;
+          /* TVA : champ tva du produit > règle catégorie */
+          _state.lignes[idx].tauxTVA = (produit.tva !== undefined) ? Number(produit.tva) :
+            (/^services?$/i.test(produit.categorie || '') ? 13 : 16);
           /* Description : nom du produit + description courte si dispo */
           const descParts = [produit.nom];
           if (produit.description) descParts.push(produit.description);
@@ -480,13 +594,16 @@ const Sales = (() => {
 
           const _openPositionPicker = () => {
             if (!hasPositions) return;
-            _showPositionPicker(produit.positionsAtelier, (position) => {
-              if (!position) return;
+            _showPositionPicker(produit.positionsAtelier, (result) => {
+              if (!result) return;
+              const position = result.pos || result;
+              const posPrix  = result.prix || null;
               _state.lignes[idx].positionAtelier = position;
               const base = _state.lignes[idx].description || produit.nom;
               if (!base.includes(position)) {
-                _state.lignes[idx].description = `${base} — ${position}`;
+                _state.lignes[idx].description = `${base} | pos: ${position}`;
               }
+              if (posPrix) _state.lignes[idx].prixUnitaire = posPrix;
               _refreshLineTable();
             });
           };
@@ -494,12 +611,28 @@ const Sales = (() => {
           if (hasVariantes) {
             Inventory.showVariantePicker(produit, (variante, descriptionAuto) => {
               if (!variante) return;
-              const SKIP_VAR = new Set(['ref', 'prix', 'cout', 'quantite', 'customDims']);
-              Object.keys(variante).forEach(k => {
-                if (!SKIP_VAR.has(k) && variante[k]) _state.lignes[idx][k] = variante[k];
-              });
-              _state.lignes[idx].prixUnitaire = variante.prix || _state.lignes[idx].prixUnitaire;
-              _state.lignes[idx].description  = descriptionAuto || produit.nom;
+              _copyVarianteFields(variante, idx);
+              /* Prix = base + incrément attrPrix si configuré, sinon prix variante */
+              let _prixFinal = variante.prix || produit.prix || 0;
+              if (produit.attrPrix && produit.attrIncrements) {
+                const _needle = (produit.attrPrix).toLowerCase().replace(/_/g, ' ');
+                const _varKey = Object.keys(variante).find(k => k.toLowerCase() === _needle);
+                const _attrVal = _varKey ? variante[_varKey] : undefined;
+                if (_attrVal !== undefined) {
+                  /* Normaliser × → x pour matcher les clés attrIncrements */
+                  const _normVal = String(_attrVal).replace(/×/g, 'x');
+                  const _incrKey = Object.keys(produit.attrIncrements).find(k =>
+                    k === _attrVal || k.replace(/×/g, 'x') === _normVal
+                  );
+                  if (_incrKey !== undefined) {
+                    _prixFinal = (produit.prix || 0) + (produit.attrIncrements[_incrKey] || 0);
+                  }
+                }
+              }
+              _state.lignes[idx].prixUnitaire = _prixFinal || _state.lignes[idx].prixUnitaire;
+              _state.lignes[idx].description  = descriptionAuto
+                ? `${produit.nom} — ${descriptionAuto}`
+                : produit.nom;
               _applyPalierPrix(idx);
               _refreshLineTable();
               _openPositionPicker();
@@ -566,15 +699,27 @@ const Sales = (() => {
         if (typeof Inventory !== 'undefined' && Inventory.showVariantePicker) {
           Inventory.showVariantePicker(produit, (variante, descriptionAuto) => {
             if (!variante) return;
-            /* Copier tous les attributs de la variante sur la ligne */
-            const SKIP_VAR = new Set(['ref', 'prix', 'cout', 'quantite', 'customDims']);
-            Object.keys(variante).forEach(k => {
-              if (!SKIP_VAR.has(k) && variante[k]) {
-                _state.lignes[idx][k] = variante[k];
+            _copyVarianteFields(variante, idx);
+            /* Prix = base + incrément attrPrix si configuré, sinon prix variante */
+            let _prixFinal2 = variante.prix || produit.prix || 0;
+            if (produit.attrPrix && produit.attrIncrements) {
+              const _needle2 = (produit.attrPrix).toLowerCase().replace(/_/g, ' ');
+              const _varKey2 = Object.keys(variante).find(k => k.toLowerCase() === _needle2);
+              const _attrVal2 = _varKey2 ? variante[_varKey2] : undefined;
+              if (_attrVal2 !== undefined) {
+                const _normVal2 = String(_attrVal2).replace(/×/g, 'x');
+                const _incrKey2 = Object.keys(produit.attrIncrements).find(k =>
+                  k === _attrVal2 || k.replace(/×/g, 'x') === _normVal2
+                );
+                if (_incrKey2 !== undefined) {
+                  _prixFinal2 = (produit.prix || 0) + (produit.attrIncrements[_incrKey2] || 0);
+                }
               }
-            });
-            _state.lignes[idx].prixUnitaire = variante.prix    || ligne.prixUnitaire || 0;
-            _state.lignes[idx].description  = descriptionAuto  || ligne.description  || produit.nom;
+            }
+            _state.lignes[idx].prixUnitaire = _prixFinal2 || ligne.prixUnitaire || 0;
+            _state.lignes[idx].description  = descriptionAuto
+              ? `${produit.nom} — ${descriptionAuto}`
+              : (ligne.description || produit.nom);
             _applyPalierPrix(idx);
             _refreshLineTable();
           });
@@ -605,10 +750,11 @@ const Sales = (() => {
 
     if (palierOK) {
       ligne.prixUnitaire = palierOK.prix;
-    } else {
-      /* Aucun palier → prix de base */
+    } else if (paliers.length > 0) {
+      /* Des paliers existent mais aucun ne s'applique → prix de base produit */
       ligne.prixUnitaire = produit.prix || 0;
     }
+    /* Aucun palier configuré → ne pas écraser le prix (peut venir d'un incrément variante) */
 
     /* Mettre à jour l'input prixUnitaire dans le DOM si visible */
     const inputPrix = document.querySelector(
@@ -899,6 +1045,7 @@ const Sales = (() => {
 
     toolbar.innerHTML = `
       <button class="btn btn-primary btn-sm" id="btn-new-quote">+ Nouveau Devis</button>
+      <button class="btn btn-ghost btn-sm" id="btn-sync-mysql-devis" title="Importer les devis créés via n8n/API">↓ Sync MySQL</button>
       <select class="form-control" id="filter-quote-statut"
         style="height:28px;width:140px;font-size:12px;">
         <option value="">Tous les statuts</option>
@@ -931,6 +1078,22 @@ const Sales = (() => {
 
     document.getElementById('btn-new-quote')
       ?.addEventListener('click', () => _goForm('quotes', null, toolbar, area));
+
+    document.getElementById('btn-sync-mysql-devis')
+      ?.addEventListener('click', async function() {
+        this.disabled = true;
+        this.textContent = '⏳ Sync...';
+        const result = await Store.syncFromMySQL(['devis']);
+        this.disabled = false;
+        this.textContent = '↓ Sync MySQL';
+        if (result.synced > 0) {
+          if (typeof showToast === 'function') showToast(`${result.synced} devis importé(s) depuis MySQL`, 'success');
+          allDevis = Store.getAll('devis');
+          _applyQuoteFilters();
+        } else {
+          if (typeof showToast === 'function') showToast('Aucun nouveau devis à importer', 'info');
+        }
+      });
     document.getElementById('btn-q-list')?.addEventListener('click', () => {
       _state.listMode = 'list'; _renderQuotesList(toolbar, area);
     });
@@ -1005,6 +1168,33 @@ const Sales = (() => {
     }
 
     _state.lignes = doc ? doc.lignes.map(l => ({ ...l })) : [];
+
+    /* Résolution automatique noms→IDs pour les devis créés par workflow/API */
+    if (doc) {
+      /* CLIENT : résoudre depuis doc.client / doc.clientNom si contactId manquant */
+      if (!doc.contactId && (doc.client || doc.clientNom)) {
+        const _needle = (doc.client || doc.clientNom || '').toLowerCase().trim();
+        const _found  = Store.getAll('contacts').find(c =>
+          (c.nom || '').toLowerCase().trim() === _needle ||
+          (c.nom || '').toLowerCase().includes(_needle) ||
+          _needle.includes((c.nom || '').toLowerCase())
+        );
+        if (_found) doc.contactId = _found.id;
+      }
+
+      /* PRODUITS : résoudre produitId depuis l.produit / l.nom dans chaque ligne */
+      const _allProduits = Store.getAll('produits');
+      _state.lignes = _state.lignes.map(l => {
+        if (l.produitId) return l; /* déjà résolu */
+        const _nomLigne = (l.produit || l.nom || l.description || '').toLowerCase().trim();
+        if (!_nomLigne) return l;
+        const _match = _allProduits.find(p => {
+          const _n = (p.nom || '').toLowerCase();
+          return _n === _nomLigne || _nomLigne.startsWith(_n) || _n.split(' ').some(w => w.length > 3 && _nomLigne.includes(w));
+        });
+        return _match ? { ...l, produitId: _match.id } : l;
+      });
+    }
 
     const ref    = doc?.ref    || _genRef('DEV', 'devis');
     const statut = doc?.statut || 'Brouillon';
@@ -1569,7 +1759,12 @@ const Sales = (() => {
         toast('Devis sauvegardé.', 'success');
       }
 
-      /* 2 — Si règlement > 0 : générer ou mettre à jour la facture */
+      /* 2 — Flux tendu : réservation fournisseur si le devis est confirmé */
+      if (savedDevis.statut === 'Confirmé') {
+        _creerReservationFournisseur(savedDevis);
+      }
+
+      /* 3 — Si règlement > 0 : générer ou mettre à jour la facture */
       if (totalRegle > 0) {
         _genererFactureDepuisDevis(savedDevis, paiementsDevis, totalRegle, resteAPayer, totaux);
       }
@@ -1626,6 +1821,10 @@ const Sales = (() => {
           showConfirm(`Passer ce devis en "${newStatut}" ?`, () => {
             Store.update('devis', doc.id, { statut: newStatut });
             toast(`Devis ${newStatut.toLowerCase()}.`, 'success');
+            /* Réservation fournisseur local dès confirmation */
+            if (newStatut === 'Confirmé') {
+              _creerReservationFournisseur({ ...doc, statut: 'Confirmé' });
+            }
             _goList('quotes', toolbar, area);
           });
         }

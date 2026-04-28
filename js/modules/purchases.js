@@ -21,14 +21,15 @@ const Purchases = (() => {
   /* ----------------------------------------------------------------
      Constantes
      ---------------------------------------------------------------- */
-  const STATUTS_PO = ['Brouillon', 'Envoyé', 'Confirmé', 'Reçu', 'Annulé'];
+  const STATUTS_PO = ['Réservation', 'Brouillon', 'Envoyé', 'Confirmé', 'Reçu', 'Annulé'];
 
   const STATUT_COLORS = {
-    'Brouillon':  'gray',
-    'Envoyé':     'blue',
-    'Confirmé':   'orange',
-    'Reçu':       'green',
-    'Annulé':     'red'
+    'Réservation': 'purple',
+    'Brouillon':   'gray',
+    'Envoyé':      'blue',
+    'Confirmé':    'orange',
+    'Reçu':        'green',
+    'Annulé':      'red'
   };
 
   /* ================================================================

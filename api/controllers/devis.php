@@ -11,6 +11,6 @@ class DevisController extends BaseController {
     protected string $table = 'devis';
 
     protected array $searchFields = [
-        'numero', 'client_nom', 'statut', 'objet', 'notes'
+        'ref', 'client_nom', 'statut', 'notes'
     ];
 }

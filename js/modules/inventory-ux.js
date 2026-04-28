@@ -170,6 +170,27 @@
       .prod-tab-content.active {
         display: block;
       }
+
+      /* ===== Scrollbar persistante dans la vue articles ===== */
+      #view-content:has(.prod-sticky-header) {
+        scrollbar-width: thin;
+        scrollbar-color: var(--caramel, #c4813a) var(--bg-elevated, #f4f4f8);
+      }
+      #view-content:has(.prod-sticky-header)::-webkit-scrollbar {
+        width: 8px;
+      }
+      #view-content:has(.prod-sticky-header)::-webkit-scrollbar-track {
+        background: var(--bg-elevated, #f4f4f8);
+        border-radius: 4px;
+      }
+      #view-content:has(.prod-sticky-header)::-webkit-scrollbar-thumb {
+        background: var(--caramel, #c4813a);
+        border-radius: 4px;
+        min-height: 40px;
+      }
+      #view-content:has(.prod-sticky-header)::-webkit-scrollbar-thumb:hover {
+        background: var(--caramel-light, #e09a4f);
+      }
       @keyframes prod-tab-fade {
         from { opacity: 0; transform: translateY(4px); }
         to   { opacity: 1; transform: translateY(0); }
@@ -853,24 +874,29 @@
     archiveBtn.parentNode.insertBefore(dupBtn, archiveBtn);
 
     dupBtn.addEventListener('click', () => {
-      const nomField = document.querySelector('[data-field-key="nom"]');
-      if (!nomField) return;
+      /* Récupérer l'ID du produit depuis le DOM */
+      const formContainer = document.getElementById('product-form-container');
+      const prodId = formContainer?.dataset?.currentProdId;
+      if (!prodId) { if (typeof toast === 'function') toast('Impossible de dupliquer un nouveau produit non enregistré', 'error'); return; }
 
-      if (!confirm('Créer une copie de "' + nomField.value + '" ?')) return;
+      const original = Store.getById('produits', prodId);
+      if (!original) return;
 
-      /* Collecter tous les champs */
-      const newData = {};
-      document.querySelectorAll('[data-field-key]').forEach(el => {
-        const k = el.dataset.fieldKey;
-        if (!k) return;
-        newData[k] = el.type === 'number' ? Number(el.value) : el.value;
-      });
+      if (!confirm('Créer une copie de "' + (original.nom || '') + '" ?')) return;
 
-      newData.nom = newData.nom + ' (copie)';
-      newData.ref = '';
-      newData.sku = '';
+      /* Cloner en profondeur — préserve variantes, paliers, image, attrs, etc. */
+      const newData = JSON.parse(JSON.stringify(original));
+
+      /* Réinitialiser les champs d'identité */
       delete newData.id;
+      delete newData._mysql_id;
+      delete newData.store_id;
+      newData.nom  = (original.nom || '') + ' (copie)';
+      newData.ref  = '';
+      newData.sku  = '';
+      newData.stock = 0;
       newData._createdAt = new Date().toISOString();
+      newData._updatedAt = new Date().toISOString();
 
       const created = Store.create('produits', newData);
       if (typeof toast === 'function') {

@@ -75,17 +75,14 @@
       .ac-clear:hover { color: var(--accent-red); }
       
       .ac-dropdown {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
+        position: fixed;
         background: var(--bg-surface);
         border: 1px solid var(--border);
         border-radius: 8px;
         box-shadow: 0 8px 24px rgba(0,0,0,0.15);
         max-height: 280px;
         overflow-y: auto;
-        z-index: 1000;
+        z-index: 9999;
         display: none;
       }
       .ac-dropdown.open { display: block; }
@@ -310,15 +307,34 @@
         value="${selected ? _esc(selected.label) : ''}"
         autocomplete="off" spellcheck="false" />
       <button type="button" class="ac-clear" title="Effacer">✕</button>
-      <div class="ac-dropdown"></div>
     `;
 
     container.innerHTML = '';
     container.appendChild(wrap);
 
+    /* Dropdown attaché au body pour échapper aux overflow:hidden parents */
+    const dropdown = document.createElement('div');
+    dropdown.className = 'ac-dropdown';
+    document.body.appendChild(dropdown);
+
     const input    = wrap.querySelector('.ac-input');
     const clearBtn = wrap.querySelector('.ac-clear');
-    const dropdown = wrap.querySelector('.ac-dropdown');
+
+    function _positionDropdown() {
+      const rect = input.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const dropH = Math.min(280, dropdown.scrollHeight || 280);
+      if (spaceBelow >= dropH || spaceBelow >= spaceAbove) {
+        dropdown.style.top    = (rect.bottom + 4) + 'px';
+        dropdown.style.bottom = 'auto';
+      } else {
+        dropdown.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+        dropdown.style.top    = 'auto';
+      }
+      dropdown.style.left  = rect.left + 'px';
+      dropdown.style.width = rect.width + 'px';
+    }
 
     let currentId  = value;
     let filtered   = items;
@@ -361,8 +377,9 @@
     }
 
     function open() {
-      dropdown.classList.add('open');
       render(input.value);
+      dropdown.classList.add('open');
+      _positionDropdown();
     }
     function close() {
       dropdown.classList.remove('open');
@@ -425,8 +442,12 @@
 
     /* Click outside → fermer */
     document.addEventListener('click', (e) => {
-      if (!wrap.contains(e.target)) close();
+      if (!wrap.contains(e.target) && !dropdown.contains(e.target)) close();
     });
+
+    /* Repositionner si scroll ou resize */
+    window.addEventListener('scroll', () => { if (dropdown.classList.contains('open')) _positionDropdown(); }, true);
+    window.addEventListener('resize', () => { if (dropdown.classList.contains('open')) _positionDropdown(); });
 
     function _select(item) {
       input.value = item.label;

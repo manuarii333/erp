@@ -230,8 +230,21 @@ const Store = (() => {
    * @param {string} id
    * @returns {boolean} true si supprimé
    */
+  /* Collections protégées : suppression interdite (intégrité comptable) */
+  const PROTECTED_COLLECTIONS = new Set(['factures', 'facturesPartielles', 'ecritures', 'paiements']);
+
   function remove(collection, id) {
     if (!db) load();
+
+    /* Verrou comptable — une facture ou écriture ne se supprime jamais */
+    if (PROTECTED_COLLECTIONS.has(collection)) {
+      console.error(`[Store] Suppression interdite sur "${collection}" — intégrité comptable.`);
+      if (typeof showToast === 'function') {
+        showToast('Suppression interdite : utilisez l\'annulation (statut Annulé).', 'error');
+      }
+      return false;
+    }
+
     if (!db[collection]) return false;
     const len = db[collection].length;
 
@@ -428,6 +441,72 @@ const Store = (() => {
   }
 
   /**
+   * Applique les variantes par défaut HCS aux produits existants en localStorage.
+   * À exécuter une fois depuis la console : Store.applyDefaultVariants()
+   * Ne touche que les produits sans variantes (ou variantes vides).
+   */
+  function applyDefaultVariants() {
+    if (!db) load();
+
+    const TAILLES    = ['XS','S','M','L','XL','XXL'];
+    const C_POLO     = ['Blanc','Noir','Marine','Gris','Rouge','Kaki'];
+    const C_SHIRT    = ['Blanc','Noir','Marine','Gris','Rouge','Bordeaux','Kaki','Rose'];
+    const C_CASQ     = ['Noir','Blanc','Marine','Rouge','Kaki'];
+    const C_SAC      = ['Naturel','Noir','Marine'];
+    const FORMATS_HTV= ['A5 14×20','A4 20×28','A3 28×40','Coeur 8×8','Poitrine 20×20','Dos 28×28','Manche 8×8'];
+
+    const mkTex = (prix, cout, tailles, couleurs) => {
+      const v = [];
+      tailles.forEach(t => couleurs.forEach(c =>
+        v.push({ taille: t, couleur: c, ref: '', prix, cout, quantite: 0 })
+      ));
+      return v;
+    };
+    const mkCasq = (prix, cout, couleurs) =>
+      couleurs.map(c => ({ couleur: c, taille: 'TU', ref: '', prix, cout, quantite: 0 }));
+    const mkFmt  = (formats, prix, cout) =>
+      formats.map(f => ({ 'Format Thermocollant': f, ref: '', prix, cout, quantite: 0 }));
+
+    /* Règles par SKU / nom partiel */
+    const DEFAULTS = [
+      { match: p => ['TEX-POLO-001'].includes(p.sku),
+        apply: p => ({ variantes: mkTex(p.prix, p.cout, TAILLES, C_POLO),
+          customAttrs: [{ nom:'Taille', valeurs:TAILLES },{ nom:'Couleur', valeurs:C_POLO }] }) },
+      { match: p => ['TEX-TSHIRT-001','TUC-001'].includes(p.sku) || p.nom?.toLowerCase().includes('t-shirt'),
+        apply: p => ({ variantes: mkTex(p.prix, p.cout, TAILLES, C_SHIRT),
+          customAttrs: [{ nom:'Taille', valeurs:TAILLES },{ nom:'Couleur', valeurs:C_SHIRT }] }) },
+      { match: p => ['TEX-CASQUETTE-001','CAP-001'].includes(p.sku) || p.nom?.toLowerCase().includes('casquette'),
+        apply: p => ({ variantes: mkCasq(p.prix, p.cout, C_CASQ),
+          customAttrs: [{ nom:'Couleur', valeurs:C_CASQ }] }) },
+      { match: p => p.sku === 'TEX-SAC-001',
+        apply: p => ({ variantes: mkCasq(p.prix, p.cout, C_SAC),
+          customAttrs: [{ nom:'Couleur', valeurs:C_SAC }] }) },
+      { match: p => ['HTV-001'].includes(p.sku) || p.nom?.toLowerCase().includes('heat transfer') || p.nom?.toLowerCase().includes('thermocollant') || p.nom?.toLowerCase().includes('vinyl'),
+        apply: p => ({ variantes: mkFmt(FORMATS_HTV, p.prix, p.cout),
+          customAttrs: [{ nom:'Format Thermocollant', valeurs:FORMATS_HTV }],
+          attrPrix: 'Format Thermocollant' }) },
+    ];
+
+    let updated = 0;
+    (db.produits || []).forEach((p, idx) => {
+      if ((p.variantes || []).length > 0) return; /* déjà configuré */
+      const rule = DEFAULTS.find(r => r.match(p));
+      if (!rule) return;
+      const patch = rule.apply(p);
+      db.produits[idx] = { ...p, attrIncrements: {}, productKind: 'variable', ...patch };
+      updated++;
+    });
+
+    if (updated > 0) {
+      save();
+      console.info(`[Store] applyDefaultVariants : ${updated} produit(s) mis à jour`);
+    } else {
+      console.info('[Store] applyDefaultVariants : aucun produit à mettre à jour');
+    }
+    return updated;
+  }
+
+  /**
    * Réinitialise la base (supprime le localStorage et recharge le seed).
    */
   function reset() {
@@ -435,6 +514,47 @@ const Store = (() => {
     db = null;
     load();
     console.info('[Store] Base réinitialisée');
+  }
+
+  /**
+   * Vide des collections spécifiques dans localStorage ET dans MySQL.
+   * Sans suppression MySQL, syncFromMySQL() réimporterait tout au rechargement.
+   * @param {string[]} collections - ex: ['devis', 'factures']
+   * @returns {Promise<{local: string[], mysqlDeleted: number, errors: string[]}>}
+   */
+  async function resetCollections(collections) {
+    if (!db) load();
+    const errors = [];
+    let mysqlDeleted = 0;
+
+    for (const col of collections) {
+      /* 1. Supprimer chaque enregistrement dans MySQL avant de vider le local */
+      if (window.MYSQL && MYSQL_TABLES.has(col)) {
+        const records = db[col] || [];
+        for (const record of records) {
+          const mysqlId = record._mysql_id;
+          if (!mysqlId) continue;
+          try {
+            await window.MYSQL.delete(col, mysqlId);
+            mysqlDeleted++;
+          } catch (e) {
+            errors.push(`${col}/${mysqlId}: ${e.message}`);
+            console.warn(`[Store] resetCollections MySQL delete ${col} échoué:`, e.message);
+          }
+        }
+      }
+
+      /* 2. Vider en local et remettre le compteur à zéro */
+      db[col] = [];
+      if (db._meta && db._meta.counters && db._meta.counters[col] !== undefined) {
+        db._meta.counters[col] = 0;
+      }
+      console.info(`[Store] Collection "${col}" vidée (MySQL: ${mysqlDeleted} supprimé(s))`);
+    }
+
+    save();
+    console.info('[Store] resetCollections terminé :', collections.join(', '));
+    return { local: collections, mysqlDeleted, errors };
   }
 
   /* ================================================================
@@ -445,8 +565,8 @@ const Store = (() => {
   /* Tables du Store qui ont une contrepartie MySQL */
   const MYSQL_TABLES = new Set([
     'contacts', 'produits', 'fournisseurs', 'devis', 'commandes',
-    'factures', 'employes', 'conges', 'commandes_atelier', 'planning_atelier',
-    'taches_agents'
+    'factures', 'bonsAchat', 'employes', 'conges', 'commandes_atelier',
+    'planning_atelier', 'taches_agents'
   ]);
 
   /**
@@ -507,12 +627,40 @@ const Store = (() => {
    * - Mappe 'id' → 'store_id' (colonne de liaison dans MySQL)
    * - Arrays/objects laissés tels quels (base.php les JSON-encode)
    */
+  /* Mapping inverse Store → MySQL (champs qui ne suivent pas camelCase standard) */
+  const _STORE_TO_MYSQL_MAP = {
+    client:            'client_nom',
+    contactId:         'client_id',
+    totalHT:           'total_ht',
+    totalTVA:          'total_tva',
+    totalTTC:          'total_ttc',
+    dateExpiration:    'date_expiration',
+    dateEcheance:      'date_echeance',
+    paiementsDevis:    'paiements_devis',
+    commandeId:        'commande_id',
+    devisId:           'devis_id',
+    quoteId:           'quote_id',
+    archivedAt:        'archived_at',
+    stockMin:          'stock_min',
+    attrPrix:          'attr_prix',
+    attrIncrements:    'attr_increments',
+    formatsPrix:       'formats_prix',
+    customAttrs:       'custom_attrs',
+    fournisseurId:     'fournisseur_id',
+    dateLivraisonPrevue: 'date_livraison_prevue',
+    devisOrigineId:    'devis_origine_id',
+    devisOrigineRef:   'devis_origine_ref',
+    cmdRef:            'cmd_ref',
+  };
+
   function _buildMySQLPayload(record) {
     const exclude = new Set(['_createdAt', '_updatedAt', '_mysql_id']);
     const payload = {};
     for (const [k, v] of Object.entries(record || {})) {
       if (exclude.has(k)) continue;
-      payload[k === 'id' ? 'store_id' : k] = v;
+      if (k === 'id') { payload['store_id'] = v; continue; }
+      const mysqlKey = _STORE_TO_MYSQL_MAP[k] || k;
+      payload[mysqlKey] = v;
     }
     return payload;
   }
@@ -523,11 +671,43 @@ const Store = (() => {
    * Parse automatiquement les champs JSON (lignes, paiements, variantes…).
    * @private
    */
-  /* snake_case → camelCase (client_nom → clientNom, total_ht → totalHT) */
+  /* snake_case → camelCase générique */
   function _snakeToCamel(str) {
     return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
               .replace(/_([A-Z]+)/g, (_, g) => g);
   }
+
+  /* Mapping explicite MySQL → Store pour les champs qui ne suivent pas camelCase standard */
+  const _MYSQL_FIELD_MAP = {
+    /* Devis / Commandes / Factures */
+    client_nom:        'client',
+    client_id:         'contactId',
+    total_ht:          'totalHT',
+    total_tva:         'totalTVA',
+    total_ttc:         'totalTTC',
+    date_expiration:   'dateExpiration',
+    date_echeance:     'dateEcheance',
+    paiements_devis:   'paiementsDevis',
+    commande_id:       'commandeId',
+    devis_id:          'devisId',
+    quote_id:          'quoteId',
+    archived_at:       'archivedAt',
+    /* Produits */
+    stock_min:         'stockMin',
+    attr_prix:         'attrPrix',
+    attr_increments:   'attrIncrements',
+    formats_prix:      'formatsPrix',
+    custom_attrs:      'customAttrs',
+    /* Contacts */
+    /* Bons achat */
+    fournisseur_id:    'fournisseurId',
+    date_livraison_prevue: 'dateLivraisonPrevue',
+    devis_origine_id:  'devisOrigineId',
+    devis_origine_ref: 'devisOrigineRef',
+    /* Atelier */
+    commande_atelier_id: 'commandeAtelierId',
+    cmd_ref:           'cmdRef',
+  };
 
   function _mysqlRowToLocal(collection, row) {
     const record = {
@@ -538,11 +718,11 @@ const Store = (() => {
     };
     for (const [k, v] of Object.entries(row)) {
       if (['id', 'store_id', 'created_at', 'updated_at'].includes(k)) continue;
-      const camelKey = _snakeToCamel(k);
+      const localKey = _MYSQL_FIELD_MAP[k] || _snakeToCamel(k);
       if (typeof v === 'string' && v.length > 1 && (v[0] === '[' || v[0] === '{')) {
-        try { record[camelKey] = JSON.parse(v); } catch { record[camelKey] = v; }
+        try { record[localKey] = JSON.parse(v); } catch { record[localKey] = v; }
       } else {
-        record[camelKey] = v;
+        record[localKey] = v;
       }
     }
     return record;
@@ -681,6 +861,8 @@ const Store = (() => {
     exportJSON,
     importJSON,
     reset,
+    resetCollections,
+    applyDefaultVariants,
     syncFromMySQL,
     pushMissingToMySQL
   };

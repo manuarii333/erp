@@ -6,15 +6,33 @@
 
 'use strict';
 
+/* ----------------------------------------------------------------
+   Helpers variantes — définis avant SEED pour rester dans la portée
+   ---------------------------------------------------------------- */
+const _mkTextileVariantes = (prix, cout, tailles, couleurs) => {
+  const vars = [];
+  tailles.forEach(t => couleurs.forEach(c => {
+    vars.push({ taille: t, couleur: c, ref: '', prix, cout, quantite: 0 });
+  }));
+  return vars;
+};
+const _mkFormatVariantes = (formats, prix, cout) =>
+  formats.map(f => ({ 'Format Thermocollant': f, ref: '', prix, cout, quantite: 0 }));
+
+const TAILLES_STD    = ['XS','S','M','L','XL','XXL','3XL'];
+const COULEURS_POLO  = ['Blanc','Noir','Marine','Gris','Rouge','Kaki'];
+const COULEURS_SHIRT = ['Blanc','Noir','Marine','Gris','Rouge','Bordeaux','Kaki','Rose'];
+const COULEURS_CASQ  = ['Noir','Blanc','Marine','Rouge','Kaki'];
+const COULEURS_SAC   = ['Naturel','Noir','Marine'];
+const FORMATS_HTV    = ['A5 14×20','A4 20×28','A3 28×40','Coeur 8×8','Poitrine 20×20','Dos 28×28','Manche 8×8'];
+
 /* ================================================================
    SEED : objet global consommé par Store.load()
    ================================================================ */
 const SEED = {
 
   /* ==============================================================
-     PRODUITS (16)
-     Textile, sublimation, DTF, découpe, signalétique, accessoires,
-     consommables, services — prix en XPF, TVA 16%/13%
+     PRODUITS — Textile, DTF, sublimation, signalétique, services
      ============================================================== */
   produits: [
     /* --- TEXTILE --- */
@@ -23,28 +41,44 @@ const SEED = {
       nom: 'Polo brodé personnalisé',
       categorie: 'Textile',
       prix: 3500, cout: 1200, stock: 85, stockMin: 10,
-      unite: 'pce', description: 'Polo 100% coton piqué 220g, broderie jusqu\'à 10 000 points'
+      unite: 'pce', description: 'Polo 100% coton piqué 220g, broderie jusqu\'à 10 000 points',
+      productKind: 'variable',
+      variantes: _mkTextileVariantes(3500, 1200, TAILLES_STD, COULEURS_POLO),
+      customAttrs: [{ nom: 'Taille', valeurs: TAILLES_STD }, { nom: 'Couleur', valeurs: COULEURS_POLO }],
+      attrPrix: '', attrIncrements: {}
     },
     {
       id: 'prod-002', sku: 'TEX-TSHIRT-001', emoji: '👕',
       nom: 'T-shirt impression DTF',
       categorie: 'Textile',
       prix: 2200, cout: 750, stock: 120, stockMin: 15,
-      unite: 'pce', description: 'T-shirt col rond 190g, impression DTF pleine couleur'
+      unite: 'pce', description: 'T-shirt col rond 190g, impression DTF pleine couleur',
+      productKind: 'variable',
+      variantes: _mkTextileVariantes(2200, 750, TAILLES_STD, COULEURS_SHIRT),
+      customAttrs: [{ nom: 'Taille', valeurs: TAILLES_STD }, { nom: 'Couleur', valeurs: COULEURS_SHIRT }],
+      attrPrix: '', attrIncrements: {}
     },
     {
       id: 'prod-003', sku: 'TEX-CASQUETTE-001', emoji: '🧢',
       nom: 'Casquette brodée 5 panneaux',
       categorie: 'Textile',
       prix: 2800, cout: 900, stock: 42, stockMin: 8,
-      unite: 'pce', description: 'Casquette coton 6 panneaux, broderie frontale logo'
+      unite: 'pce', description: 'Casquette coton 6 panneaux, broderie frontale logo',
+      productKind: 'variable',
+      variantes: COULEURS_CASQ.map(c => ({ couleur: c, taille: 'TU', ref: '', prix: 2800, cout: 900, quantite: 0 })),
+      customAttrs: [{ nom: 'Couleur', valeurs: COULEURS_CASQ }],
+      attrPrix: '', attrIncrements: {}
     },
     {
       id: 'prod-004', sku: 'TEX-SAC-001', emoji: '👜',
       nom: 'Tote bag sérigraphié',
       categorie: 'Textile',
       prix: 1200, cout: 350, stock: 200, stockMin: 20,
-      unite: 'pce', description: 'Sac coton naturel 150g, impression 1 couleur'
+      unite: 'pce', description: 'Sac coton naturel 150g, impression 1 couleur',
+      productKind: 'variable',
+      variantes: COULEURS_SAC.map(c => ({ couleur: c, taille: 'TU', ref: '', prix: 1200, cout: 350, quantite: 0 })),
+      customAttrs: [{ nom: 'Couleur', valeurs: COULEURS_SAC }],
+      attrPrix: '', attrIncrements: {}
     },
     /* --- SUBLIMATION --- */
     {
@@ -140,24 +174,44 @@ const SEED = {
     /* --- TEXTILE HCS --- */
     {
       id: 'prod-017', sku: 'TUC-001', emoji: '👕',
-      nom: 'T-shirt Unis Coton',
+      nom: 'Tshirt unis coton',
       categorie: 'Textile',
-      prix: 1800, cout: 600, stock: 0, stockMin: 10,
-      unite: 'pce', description: 'T-shirt uni 100% coton, disponible en plusieurs coloris'
+      prix: 1000, cout: 400, stock: 0, stockMin: 10, tva: 16,
+      unite: 'pce', description: 'T-shirt uni 100% coton, disponible S à 3XL, plusieurs coloris',
+      productKind: 'variable',
+      variantes: _mkTextileVariantes(1000, 400, TAILLES_STD, COULEURS_SHIRT),
+      customAttrs: [{ nom: 'Taille', valeurs: TAILLES_STD }, { nom: 'Couleur', valeurs: COULEURS_SHIRT }],
+      attrPrix: '', attrIncrements: {}
     },
     {
       id: 'prod-018', sku: 'CAP-001', emoji: '🧢',
       nom: 'Casquette Polyester',
       categorie: 'Textile',
       prix: 2200, cout: 750, stock: 0, stockMin: 8,
-      unite: 'pce', description: 'Casquette polyester, fermeture ajustable, personnalisable'
+      unite: 'pce', description: 'Casquette polyester, fermeture ajustable, personnalisable',
+      productKind: 'variable',
+      variantes: COULEURS_CASQ.map(c => ({ couleur: c, taille: 'TU', ref: '', prix: 2200, cout: 750, quantite: 0 })),
+      customAttrs: [{ nom: 'Couleur', valeurs: COULEURS_CASQ }],
+      attrPrix: '', attrIncrements: {}
     },
     {
       id: 'prod-019', sku: 'HTV-001', emoji: '🔥',
-      nom: 'Heat Transfer Vinyl',
-      categorie: 'DTF',
-      prix: 950, cout: 300, stock: 0, stockMin: 20,
-      unite: 'pce', description: 'Transfert thermocollant heat transfer vinyl (HTV), pressage à chaud'
+      nom: 'Impression transfert vynil thermocollant flocage',
+      categorie: 'DTF', tva: 13,
+      prix: 800, cout: 280, stock: 0, stockMin: 20,
+      unite: 'pce', description: 'Flocage vinyle thermocollant pressage à chaud — prix selon position',
+      productKind: 'variable',
+      variantes: _mkFormatVariantes(FORMATS_HTV, 800, 280),
+      customAttrs: [{ nom: 'Couleur', valeurs: ['Blanc','Noir','Rouge','Marine','Jaune','Vert','Orange','Rose','Gris'] }],
+      attrPrix: '', attrIncrements: {},
+      positionsAtelier: [
+        { nom: 'Cœur',            taille: '10×10 cm', prix:  800 },
+        { nom: 'Poitrine centrée', taille: '20×20 cm', prix: 1200 },
+        { nom: 'Dos',              taille: '25×25 cm', prix: 1500 },
+        { nom: 'Dos complet',      taille: '30×35 cm', prix: 1800 },
+        { nom: 'Manche',           taille: '8×8 cm',  prix:  600 },
+        { nom: 'Nuque',            taille: '6×4 cm',  prix:  500 }
+      ]
     }
   ],
 
@@ -395,46 +449,9 @@ const SEED = {
   ],
 
   /* ==============================================================
-     DEVIS (3)
+     DEVIS — vierge (aucune donnée initiale)
      ============================================================== */
-  devis: [
-    {
-      id: 'dev-001', ref: 'DEV-2026-00001', _type: 'Devis',
-      client: 'Mairie de Faa\'a', contactId: 'cont-001',
-      date: '2026-02-10', dateExpiration: '2026-03-10',
-      statut: 'Envoyé',
-      lignes: [
-        { produitId: 'prod-001', description: 'Polo brodé logo Mairie', qte: 50, prixUnitaire: 3500, remise: 5 },
-        { produitId: 'prod-016', description: 'Création graphique vecteur logo', qte: 2, prixUnitaire: 7500, remise: 0 }
-      ],
-      totalHT: 181250, totalTVA: 23563, totalTTC: 204813,
-      notes: 'Prix valables 30 jours. Livraison estimée 15 jours ouvrés.'
-    },
-    {
-      id: 'dev-002', ref: 'DEV-2026-00002', _type: 'Devis',
-      client: 'Hotel Intercontinental Tahiti', contactId: 'cont-002',
-      date: '2026-02-18', dateExpiration: '2026-03-18',
-      statut: 'Brouillon',
-      lignes: [
-        { produitId: 'prod-012', description: 'Bâche PVC piscine 6×2m', qte: 12, prixUnitaire: 8500, remise: 10 },
-        { produitId: 'prod-005', description: 'Mugs sublimés logo hôtel', qte: 100, prixUnitaire: 1800, remise: 15 }
-      ],
-      totalHT: 234000, totalTVA: 30420, totalTTC: 264420,
-      notes: 'À valider avec service achat avant envoi.'
-    },
-    {
-      id: 'dev-003', ref: 'DEV-2026-00003', _type: 'Devis',
-      client: 'Patrick Legrand', contactId: 'cont-008',
-      date: '2026-03-01', dateExpiration: '2026-03-31',
-      statut: 'Confirmé',
-      lignes: [
-        { produitId: 'prod-006', description: 'Coussins sublimés photos famille', qte: 5, prixUnitaire: 2500, remise: 0 },
-        { produitId: 'prod-007', description: 'Plaque aluminium souvenir', qte: 2, prixUnitaire: 3200, remise: 0 }
-      ],
-      totalHT: 18900, totalTVA: 2457, totalTTC: 21357,
-      notes: 'Client VIP Bora Bora — livraison express Inter-îles.'
-    }
-  ],
+  devis: [],
 
   /* ==============================================================
      COMMANDES (2)
@@ -467,38 +484,9 @@ const SEED = {
   ],
 
   /* ==============================================================
-     FACTURES (2)
+     FACTURES — vierge (aucune donnée initiale)
      ============================================================== */
-  factures: [
-    {
-      id: 'fac-001', ref: 'FAC-2026-00001', _type: 'Facture',
-      client: 'Carrefour Punaauia', contactId: 'cont-004',
-      commandeId: 'cmd-001',
-      date: '2026-03-05', dateEcheance: '2026-04-05',
-      statut: 'Payé',
-      lignes: [
-        { description: 'Panneau Dibond façade A1', qte: 4, prixUnitaire: 18000, remise: 0 },
-        { description: 'Stickers promotionnels A5 ×200', qte: 1, prixUnitaire: 96000, remise: 0 }
-      ],
-      totalHT: 168000, totalTVA: 21840, totalTTC: 189840,
-      modePaiement: 'Virement bancaire',
-      notes: 'Réglée le 05/03/2026. Merci pour votre confiance.'
-    },
-    {
-      id: 'fac-002', ref: 'FAC-2026-00002', _type: 'Facture',
-      client: 'Mairie de Faa\'a', contactId: 'cont-001',
-      commandeId: null,
-      date: '2026-02-28', dateEcheance: '2026-03-30',
-      statut: 'En attente',
-      lignes: [
-        { description: 'Polo brodé logo Mairie ×50', qte: 1, prixUnitaire: 166250, remise: 0 },
-        { description: 'Création graphique — 2h', qte: 1, prixUnitaire: 15000, remise: 0 }
-      ],
-      totalHT: 181250, totalTVA: 23563, totalTTC: 204813,
-      modePaiement: 'Bon de commande administrative',
-      notes: 'Relance prévue le 25/03 si non réglée.'
-    }
-  ],
+  factures: [],
 
   /* ==============================================================
      BONS D'ACHAT FOURNISSEURS (3)
@@ -1195,9 +1183,9 @@ const SEED = {
     seedVersion: '1.3.0',
     createdAt: new Date().toISOString(),
     counters: {
-      devis:              3,
+      devis:              0,
       commandes:          2,
-      factures:           2,
+      factures:           0,
       facturesPartielles: 4,
       paiements:          7,
       bonsAchat:          3,

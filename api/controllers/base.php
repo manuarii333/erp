@@ -116,6 +116,13 @@ class BaseController {
 
         /* Retourner l'enregistrement complet avec son id (auto ou varchar) */
         $newId = $isAutoInc ? $this->db->lastInsertId() : ($data['id'] ?? $this->db->lastInsertId());
+
+        /* Fallback : certains pilotes PDO/MySQL retournent "0" après ON DUPLICATE KEY UPDATE */
+        if ((!$newId || $newId === '0') && $isAutoInc) {
+            $row   = $this->db->query("SELECT LAST_INSERT_ID() AS last_id")->fetch();
+            $newId = $row['last_id'] ?? 0;
+        }
+
         return $this->getOne($newId);
     }
 
@@ -141,8 +148,10 @@ class BaseController {
             throw new InvalidArgumentException('Aucune donnée valide fournie');
         }
 
-        /* Horodatage de la dernière modification */
-        $data['updated_at'] = date('Y-m-d H:i:s');
+        /* Horodatage de la dernière modification — seulement si la colonne existe */
+        if (in_array('updated_at', $this->getTableColumns())) {
+            $data['updated_at'] = date('Y-m-d H:i:s');
+        }
 
         $sets   = implode(', ', array_map(fn($c) => "`{$c}` = ?", array_keys($data)));
         $params = array_values($data);

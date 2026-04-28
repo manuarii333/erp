@@ -92,6 +92,7 @@ $allowedTables = [
     'devis',
     'commandes',
     'factures',
+    'bonsAchat',
     'employes',
     'conges',
     'logos',
