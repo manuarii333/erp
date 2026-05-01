@@ -15,8 +15,8 @@ if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # ── CONFIGURATION ──────────────────────────────────────────────
-FTP_HOST   = os.environ.get("FTP_HOST",   "ftp.highcoffeeshirts.com")
-FTP_USER   = os.environ.get("FTP_USER",   "VOTRE_LOGIN_FTP")
+FTP_HOST   = os.environ.get("FTP_HOST",   "node41-ca.n0c.com")
+FTP_USER   = os.environ.get("FTP_USER",   "highftqb")
 FTP_PASS   = os.environ.get("FTP_PASS",   "VOTRE_MOT_DE_PASSE_FTP")
 _REMOTE_RAW = os.environ.get("REMOTE_DIR", "/public_html/erp")
 # Git Bash sur Windows convertit /public_html/erp → C:/Program Files/Git/public_html/erp
@@ -28,8 +28,7 @@ LOCAL_DIR  = Path(__file__).parent.resolve()
 # ── FICHIERS / DOSSIERS EXCLUS ─────────────────────────────────
 EXCLUDES = {
     ".git", ".claude", "node_modules", "hcs-proxy-worker",
-    "deploy-erp.sh", "deploy-erp.py", "PROMPTS-CLAUDE-CODE.md",
-    "picwish-pipeline.html"
+    "deploy-erp.sh", "deploy-erp.py", "PROMPTS-CLAUDE-CODE.md"
 }
 
 # ── COULEURS TERMINAL ──────────────────────────────────────────
