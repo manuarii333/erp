@@ -51,6 +51,7 @@ const APPS = [
       { id: 'pipeline',  label: 'Pipeline',  icon: '⊞',  section: 'Clients' },
       { id: 'receipts',     label: 'Bons de livraison', icon: '📋', section: 'Réception' },
       { id: 'sales-report', label: 'Rapport',           icon: '📈', section: 'Rapports'  },
+      { id: 'devis-analyser', label: 'Analyseur Marges', icon: '🔬', section: 'Rapports', href: 'apps/devis-analyser.html' },
       { id: 'doc-params',   label: 'Mise en forme',    icon: '🎨', section: 'Paramètres' }
     ]
   },
@@ -484,6 +485,11 @@ function renderView() {
       }
       break;
     case 'ventes':
+      /* Lien externe → ouvrir dans un nouvel onglet */
+      if (view === 'devis-analyser') {
+        window.open('apps/devis-analyser.html', '_blank');
+        break;
+      }
       /* Contacts et Pipeline délégués au module CRM */
       if ((view === 'contacts' || view === 'pipeline') && typeof CRM !== 'undefined') {
         CRM.init(document.getElementById('toolbar-actions'), container, view);

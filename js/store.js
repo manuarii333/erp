@@ -841,6 +841,55 @@ const Store = (() => {
     return { pushed, errors };
   }
 
+  /**
+   * Synchronisation forcée d'une collection vers MySQL.
+   * Couvre tous les cas : nouveaux articles, articles seed modifiés,
+   * records créés hors-ligne sans _mysql_id.
+   *
+   * - Sans _mysql_id → CREATE dans MySQL puis stocke _mysql_id
+   * - Avec _mysql_id → UPDATE dans MySQL avec les valeurs actuelles
+   *
+   * @param {string} [collection='produits']
+   * @returns {Promise<{created: number, updated: number, errors: string[]}>}
+   */
+  async function syncAllToMySQL(collection = 'produits') {
+    if (!window.MYSQL) return { created: 0, updated: 0, errors: ['MySQL non disponible'] };
+    if (!db) load();
+
+    const records = db[collection] || [];
+    let created = 0, updated = 0;
+    const errors = [];
+
+    for (const record of records) {
+      try {
+        const payload = _buildMySQLPayload(record);
+
+        if (!record._mysql_id) {
+          /* Pas encore en MySQL → CREATE */
+          const res = await window.MYSQL.create(collection, payload);
+          if (res && res.id) {
+            const idx = db[collection].findIndex(r => r.id === record.id);
+            if (idx !== -1) db[collection][idx]._mysql_id = res.id;
+            created++;
+          }
+        } else {
+          /* Déjà en MySQL → UPDATE pour refléter les modifications locales */
+          await window.MYSQL.update(collection, record._mysql_id, payload);
+          updated++;
+        }
+      } catch (e) {
+        errors.push(`${record.id}: ${e.message}`);
+        console.warn(`[Store] syncAllToMySQL ${collection} échoué pour ${record.id}:`, e.message);
+      }
+    }
+
+    if (created + updated > 0) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(db)); } catch (_) {}
+      console.info(`[Store] syncAllToMySQL ${collection} : ↑${created} créé(s), ↻${updated} mis à jour`);
+    }
+    return { created, updated, errors };
+  }
+
   /* ---------- API PUBLIQUE ---------- */
   return {
     load,
@@ -864,7 +913,8 @@ const Store = (() => {
     resetCollections,
     applyDefaultVariants,
     syncFromMySQL,
-    pushMissingToMySQL
+    pushMissingToMySQL,
+    syncAllToMySQL
   };
 })();
 

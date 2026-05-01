@@ -251,23 +251,11 @@ const Sales = (() => {
 
   /** Options <option> pour le select de produits (dans les lignes) — exclut les archivés */
   function _produitOptions(selectedId) {
-    const produits = Store.getAll('produits').filter(p => p.status !== 'archived');
-    /* Grouper par catégorie pour navigation plus rapide dans la liste */
-    const parCat = {};
-    produits.forEach(p => {
-      const cat = p.categorie || 'Autre';
-      if (!parCat[cat]) parCat[cat] = [];
-      parCat[cat].push(p);
-    });
-    let html = `<option value="">— Produit / Service —</option>`;
-    Object.keys(parCat).sort().forEach(cat => {
-      html += `<optgroup label="${_esc(cat)}">`;
-      parCat[cat].forEach(p => {
-        html += `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${_esc(p.emoji || '')} ${_esc(p.nom)}</option>`;
-      });
-      html += `</optgroup>`;
-    });
-    return html;
+    const produits = Store.getAll('produits');
+    return `<option value="">— Produit / Service —</option>` +
+      produits.map(p =>
+        `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${_esc(p.emoji || '')} ${_esc(p.nom)}</option>`
+      ).join('');
   }
 
   /**
@@ -401,6 +389,94 @@ const Sales = (() => {
     }
   }
 
+  /** Parse un CSV texte en tableau d'objets (gère les champs entre guillemets) */
+  function _parseCSV(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+
+    const parseLine = (line) => {
+      const fields = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQ = !inQ;
+        } else if (ch === ',' && !inQ) {
+          fields.push(cur); cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      fields.push(cur);
+      return fields;
+    };
+
+    const headers = parseLine(lines[0]).map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'));
+    return lines.slice(1).map(line => {
+      const vals = parseLine(line);
+      const row = {};
+      headers.forEach((h, j) => { row[h] = (vals[j] || '').trim(); });
+      return row;
+    }).filter(r => Object.values(r).some(v => v));
+  }
+
+  /** Ouvre un sélecteur de fichier CSV et importe les lignes dans le devis courant */
+  function _importCSVLignes() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,text/csv';
+
+    input.onchange = () => {
+      const file = input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rows = _parseCSV(e.target.result);
+        if (!rows.length) { toast('CSV vide ou format invalide.', 'error'); return; }
+
+        const allProduits = Store.getAll('produits');
+
+        /* Correspondance nom CSV → produitId (fuzzy) */
+        const _matchProduit = (nom) => {
+          if (!nom) return '';
+          const n = nom.toLowerCase();
+          const found = allProduits.find(p => {
+            const pn = (p.nom || '').toLowerCase();
+            return pn === n || n.includes(pn) || pn.split(' ').some(w => w.length > 3 && n.includes(w));
+          });
+          return found ? found.id : '';
+        };
+
+        let added = 0;
+        rows.forEach(row => {
+          const nomProduit  = row.produit || row.designation || row.article || '';
+          const description = row.description || nomProduit;
+          const qte         = parseInt(row.quantite || row.qte || row.qt_ || 1) || 1;
+          const prix        = parseFloat(row.prix_unitaire_ht || row.prix_ht || row.prix || 0) || 0;
+          const remise      = parseFloat(row.remise_pct || row.remise || 0) || 0;
+          const tva         = parseInt(row.tva_pct || row.tva || 16) || 16;
+          const produitId   = _matchProduit(nomProduit);
+
+          _state.lignes.push({
+            produitId, description, qte,
+            prixUnitaire: prix, remise, tauxTVA: tva,
+            taille: '', couleur: '', technique: '', emplacement: '', notes_design: ''
+          });
+          added++;
+        });
+
+        _refreshLineTable();
+        toast(`✅ ${added} ligne(s) importée(s) depuis CSV.`, 'success');
+      };
+
+      reader.readAsText(file, 'UTF-8');
+    };
+
+    input.click();
+  }
+
   /** Génère le HTML complet de la table de lignes */
   function _renderLineTable(lignes) {
     return `
@@ -410,7 +486,7 @@ const Sales = (() => {
             <tr>
               <th style="width:210px;">Produit</th>
               <th>Description</th>
-              <th class="col-num" style="width:72px;">Qté</th>
+              <th class="col-num" style="width:90px;">Qté</th>
               <th class="col-num" style="width:120px;">Prix HT</th>
               <th class="col-num" style="width:72px;">Remise %</th>
               <th class="col-num" style="width:70px;">TVA %</th>
@@ -422,8 +498,13 @@ const Sales = (() => {
             ${lignes.map((l, i) => _renderLineRow(l, i)).join('')}
           </tbody>
         </table>
-        <div style="padding:8px 12px;">
+        <div style="padding:8px 12px;display:flex;gap:8px;align-items:center;">
           <button class="btn-add-line" id="btn-add-line">+ Ajouter une ligne</button>
+          <button class="btn btn-ghost btn-sm" id="btn-import-csv-lignes"
+            title="Importer des lignes depuis un fichier CSV"
+            style="font-size:12px;padding:4px 10px;">
+            📥 Importer CSV
+          </button>
         </div>
       </div>`;
   }
@@ -476,8 +557,8 @@ const Sales = (() => {
           </div>
         </td>
         <td>
-          <input type="number" class="line-input num-input" data-field="qte"
-            data-line="${i}" value="${l.qte || 1}" min="0" step="1" />
+          <input type="text" inputmode="numeric" pattern="[0-9]*" class="line-input num-input" data-field="qte"
+            data-line="${i}" value="${l.qte || 1}" />
         </td>
         <td>
           <input type="number" class="line-input num-input" data-field="prixUnitaire"
@@ -564,6 +645,9 @@ const Sales = (() => {
       _refreshLineTable();
     });
 
+    /* Import CSV */
+    document.getElementById('btn-import-csv-lignes')?.addEventListener('click', _importCSVLignes);
+
     const tbody = document.getElementById('line-tbody');
     if (!tbody) return;
 
@@ -614,23 +698,32 @@ const Sales = (() => {
               _copyVarianteFields(variante, idx);
               /* Prix = base + incrément attrPrix si configuré, sinon prix variante */
               let _prixFinal = variante.prix || produit.prix || 0;
-              if (produit.attrPrix && produit.attrIncrements) {
+              let _coutFinal = variante.cout || produit.cout || 0;
+              if (produit.attrPrix && (produit.attrIncrements || produit.attrCouts)) {
                 const _needle = (produit.attrPrix).toLowerCase().replace(/_/g, ' ');
                 const _varKey = Object.keys(variante).find(k => k.toLowerCase() === _needle);
                 const _attrVal = _varKey ? variante[_varKey] : undefined;
                 if (_attrVal !== undefined) {
-                  /* Normaliser × → x pour matcher les clés attrIncrements */
                   const _normVal = String(_attrVal).replace(/×/g, 'x');
-                  const _incrKey = Object.keys(produit.attrIncrements).find(k =>
-                    k === _attrVal || k.replace(/×/g, 'x') === _normVal
-                  );
-                  if (_incrKey !== undefined) {
-                    _prixFinal = (produit.prix || 0) + (produit.attrIncrements[_incrKey] || 0);
+                  if (produit.attrIncrements) {
+                    const _incrKey = Object.keys(produit.attrIncrements).find(k =>
+                      k === _attrVal || k.replace(/×/g, 'x') === _normVal
+                    );
+                    if (_incrKey !== undefined) {
+                      _prixFinal = (produit.prix || 0) + (produit.attrIncrements[_incrKey] || 0);
+                    }
+                  }
+                  if (produit.attrCouts) {
+                    const _coutKey = Object.keys(produit.attrCouts).find(k =>
+                      k === _attrVal || k.replace(/×/g, 'x') === _normVal
+                    );
+                    if (_coutKey !== undefined) _coutFinal = produit.attrCouts[_coutKey];
                   }
                 }
               }
-              _state.lignes[idx].prixUnitaire = _prixFinal || _state.lignes[idx].prixUnitaire;
-              _state.lignes[idx].description  = descriptionAuto
+              _state.lignes[idx].prixUnitaire  = _prixFinal || _state.lignes[idx].prixUnitaire;
+              _state.lignes[idx].coutUnitaire  = _coutFinal;
+              _state.lignes[idx].description   = descriptionAuto
                 ? `${produit.nom} — ${descriptionAuto}`
                 : produit.nom;
               _applyPalierPrix(idx);
@@ -649,10 +742,14 @@ const Sales = (() => {
       }
 
       /* Mise à jour des champs numériques ou texte */
-      const numFields = ['qte', 'prixUnitaire', 'remise', 'tauxTVA'];
-      _state.lignes[idx][el.dataset.field] = numFields.includes(el.dataset.field)
-        ? parseFloat(el.value) || 0
-        : el.value;
+      const numFields = ['prixUnitaire', 'remise', 'tauxTVA'];
+      if (el.dataset.field === 'qte') {
+        _state.lignes[idx].qte = parseInt(el.value, 10) || 0;
+      } else if (numFields.includes(el.dataset.field)) {
+        _state.lignes[idx][el.dataset.field] = parseFloat(el.value) || 0;
+      } else {
+        _state.lignes[idx][el.dataset.field] = el.value;
+      }
 
       _updateLineSousTotal(idx);
       _updateTotals();
@@ -664,20 +761,18 @@ const Sales = (() => {
       const idx = parseInt(el.dataset.line, 10);
       if (isNaN(idx) || !el.dataset.field) return;
 
-      const numFields = ['qte', 'prixUnitaire', 'remise', 'tauxTVA'];
-      if (numFields.includes(el.dataset.field)) {
+      const numFields = ['prixUnitaire', 'remise', 'tauxTVA'];
+      if (el.dataset.field === 'qte') {
+        _state.lignes[idx].qte = parseInt(el.value, 10) || 0;
+        _applyPalierPrix(idx);
+      } else if (numFields.includes(el.dataset.field)) {
         _state.lignes[idx][el.dataset.field] = parseFloat(el.value) || 0;
-
-        /* Tarification dégressive : recalculer le prix si qte change */
-        if (el.dataset.field === 'qte') {
-          _applyPalierPrix(idx);
-        }
-
-        _updateLineSousTotal(idx);
-        _updateTotals();
       } else {
         _state.lignes[idx][el.dataset.field] = el.value;
       }
+
+      _updateLineSousTotal(idx);
+      _updateTotals();
     });
 
     /* Supprimer une ligne */
@@ -700,24 +795,33 @@ const Sales = (() => {
           Inventory.showVariantePicker(produit, (variante, descriptionAuto) => {
             if (!variante) return;
             _copyVarianteFields(variante, idx);
-            /* Prix = base + incrément attrPrix si configuré, sinon prix variante */
             let _prixFinal2 = variante.prix || produit.prix || 0;
-            if (produit.attrPrix && produit.attrIncrements) {
+            let _coutFinal2 = variante.cout || produit.cout || 0;
+            if (produit.attrPrix && (produit.attrIncrements || produit.attrCouts)) {
               const _needle2 = (produit.attrPrix).toLowerCase().replace(/_/g, ' ');
               const _varKey2 = Object.keys(variante).find(k => k.toLowerCase() === _needle2);
               const _attrVal2 = _varKey2 ? variante[_varKey2] : undefined;
               if (_attrVal2 !== undefined) {
                 const _normVal2 = String(_attrVal2).replace(/×/g, 'x');
-                const _incrKey2 = Object.keys(produit.attrIncrements).find(k =>
-                  k === _attrVal2 || k.replace(/×/g, 'x') === _normVal2
-                );
-                if (_incrKey2 !== undefined) {
-                  _prixFinal2 = (produit.prix || 0) + (produit.attrIncrements[_incrKey2] || 0);
+                if (produit.attrIncrements) {
+                  const _incrKey2 = Object.keys(produit.attrIncrements).find(k =>
+                    k === _attrVal2 || k.replace(/×/g, 'x') === _normVal2
+                  );
+                  if (_incrKey2 !== undefined) {
+                    _prixFinal2 = (produit.prix || 0) + (produit.attrIncrements[_incrKey2] || 0);
+                  }
+                }
+                if (produit.attrCouts) {
+                  const _coutKey2 = Object.keys(produit.attrCouts).find(k =>
+                    k === _attrVal2 || k.replace(/×/g, 'x') === _normVal2
+                  );
+                  if (_coutKey2 !== undefined) _coutFinal2 = produit.attrCouts[_coutKey2];
                 }
               }
             }
-            _state.lignes[idx].prixUnitaire = _prixFinal2 || ligne.prixUnitaire || 0;
-            _state.lignes[idx].description  = descriptionAuto
+            _state.lignes[idx].prixUnitaire  = _prixFinal2 || ligne.prixUnitaire || 0;
+            _state.lignes[idx].coutUnitaire  = _coutFinal2;
+            _state.lignes[idx].description   = descriptionAuto
               ? `${produit.nom} — ${descriptionAuto}`
               : (ligne.description || produit.nom);
             _applyPalierPrix(idx);

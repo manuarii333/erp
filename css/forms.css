@@ -270,6 +270,15 @@ input[type="number"].form-control {
   font-family: var(--font-mono);
   text-align: right;
 }
+/* Supprime les flèches spinner sur les champs numériques des lignes */
+.line-table .line-input.num-input::-webkit-inner-spin-button,
+.line-table .line-input.num-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.line-table .line-input.num-input[type=number] {
+  -moz-appearance: textfield;
+}
 
 /* Bouton supprimer ligne */
 .line-table .btn-remove-line {

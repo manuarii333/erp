@@ -343,12 +343,12 @@
     function render(q) {
       const query = (q || '').toLowerCase().trim();
       if (!query) {
-        filtered = items.slice(0, 20);
+        filtered = items.slice(0, 200);
       } else {
         filtered = items.filter(i => {
           const text = [i.label, i.sub || ''].join(' ').toLowerCase();
           return text.includes(query);
-        }).slice(0, 20);
+        }).slice(0, 200);
       }
 
       if (filtered.length === 0 && !onCreate) {
@@ -573,8 +573,7 @@
       const line = sel.dataset.line;
       const currentValue = sel.value;
 
-      const produits = Store.getAll('produits')
-        .filter(p => p.status !== 'archived');
+      const produits = Store.getAll('produits');
       
       const items = produits.map(p => ({
         id: p.id,

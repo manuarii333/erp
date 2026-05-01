@@ -1067,6 +1067,39 @@ function telechargerImage() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   ajouterLog(`Téléchargement 300 DPI : ${nom}`, 'success');
   afficherToast(`PNG transparent 300 DPI téléchargé`, 'success');
+  _hcsSauverDropbox(state.nomClient, nom, state.base64Traitee, 'Logo traité');
+}
+
+/* ── Dropbox + ERP : sauvegarde automatique après téléchargement ── */
+async function _hcsSauverDropbox(client, filename, dataUrl, type) {
+  if (!client || !dataUrl) return;
+  try {
+    const b64 = dataUrl.includes(',') ? dataUrl.split(',', 1)[1] : dataUrl;
+    const res = await fetch('http://localhost:7879/save-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client, filename, content_base64: b64 })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      afficherToast(`📁 Dropbox : ${filename} (${data.size_kb} KB)`, 'success', 4000);
+      _hcsLogErp(client, filename, type, data.path);
+    }
+  } catch (_) { /* serveur non démarré — silencieux */ }
+}
+
+async function _hcsLogErp(client, nom, type, cheminDropbox) {
+  try {
+    await fetch('https://highcoffeeshirts.com/erp/api/assets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': 'hcs-erp-2026' },
+      body: JSON.stringify({
+        nom, client, type,
+        url: cheminDropbox,
+        date: new Date().toISOString().slice(0, 10)
+      })
+    });
+  } catch (_) {}
 }
 
 /* Plein écran image finale */

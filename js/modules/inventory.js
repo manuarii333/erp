@@ -39,6 +39,9 @@ const Inventory = (() => {
   /* Incréments de prix par valeur d'attribut — {valeur: increment} */
   let _attrIncrements = {};
 
+  /* Coûts de revient par valeur d'attribut — {valeur: cout} */
+  let _attrCouts = {};
+
   /* Type de produit en cours d'édition : 'simple' | 'variable' */
   let _currentProductKind = 'simple';
 
@@ -81,6 +84,7 @@ const Inventory = (() => {
       <button class="btn btn-primary" id="btn-new-product">+ Nouveau produit</button>
       <button class="btn btn-ghost btn-sm" id="btn-import-products" title="Importer depuis CSV ou Excel" style="margin-left:8px;">📥 Importer</button>
       <button class="btn btn-ghost btn-sm" id="btn-export-products" title="Exporter vers CSV" style="margin-left:4px;">📤 Exporter CSV</button>
+      <button class="btn btn-ghost btn-sm" id="btn-sync-mysql" title="Synchroniser tous les produits vers MySQL (nouveaux + modifiés)" style="margin-left:4px;">☁ Sync MySQL</button>
       <div style="display:flex;gap:4px;margin-left:8px;">
         <button class="btn ${!isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-view-list" title="Vue liste">☰ Liste</button>
         <button class="btn ${isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-view-kanban" title="Vue kanban">⊞ Kanban</button>
@@ -98,6 +102,7 @@ const Inventory = (() => {
       _currentCustomAttrs  = [];
       _attrPrix            = '';
       _attrIncrements      = {};
+      _attrCouts           = {};
       _currentProductKind  = 'simple';
       _renderProductForm(toolbar, area);
     });
@@ -119,8 +124,28 @@ const Inventory = (() => {
     });
     toolbar.querySelector('#btn-import-products')?.addEventListener('click', () => _openImportModal(toolbar, area));
     toolbar.querySelector('#btn-export-products')?.addEventListener('click', () => _exportProductsCSV());
+    toolbar.querySelector('#btn-sync-mysql')?.addEventListener('click', async () => {
+      const btn = toolbar.querySelector('#btn-sync-mysql');
+      btn.disabled = true;
+      btn.textContent = '⏳ Sync…';
+      try {
+        const r = await Store.syncAllToMySQL('produits');
+        const msg = `☁ Sync terminée — ${r.created} créé(s), ${r.updated} mis à jour` +
+          (r.errors.length ? ` (${r.errors.length} erreur(s))` : '');
+        if (typeof showToast === 'function') showToast(msg, r.errors.length ? 'warning' : 'success');
+        else alert(msg);
+      } catch (e) {
+        if (typeof showToast === 'function') showToast('Erreur sync MySQL : ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '☁ Sync MySQL';
+      }
+    });
 
     const showArch2 = _state.showArchived || false;
+    const fmt = (typeof window.fmt === 'function') ? window.fmt
+      : n => Number(n || 0).toLocaleString('fr-FR') + ' XPF';
+
     const produits = Store.getAll('produits').filter(p =>
       showArch2 ? p.status === 'archived' : (p.status !== 'archived')
     );
@@ -132,8 +157,8 @@ const Inventory = (() => {
 
     area.innerHTML = '<div id="inv-products-table"></div>';
     renderTable('inv-products-table', {
-      title: `Produits (${produits.length})`,
-      data: produits,
+        title: `Produits (${produits.length})`,
+        data: produits,
       searchable: true,
       columns: [
         {
@@ -388,6 +413,7 @@ const Inventory = (() => {
     _currentCustomAttrs = [];
     _attrPrix           = '';
     _attrIncrements     = {};
+    _attrCouts          = {};
     _pendingImage       = null;
     _renderProductForm(
       document.getElementById('toolbar-actions'),
@@ -964,6 +990,7 @@ const Inventory = (() => {
       data.customAttrs    = _currentCustomAttrs.filter(ca => ca.nom);
       data.attrPrix       = _attrPrix;
       data.attrIncrements = Object.assign({}, _attrIncrements);
+      data.attrCouts      = Object.assign({}, _attrCouts);
       /* Stock = somme quantités variantes */
       if (variantesMAJ.length > 0) {
         data.stock = variantesMAJ.reduce((s, v) => s + (parseInt(v.quantite) || 0), 0);
@@ -978,6 +1005,7 @@ const Inventory = (() => {
       data.customAttrs    = [];
       data.attrPrix       = '';
       data.attrIncrements = {};
+      data.attrCouts      = {};
     }
 
     if (!data.nom) { toastError('Le nom du produit est obligatoire.'); return; }
@@ -1446,6 +1474,7 @@ const Inventory = (() => {
     }));
     _attrPrix       = produit.attrPrix       || '';
     _attrIncrements = Object.assign({}, produit.attrIncrements || {});
+    _attrCouts      = Object.assign({}, produit.attrCouts      || {});
 
     _refreshAvancesSection(sec, produit);
   }
@@ -1547,18 +1576,25 @@ const Inventory = (() => {
       return grp ? `<optgroup label="${_escI(grp)}">${optsHtml}</optgroup>` : optsHtml;
     }).join('');
 
-    /* Valeurs + incréments pour l'attribut sélectionné */
+    /* Valeurs + incréments + coûts pour l'attribut sélectionné */
     const attrVals = _attrPrix ? _getAttrValues(_attrPrix) : [];
     const incrementRows = attrVals.map(v => `
       <tr>
-        <td style="padding:4px 8px;font-size:13px;font-weight:600;color:var(--text-primary);">
-          ${_escI(v)}
-        </td>
+        <td style="padding:4px 8px;font-size:13px;font-weight:600;color:var(--text-primary);
+          min-width:120px;">${_escI(v)}</td>
         <td style="padding:4px 8px;">
           <div style="display:flex;align-items:center;gap:6px;">
             <span style="color:var(--text-muted);font-size:12px;">+</span>
             <input type="number" class="line-input num-input" data-incr-val="${_escI(v)}"
               value="${_attrIncrements[v] || 0}" min="0" step="1"
+              style="width:90px;" placeholder="0" />
+            <span style="color:var(--text-muted);font-size:12px;">XPF</span>
+          </div>
+        </td>
+        <td style="padding:4px 8px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" class="line-input num-input" data-cout-val="${_escI(v)}"
+              value="${_attrCouts[v] || ''}" min="0" step="1"
               style="width:90px;" placeholder="0" />
             <span style="color:var(--text-muted);font-size:12px;">XPF</span>
           </div>
@@ -1634,25 +1670,34 @@ const Inventory = (() => {
           </div>
 
           ${attrVals.length ? `
-            <div style="margin-bottom:12px;">
-              <table style="font-size:12px;border-collapse:collapse;">
+            <div style="margin-bottom:12px;overflow-x:auto;">
+              <table style="font-size:12px;border-collapse:collapse;width:100%;">
                 <thead>
                   <tr>
                     <th style="padding:4px 8px;text-align:left;color:var(--text-muted);
                       font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Valeur</th>
                     <th style="padding:4px 8px;text-align:left;color:var(--text-muted);
                       font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Supplément de prix</th>
+                    <th style="padding:4px 8px;text-align:left;color:var(--text-muted);
+                      font-size:11px;text-transform:uppercase;letter-spacing:.05em;">
+                      💰 Coût de revient
+                    </th>
                   </tr>
                 </thead>
                 <tbody>${incrementRows}</tbody>
               </table>
             </div>
-            <button class="btn btn-primary btn-sm" id="btn-apply-increments">
-              ⚡ Appliquer aux variantes
-            </button>
-            <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">
-              prix variante = prix de base + incrément
-            </span>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-primary btn-sm" id="btn-apply-increments">
+                ⚡ Appliquer prix aux variantes
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btn-apply-couts">
+                💰 Appliquer coûts aux variantes
+              </button>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+              Prix variante = prix de base + supplément &nbsp;·&nbsp; Coût = coût de revient réel par format
+            </div>
           ` : (
             _attrPrix
               ? `<div style="font-size:12px;color:var(--text-muted);">
@@ -1678,6 +1723,7 @@ const Inventory = (() => {
         if (_attrPrix === _currentCustomAttrs[idx]?.nom) {
           _attrPrix = '';
           _attrIncrements = {};
+          _attrCouts = {};
         }
         _currentCustomAttrs.splice(idx, 1);
         _refreshAvancesSection(sec, produit);
@@ -1736,17 +1782,24 @@ const Inventory = (() => {
       _updateVarAttrsSummary();
     });
 
-    /* Éditer un incrément */
+    /* Éditer un incrément de prix */
     sec.querySelectorAll('[data-incr-val]').forEach(inp => {
       inp.addEventListener('input', () => {
         _attrIncrements[inp.dataset.incrVal] = parseFloat(inp.value) || 0;
       });
     });
 
-    /* Appliquer les incréments aux variantes */
-    document.getElementById('btn-apply-increments')?.addEventListener('click', () => {
-      const prixBase = parseFloat(document.querySelector('[name="prix"]')?.value) || 0;
-      /* Résoudre le nom de clé réel : format type → custom attr nom */
+    /* Éditer un coût de revient par valeur d'attribut */
+    sec.querySelectorAll('[data-cout-val]').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const val = parseFloat(inp.value);
+        if (!isNaN(val) && val >= 0) _attrCouts[inp.dataset.coutVal] = val;
+        else delete _attrCouts[inp.dataset.coutVal];
+      });
+    });
+
+    /* Résoudre la clé d'attribut réelle (format type → custom attr nom) */
+    function _resolveAttrKey() {
       let resolvedKey = _attrPrix;
       if (_FORMAT_TYPES[_attrPrix]) {
         const keywords = _FORMAT_KEYWORDS[_attrPrix] || [];
@@ -1756,9 +1809,15 @@ const Inventory = (() => {
         });
         if (matchAttr) resolvedKey = matchAttr.nom;
       }
+      return resolvedKey;
+    }
+
+    /* Appliquer les incréments de prix aux variantes */
+    document.getElementById('btn-apply-increments')?.addEventListener('click', () => {
+      const prixBase   = parseFloat(document.querySelector('[name="prix"]')?.value) || 0;
+      const resolvedKey = _resolveAttrKey();
       let nb = 0;
       _currentVariantes.forEach(v => {
-        /* Chercher la valeur de l'attr dans les champs directs ou customDims */
         const valAttr = v[resolvedKey] !== undefined
           ? v[resolvedKey]
           : ((v.customDims || {})[resolvedKey] || '');
@@ -1769,6 +1828,23 @@ const Inventory = (() => {
       });
       _refreshVariantesTable();
       if (typeof toast === 'function') toast(`Prix recalculés pour ${nb} variante${nb > 1 ? 's' : ''}.`, 'success');
+    });
+
+    /* Appliquer les coûts de revient aux variantes */
+    document.getElementById('btn-apply-couts')?.addEventListener('click', () => {
+      const resolvedKey = _resolveAttrKey();
+      let nb = 0;
+      _currentVariantes.forEach(v => {
+        const valAttr = v[resolvedKey] !== undefined
+          ? v[resolvedKey]
+          : ((v.customDims || {})[resolvedKey] || '');
+        if (valAttr && _attrCouts[valAttr] !== undefined) {
+          v.cout = _attrCouts[valAttr];
+          nb++;
+        }
+      });
+      _refreshVariantesTable();
+      if (typeof toast === 'function') toast(`Coûts mis à jour pour ${nb} variante${nb > 1 ? 's' : ''}.`, 'success');
     });
   }
 
@@ -2326,22 +2402,50 @@ const Inventory = (() => {
    *   descriptionAuto      = string avec les attributs sélectionnés
    */
   function showVariantePicker(produit, onSelect) {
+    /* Toujours relire depuis le Store pour avoir les attributs à jour */
+    const frais = produit && produit.id ? (Store.getById('produits', produit.id) || produit) : produit;
+    produit = frais;
+
     const variantes = produit.variantes || [];
-    if (variantes.length === 0) {
+    const customAttrs = produit.customAttrs || produit.custom_attrs || [];
+
+    /* Si pas de variantes mais customAttrs définis → construire attributs depuis customAttrs */
+    if (variantes.length === 0 && customAttrs.length === 0) {
       if (typeof onSelect === 'function') onSelect(null, '');
       return;
     }
 
     const SKIP = new Set(['ref', 'prix', 'cout', 'quantite', 'customDims']);
+
+    /* Construire attrVals depuis variantes OU customAttrs selon ce qui est le plus à jour */
+    let dynKeysOverride = null;
+    let attrValsOverride = null;
+    if (customAttrs.length > 0) {
+      /* customAttrs = [{nom, valeurs:[]}] → source la plus récente */
+      dynKeysOverride = customAttrs.map(a => a.nom).filter(Boolean);
+      attrValsOverride = {};
+      customAttrs.forEach(a => {
+        /* Nettoyer les valeurs vides et les virgules parasites */
+        attrValsOverride[a.nom] = (a.valeurs || [])
+          .map(v => String(v).trim().replace(/,+$/, ''))
+          .filter(Boolean);
+      });
+    }
     const fmt  = n => Number(n || 0).toLocaleString('fr-FR') + ' XPF';
 
-    /* Attributs disponibles + valeurs uniques — on exclut les attrs sans valeur */
-    const allKeys = [...new Set(variantes.flatMap(v => Object.keys(v).filter(k => !SKIP.has(k))))];
-    const attrVals = {};
-    allKeys.forEach(k => {
-      attrVals[k] = [...new Set(variantes.map(v => v[k]).filter(Boolean))];
-    });
-    const dynKeys = allKeys.filter(k => attrVals[k].length > 0);
+    /* Attributs : utiliser customAttrs en priorité (plus à jour), sinon dériver des variantes */
+    let dynKeys, attrVals;
+    if (dynKeysOverride && Object.keys(attrValsOverride).length > 0) {
+      dynKeys  = dynKeysOverride.filter(k => (attrValsOverride[k] || []).length > 0);
+      attrVals = attrValsOverride;
+    } else {
+      const allKeys = [...new Set(variantes.flatMap(v => Object.keys(v).filter(k => !SKIP.has(k))))];
+      attrVals = {};
+      allKeys.forEach(k => {
+        attrVals[k] = [...new Set(variantes.map(v => v[k]).filter(Boolean))];
+      });
+      dynKeys = allKeys.filter(k => attrVals[k].length > 0);
+    }
 
     /* Icône par attribut */
     const attrIcon = k => {
@@ -2439,9 +2543,21 @@ const Inventory = (() => {
                 ✔ Confirmer
               </button>`;
           } else {
-            descEl.innerHTML = `<span style="opacity:.6;">${
-              chosen.map(k => `${k}: ${selection[k]}`).join(' · ')
-            }</span>`;
+            /* Pas de variante exacte → afficher quand même avec prix de base + bouton Confirmer */
+            const prixBase = produit.prix || 0;
+            descEl.innerHTML = `
+              <span style="font-weight:600;color:var(--text-primary);">
+                ${chosen.map(k => `${k}: <strong>${selection[k]}</strong>`).join(' &nbsp;·&nbsp; ')}
+              </span>
+              ${prixBase ? `<span style="margin-left:auto;font-family:var(--font-mono);
+                font-weight:700;color:var(--accent-blue);white-space:nowrap;">
+                ${fmt(prixBase)}</span>` : ''}
+              ${allSet ? `<button id="vp-confirm-btn" type="button"
+                style="margin-left:8px;padding:5px 14px;border-radius:6px;border:none;
+                  background:var(--accent-green,#22c55e);color:#fff;font-weight:700;
+                  font-size:13px;cursor:pointer;white-space:nowrap;">
+                ✔ Confirmer
+              </button>` : ''}`;
           }
         }
 
@@ -2450,20 +2566,26 @@ const Inventory = (() => {
         if (confirmBtn) {
           confirmBtn.onclick = () => {
             const parts = chosen.map(k => `${k}: ${selection[k]}`);
-            if (matchedVariante.ref) parts.push(`Réf: ${matchedVariante.ref}`);
+            if (matchedVariante && matchedVariante.ref) parts.push(`Réf: ${matchedVariante.ref}`);
+            const toPass = matchedVariante || { ...selection, prix: produit.prix || 0, cout: produit.cout || 0, quantite: 0, ref: '' };
             closeModal();
-            if (typeof onSelect === 'function') onSelect(matchedVariante, parts.join(' — '));
+            if (typeof onSelect === 'function') onSelect(toPass, parts.join(' — '));
           };
         }
 
         if (allSet && matchedVariante) {
-          /* Tous les attributs choisis + variante trouvée → validation automatique */
+          /* Variante trouvée → validation automatique */
           const parts = chosen.map(k => `${k}: ${selection[k]}`);
           if (matchedVariante.ref) parts.push(`Réf: ${matchedVariante.ref}`);
           closeModal();
           if (typeof onSelect === 'function') onSelect(matchedVariante, parts.join(' — '));
-        } else if (allSet) {
-          if (noMatch) noMatch.style.display = 'block';
+        } else if (allSet && !matchedVariante) {
+          /* Aucune variante exacte → générer une variante synthétique depuis les attributs sélectionnés */
+          const synth = { ...selection, prix: produit.prix || 0, cout: produit.cout || 0, quantite: 0, ref: '' };
+          const parts = chosen.map(k => `${k}: ${selection[k]}`);
+          if (noMatch) noMatch.style.display = 'none';
+          closeModal();
+          if (typeof onSelect === 'function') onSelect(synth, parts.join(' — '));
         } else {
           if (noMatch) noMatch.style.display = 'none';
         }
