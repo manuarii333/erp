@@ -202,6 +202,7 @@ const APPS = [
       /* ── Applications HCS externes ── */
       { id: 'ext-andromeda',   label: 'Andromeda Builder', icon: '📡', section: 'Applications HCS', external: true, url: '../campaign/andromeda-campaign.html' },
       { id: 'mockup-forge-v12', label: 'MockupForge v12',   icon: '🖼️', section: 'Applications HCS' },
+      { id: 'dtf-studio',      label: 'DTF Studio Creator', icon: '🎬', section: 'Applications HCS', external: true, url: 'apps/dtf-studio.html' },
       { id: 'ext-dtf-composer',label: 'DTF Composer v4',   icon: '🎨', section: 'Applications HCS', external: true, url: '../agents/agent3_visuel/dtf-composer-v4.html' },
       { id: 'dtf-calculator-hcs-v2',               label: 'Calculateur DTF',        icon: '🧮', section: 'Applications HCS' },
       { id: 'calculateur-vinyl-hcs',               label: 'Calculateur Vinyle',      icon: '✂️', section: 'Applications HCS' },
