@@ -700,6 +700,99 @@ Apps disponibles :
           machine: { type: 'string', description: 'bn20 (imprimante Yannick) | usa (imprimante USA)' }
         }
       }
+    },
+    {
+      name: 'erp_calculer_cout_dtf',
+      description: `Calcule le coût de revient DTF (transferts HTV4U USA) par format en XPF.
+Formule : (prix_total_usd × taux_usd_xpf + frais_usps_xpf) × 1.07 (douane) × 1.16 (TVA) = coût total atterri.
+Le coût est ensuite réparti proportionnellement par surface pour chaque format.
+Retourne le coût unitaire XPF par format et le coût total atterri.`,
+      input_schema: {
+        type: 'object',
+        properties: {
+          formats: {
+            type: 'array',
+            description: 'Liste des formats à calculer',
+            items: {
+              type: 'object',
+              properties: {
+                nom:        { type: 'string',  description: 'Nom du format (ex: A4 20x28, Dos 28x40)' },
+                largeur_cm: { type: 'number',  description: 'Largeur du design en cm' },
+                hauteur_cm: { type: 'number',  description: 'Hauteur du design en cm' },
+                quantite:   { type: 'number',  description: 'Nombre de transferts commandés' }
+              },
+              required: ['nom','largeur_cm','hauteur_cm','quantite']
+            }
+          },
+          prix_total_usd:  { type: 'number', description: 'Prix total des transferts en USD (facture HTV4U)' },
+          taux_usd_xpf:    { type: 'number', description: 'Taux de change USD → XPF (ex: 119.33)' },
+          frais_usps_xpf:  { type: 'number', description: 'Frais de port USPS en XPF' }
+        },
+        required: ['formats','prix_total_usd','taux_usd_xpf']
+      }
+    },
+    {
+      name: 'erp_calculer_cout_thermocollant',
+      description: `Calcule le coût de revient d'un transfert vinyle thermocollant (Oracal, EasyWeed) par taille en XPF.
+Formule : coût_cm² = prix_rouleau_xpf / (largeur_rouleau_cm × longueur_rouleau_cm) / rendement.
+Coût logo = coût_cm² × largeur_cm × hauteur_cm.
+Retourne le coût unitaire pour chaque taille demandée.`,
+      input_schema: {
+        type: 'object',
+        properties: {
+          tailles: {
+            type: 'array',
+            description: 'Liste des tailles à calculer',
+            items: {
+              type: 'object',
+              properties: {
+                nom:        { type: 'string', description: 'Nom du format (ex: A5 14x20, Petite 8x8)' },
+                largeur_cm: { type: 'number', description: 'Largeur du logo en cm' },
+                hauteur_cm: { type: 'number', description: 'Hauteur du logo en cm' }
+              },
+              required: ['nom','largeur_cm','hauteur_cm']
+            }
+          },
+          prix_rouleau_xpf:    { type: 'number', description: 'Prix du rouleau de vinyle en XPF' },
+          largeur_rouleau_cm:  { type: 'number', description: 'Largeur du rouleau en cm (ex: 50)' },
+          longueur_rouleau_cm: { type: 'number', description: 'Longueur du rouleau en cm (ex: 915 pour 10 yards)' },
+          rendement:           { type: 'number', description: 'Facteur de rendement/chute (défaut 0.80 = 80% utilisable)' },
+          marge_pct:           { type: 'number', description: 'Marge souhaitée en % pour calculer le prix de vente suggéré (défaut 50)' }
+        },
+        required: ['tailles','prix_rouleau_xpf','largeur_rouleau_cm','longueur_rouleau_cm']
+      }
+    },
+    {
+      name: 'erp_get_produit',
+      description: 'Récupère un produit ERP par son ID (ex: prod-019) ou son SKU (ex: DTF-A4-001).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          id:  { type: 'string', description: 'ID du produit (ex: prod-019)' },
+          sku: { type: 'string', description: 'SKU du produit (ex: DTF-A4-001)' }
+        }
+      }
+    },
+    {
+      name: 'erp_update_produit_cout',
+      description: `Met à jour le prix de revient d'un produit dans l'ERP HCS.
+Peut mettre à jour :
+- Le coût de base (champ "cout") pour les produits simples
+- Les incréments de prix par format (attrIncrements) pour les produits à variantes DTF
+Synchronise automatiquement vers MySQL après la mise à jour.`,
+      input_schema: {
+        type: 'object',
+        properties: {
+          produit_id:      { type: 'string', description: 'ID du produit à mettre à jour (ex: prod-019)' },
+          cout:            { type: 'number', description: 'Nouveau coût de base en XPF (optionnel)' },
+          attr_increments: {
+            type: 'object',
+            description: 'Objet clé→valeur des incréments de prix par format (ex: {"A4 20x28": 1200, "A3 28x40": 2000}). Utilisé pour les produits DTF à variantes.'
+          },
+          confirme:        { type: 'boolean', description: 'Doit être true pour confirmer la mise à jour (protection anti-erreur)' }
+        },
+        required: ['produit_id','confirme']
+      }
     }
   ];
 
@@ -1284,6 +1377,62 @@ Apps disponibles :
             return { ok: true, message: `DTF Atelier ${machine.toUpperCase()} ouvert` };
           }
           return { error: 'Navigation non disponible' };
+        }
+
+        case 'erp_calculer_cout_dtf': {
+          const taux    = Number(input.taux_usd_xpf) || 119.33;
+          const usps    = Number(input.frais_usps_xpf) || 0;
+          const totalXPF = Math.round((Number(input.prix_total_usd) * taux + usps) * 1.07 * 1.16);
+          const totalSurface = input.formats.reduce((s, f) => s + f.largeur_cm * f.hauteur_cm * f.quantite, 0);
+          const resultats = input.formats.map(f => {
+            const surf      = f.largeur_cm * f.hauteur_cm * f.quantite;
+            const ratio     = totalSurface > 0 ? surf / totalSurface : 1 / input.formats.length;
+            const cout      = f.quantite > 0 ? Math.round(totalXPF * ratio / f.quantite) : 0;
+            return { nom: f.nom, dimensions: `${f.largeur_cm}×${f.hauteur_cm}cm`, quantite: f.quantite, cout_unitaire_xpf: cout };
+          });
+          return { cout_total_atterre_xpf: totalXPF, resultats };
+        }
+
+        case 'erp_calculer_cout_thermocollant': {
+          const rendement  = Number(input.rendement) || 0.80;
+          const largeur    = Number(input.largeur_rouleau_cm);
+          const longueur   = Number(input.longueur_rouleau_cm);
+          const prix       = Number(input.prix_rouleau_xpf);
+          const marge      = Number(input.marge_pct) || 50;
+          const coutCm2    = prix / (largeur * longueur * rendement);
+          const resultats  = input.tailles.map(t => {
+            const surface  = t.largeur_cm * t.hauteur_cm;
+            const cout     = Math.max(1, Math.round(surface * coutCm2));
+            const prix_vente = Math.round(cout * (1 + marge / 100));
+            return { nom: t.nom, dimensions: `${t.largeur_cm}×${t.hauteur_cm}cm`, surface_cm2: surface, cout_unitaire_xpf: cout, prix_vente_suggere_xpf: prix_vente };
+          });
+          return { cout_cm2: Math.round(coutCm2 * 100) / 100, marge_pct: marge, resultats };
+        }
+
+        case 'erp_get_produit': {
+          const produits = Store.getAll('produits') || [];
+          let produit = null;
+          if (input.id)  produit = produits.find(p => p.id === input.id);
+          if (!produit && input.sku) produit = produits.find(p => p.sku === input.sku);
+          if (!produit)  return { error: 'Produit non trouvé', id: input.id, sku: input.sku };
+          return { produit };
+        }
+
+        case 'erp_update_produit_cout': {
+          if (!input.confirme) return { error: 'Paramètre confirme:true requis pour protéger contre les mises à jour accidentelles.' };
+          const produits = Store.getAll('produits') || [];
+          const produit  = produits.find(p => p.id === input.produit_id);
+          if (!produit) return { error: `Produit ${input.produit_id} non trouvé` };
+          const update = {};
+          if (input.cout !== undefined) update.cout = Number(input.cout);
+          if (input.attr_increments)    update.attrIncrements = input.attr_increments;
+          if (Object.keys(update).length === 0) return { error: 'Aucune valeur à mettre à jour (cout ou attr_increments requis)' };
+          Store.update('produits', input.produit_id, update);
+          /* Sync MySQL si disponible */
+          if (typeof Store.syncAllToMySQL === 'function') {
+            Store.syncAllToMySQL('produits').catch(() => {});
+          }
+          return { ok: true, produit_id: input.produit_id, mises_a_jour: update, message: `Produit ${produit.nom} mis à jour. Sync MySQL lancée.` };
         }
 
         default:
