@@ -4,6 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HCS ERP</title>
+  <!-- Purge automatique des historiques agents corrompus (v2026050103) -->
+  <script>
+  (function() {
+    var HIST_KEY = 'hcs_agents_histories';
+    var MEM_VER  = 'hcs_agents_mem_version';
+    var CURRENT  = '2026050103';
+    if (localStorage.getItem(MEM_VER) !== CURRENT) {
+      /* Première exécution avec cette version : nettoyer l'historique */
+      try {
+        var raw = JSON.parse(localStorage.getItem(HIST_KEY) || '{}');
+        var clean = {};
+        for (var id in raw) {
+          if (Array.isArray(raw[id])) {
+            clean[id] = raw[id]
+              .filter(function(m) { return typeof m.content === 'string' && m.content.length < 20000; })
+              .slice(-20);
+          } else { clean[id] = []; }
+        }
+        localStorage.setItem(HIST_KEY, JSON.stringify(clean));
+        localStorage.setItem(MEM_VER, CURRENT);
+        console.log('[HCS] Historiques agents purgés (' + CURRENT + ').');
+      } catch(e) {
+        localStorage.removeItem(HIST_KEY);
+        localStorage.setItem(MEM_VER, CURRENT);
+      }
+    }
+  })();
+  </script>
 
   <!-- Google Fonts : Inter (moderne, premium) + JetBrains Mono (code/montants) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
