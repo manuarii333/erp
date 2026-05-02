@@ -347,7 +347,23 @@
         const dedupKey = calculateTotalCost.totalDesigns+'_'+calculateTotalCost.totalXPF;
         if (lastSavedRef.current === dedupKey) return;
         lastSavedRef.current = dedupKey;
-        const donnees = { type:'dtf', quantite:calculateTotalCost.totalDesigns, prix_unitaire:calculateTotalCost.pricePerDesign, prix_total:calculateTotalCost.totalXPF, client_nom:'', format:clientDesigns.map(d=>d.name).join(', '), date:new Date().toISOString().slice(0,10) };
+        const _surfTotale = clientDesigns.reduce((s,d)=>s+d.width*d.height*d.qty,0);
+        const _coutCm2    = _surfTotale > 0 ? calculateTotalCost.totalXPF / _surfTotale : 0;
+        const donnees = {
+          type:'dtf',
+          quantite:           calculateTotalCost.totalDesigns,
+          prix_unitaire:      calculateTotalCost.pricePerDesign,
+          prix_total:         calculateTotalCost.totalXPF,
+          cout_par_cm2:       Math.round(_coutCm2 * 1000) / 1000,
+          surface_totale_cm2: Math.round(_surfTotale),
+          client_nom:'',
+          format: clientDesigns.map(d=>d.name).join(', '),
+          formats_detail: JSON.stringify(clientDesigns.map(d => {
+            const cout = d.qty > 0 ? Math.round(calculateTotalCost.totalXPF * (d.width*d.height*d.qty/_surfTotale) / d.qty) : 0;
+            return { nom: d.name, largeur_cm: d.width, hauteur_cm: d.height, surface_cm2: d.width*d.height, cout_unitaire_xpf: cout };
+          })),
+          date: new Date().toISOString().slice(0,10)
+        };
         if (typeof HCSApi !== 'undefined') {
           HCSApi.save('calculs', donnees).then(offline => {
             HCSApi.showSavedBadge('dtf-calc-badge', offline);

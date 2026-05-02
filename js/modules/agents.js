@@ -702,6 +702,19 @@ Apps disponibles :
       }
     },
     {
+      name: 'erp_get_calculs',
+      description: `Récupère les derniers calculs de coûts sauvegardés par les calculateurs HCS (DTF et thermocollant).
+Chaque calcul contient : cout_par_cm2, formats_detail (JSON avec dimensions et coûts unitaires), date.
+Utiliser pour alimenter erp_update_produit_cout sans demander de données à l'utilisateur.`,
+      input_schema: {
+        type: 'object',
+        properties: {
+          type:  { type: 'string', description: 'Filtrer par type : dtf | thermocollant (optionnel, tous si absent)' },
+          limit: { type: 'number', description: 'Nombre de calculs à récupérer (défaut 5)' }
+        }
+      }
+    },
+    {
       name: 'erp_calculer_cout_dtf',
       description: `Calcule le coût de revient DTF par format en XPF, basé sur le coût au cm².
 Deux modes :
@@ -1384,6 +1397,21 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
             return { ok: true, message: `DTF Atelier ${machine.toUpperCase()} ouvert` };
           }
           return { error: 'Navigation non disponible' };
+        }
+
+        case 'erp_get_calculs': {
+          const params = { sort: 'created_at', order: 'desc', limit: input.limit || 5 };
+          let items = await window.MYSQL.getAll('calculs', params);
+          if (input.type) items = (items.items || items).filter(c => c.type === input.type);
+          else items = items.items || items;
+          /* Parser formats_detail si c'est une string JSON */
+          items = items.map(c => {
+            if (c.formats_detail && typeof c.formats_detail === 'string') {
+              try { c.formats_detail = JSON.parse(c.formats_detail); } catch(_) {}
+            }
+            return c;
+          });
+          return { calculs: items, total: items.length };
         }
 
         case 'erp_calculer_cout_dtf': {
