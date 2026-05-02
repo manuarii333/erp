@@ -211,7 +211,8 @@ const APPS = [
       { id: 'ext-hcs-builder', label: 'HCS Builder v2',    icon: '🏗️', section: 'Applications HCS', external: true, url: '../hcs-builder-v2-fixed.html' },
       { id: 'ext-pass-hcs',    label: 'Pass HCS',          icon: '🎫', section: 'Applications HCS', external: true, url: '../hcs-hub-ecosystem/hcs-hub-ecosystem/hcs-pass-test.html' },
       { id: 'ext-hub',         label: 'HCS Hub',           icon: '🗄️', section: 'Applications HCS', external: true, url: '../hcs-hub.html' },
-      { id: 'ext-cockpit',     label: 'HCS Cockpit',       icon: '🚀', section: 'Applications HCS', external: true, url: '../hcs-hub-ecosystem/hcs-hub-ecosystem/hcs-cockpit.html' }
+      { id: 'ext-cockpit',     label: 'HCS Cockpit',       icon: '🚀', section: 'Applications HCS', external: true, url: '../hcs-hub-ecosystem/hcs-hub-ecosystem/hcs-cockpit.html' },
+      { id: 'agents-profiles', label: 'Profils Agents IA', icon: '🤖', section: 'Applications HCS', external: true, url: 'apps/hcs-agents-profiles.html' }
     ]
   }
 ];
