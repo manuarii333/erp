@@ -1142,6 +1142,9 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
   const STORAGE_KEY_MEM    = 'hcs_agents_shared_memory';
   const STORAGE_KEY_HIST   = 'hcs_agents_histories';
 
+  /* Table MySQL pour la mémoire agents */
+  const MYSQL_MEM_TABLE = 'agents_memory';
+
   /* État interne du module */
   let _currentAgent    = null;  // agent sélectionné pour le chat
   let _chatHistory     = [];    // historique messages du chat actif
@@ -1149,6 +1152,7 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
   let _container       = null;  // référence au conteneur principal
   let _agentHistories  = {};    // historique par agent { agentId: [...messages] }
   let _sharedFacts     = [];    // faits partagés entre tous les agents
+  let _mysqlIds        = {};    // cache des IDs MySQL par agent_id → évite un GET à chaque save
 
   /* ----------------------------------------------------------------
      ENTRÉE PUBLIQUE : init(toolbarEl, containerEl, view)
@@ -1157,9 +1161,11 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
   function init(toolbarEl, containerEl, view) {
     _container = containerEl;
 
-    /* Charger les sessions et la mémoire partagée depuis localStorage */
+    /* Charger sessions + mémoire depuis localStorage (synchrone) */
     _loadSessions();
     _loadMemory();
+    /* Enrichir depuis MySQL en arrière-plan (async, sans bloquer l'affichage) */
+    _syncFromMySQL();
 
     /* Rendre la toolbar selon la vue */
     _renderToolbar(toolbarEl, view);
@@ -2077,15 +2083,102 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
     }
   }
 
-  /** Persiste la mémoire partagée et les historiques dans localStorage */
-  function _saveMemory() {
-    localStorage.setItem(STORAGE_KEY_MEM,  JSON.stringify(_sharedFacts));
-    /* Trimmer les historiques à 50 messages max par agent avant sauvegarde */
+  /** Persiste la mémoire dans localStorage (synchrone, toujours dispo) */
+  function _saveLocalMemory() {
+    localStorage.setItem(STORAGE_KEY_MEM, JSON.stringify(_sharedFacts));
     const trimmed = {};
     for (const [id, hist] of Object.entries(_agentHistories)) {
-      trimmed[id] = Array.isArray(hist) ? hist.filter(m => typeof m.content === 'string').slice(-50) : [];
+      trimmed[id] = Array.isArray(hist)
+        ? hist.filter(m => typeof m.content === 'string').slice(-50)
+        : [];
     }
     localStorage.setItem(STORAGE_KEY_HIST, JSON.stringify(trimmed));
+  }
+
+  /** Persiste localStorage + lance la sync MySQL (fire-and-forget) */
+  function _saveMemory() {
+    _saveLocalMemory();
+    _syncToMySQL();
+  }
+
+  /** Synchronise les historiques VERS MySQL — appelé après chaque échange */
+  async function _syncToMySQL() {
+    if (typeof window.MYSQL === 'undefined') return;
+    try {
+      /* Historiques agents */
+      for (const [agentId, hist] of Object.entries(_agentHistories)) {
+        if (!hist || hist.length === 0) continue;
+        const payload = {
+          agent_id:    agentId,
+          messages:    JSON.stringify(hist),
+          nb_messages: hist.length
+        };
+        if (_mysqlIds[agentId]) {
+          await window.MYSQL.update(MYSQL_MEM_TABLE, _mysqlIds[agentId], payload);
+        } else {
+          const rec = await window.MYSQL.create(MYSQL_MEM_TABLE, payload);
+          if (rec && rec.id) _mysqlIds[agentId] = rec.id;
+        }
+      }
+      /* Faits partagés entre agents */
+      if (_sharedFacts.length > 0) {
+        const payload = { agent_id: '__shared_facts__', messages: '[]', facts: JSON.stringify(_sharedFacts), nb_messages: 0 };
+        if (_mysqlIds['__shared_facts__']) {
+          await window.MYSQL.update(MYSQL_MEM_TABLE, _mysqlIds['__shared_facts__'], payload);
+        } else {
+          const rec = await window.MYSQL.create(MYSQL_MEM_TABLE, payload);
+          if (rec && rec.id) _mysqlIds['__shared_facts__'] = rec.id;
+        }
+      }
+    } catch (e) {
+      console.warn('[Agents] MySQL sync-to échoué:', e.message);
+    }
+  }
+
+  /** Charge les historiques DEPUIS MySQL et enrichit ce qui est en localStorage.
+   *  Appelée une fois au démarrage (async, en arrière-plan). */
+  async function _syncFromMySQL() {
+    if (typeof window.MYSQL === 'undefined') return;
+    try {
+      const records = await window.MYSQL.getAll(MYSQL_MEM_TABLE, { limit: 50 });
+      let changed = false;
+
+      for (const rec of records) {
+        if (!rec.agent_id) continue;
+        _mysqlIds[rec.agent_id] = rec.id;
+
+        if (rec.agent_id === '__shared_facts__') {
+          try {
+            const facts = JSON.parse(rec.facts || '[]');
+            if (facts.length > _sharedFacts.length) { _sharedFacts = facts; changed = true; }
+          } catch {}
+          continue;
+        }
+
+        try {
+          const hist = JSON.parse(rec.messages || '[]')
+            .filter(m => typeof m.content === 'string' && m.content.length < 20000);
+          const localLen = (_agentHistories[rec.agent_id] || []).length;
+          /* MySQL est autoritaire si son historique est plus complet */
+          if (hist.length > localLen) {
+            _agentHistories[rec.agent_id] = hist;
+            changed = true;
+          }
+        } catch {}
+      }
+
+      if (changed) {
+        _saveLocalMemory();
+        /* Si l'agent actif a été enrichi, recharger son historique dans _chatHistory */
+        if (_currentAgent && _agentHistories[_currentAgent.id]) {
+          _chatHistory = [..._agentHistories[_currentAgent.id]];
+          if (_container) _renderChat(_container);
+        }
+        console.log('[Agents] Mémoire enrichie depuis MySQL');
+      }
+    } catch (e) {
+      console.warn('[Agents] MySQL sync-from échoué:', e.message);
+    }
   }
 
   /** Charge les sessions depuis localStorage */
