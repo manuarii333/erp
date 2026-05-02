@@ -1460,11 +1460,11 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
     _updateMessages(el);
 
     try {
-      /* Messages pour l'API — fenêtre glissante de 30 messages max pour éviter le dépassement de tokens */
+      /* Messages pour l'API — fenêtre de 20 messages, contenu tronqué à 6000 chars max */
       const apiMessages = _chatHistory
         .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-        .slice(-30)
-        .map(m => ({ role: m.role, content: m.content }));
+        .slice(-20)
+        .map(m => ({ role: m.role, content: m.content.length > 6000 ? m.content.slice(0, 6000) + '…[tronqué]' : m.content }));
 
       const systemPrompt = await _buildSystemPrompt(agent);
       const model = agent.modele === 'claude-opus-4-6' ? 'claude-opus-4-6' : 'claude-sonnet-4-6';
@@ -2053,11 +2053,24 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
     }
   }
 
-  /** Charge la mémoire partagée et les historiques depuis localStorage */
+  /** Charge la mémoire partagée et les historiques depuis localStorage.
+   *  Nettoie immédiatement tout contenu corrompu ou trop volumineux. */
   function _loadMemory() {
     try {
-      _sharedFacts    = JSON.parse(localStorage.getItem(STORAGE_KEY_MEM)  || '[]');
-      _agentHistories = JSON.parse(localStorage.getItem(STORAGE_KEY_HIST) || '{}');
+      _sharedFacts = JSON.parse(localStorage.getItem(STORAGE_KEY_MEM) || '[]');
+      const raw    = JSON.parse(localStorage.getItem(STORAGE_KEY_HIST) || '{}');
+
+      /* Purge : garder seulement des chaînes courtes, max 20 messages par agent */
+      _agentHistories = {};
+      for (const [id, hist] of Object.entries(raw)) {
+        _agentHistories[id] = Array.isArray(hist)
+          ? hist
+              .filter(m => typeof m.content === 'string' && m.content.length < 20000)
+              .slice(-20)
+          : [];
+      }
+      /* Persiste immédiatement la version nettoyée */
+      _saveMemory();
     } catch {
       _sharedFacts    = [];
       _agentHistories = {};
