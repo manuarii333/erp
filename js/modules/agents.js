@@ -703,32 +703,39 @@ Apps disponibles :
     },
     {
       name: 'erp_calculer_cout_dtf',
-      description: `Calcule le coût de revient DTF (transferts HTV4U USA) par format en XPF.
-Formule : (prix_total_usd × taux_usd_xpf + frais_usps_xpf) × 1.07 (douane) × 1.16 (TVA) = coût total atterri.
-Le coût est ensuite réparti proportionnellement par surface pour chaque format.
-Retourne le coût unitaire XPF par format et le coût total atterri.`,
+      description: `Calcule le coût de revient DTF par format en XPF, basé sur le coût au cm².
+Deux modes :
+- Mode direct : fournir cout_par_cm2 (XPF) calculé sur une commande réelle
+- Mode facture : fournir prix_total_usd + taux + frais_usps + surface_totale_cm2 → calcule automatiquement le cout_par_cm2
+
+Formule coût atterri : (prix_usd × taux + usps) × 1.07 (douane PF) × 1.16 (TVA PF)
+Formule par format : cout_par_cm2 × largeur_cm × hauteur_cm
+
+Aucune quantité requise — le coût est à l'unité selon la surface du format.`,
       input_schema: {
         type: 'object',
         properties: {
           formats: {
             type: 'array',
-            description: 'Liste des formats à calculer',
+            description: 'Liste des formats à calculer (dimensions suffisent, pas de quantité)',
             items: {
               type: 'object',
               properties: {
-                nom:        { type: 'string',  description: 'Nom du format (ex: A4 20x28, Dos 28x40)' },
-                largeur_cm: { type: 'number',  description: 'Largeur du design en cm' },
-                hauteur_cm: { type: 'number',  description: 'Hauteur du design en cm' },
-                quantite:   { type: 'number',  description: 'Nombre de transferts commandés' }
+                nom:        { type: 'string', description: 'Nom du format (ex: A4 20x28, Dos 28x40)' },
+                largeur_cm: { type: 'number', description: 'Largeur en cm' },
+                hauteur_cm: { type: 'number', description: 'Hauteur en cm' }
               },
-              required: ['nom','largeur_cm','hauteur_cm','quantite']
+              required: ['nom','largeur_cm','hauteur_cm']
             }
           },
-          prix_total_usd:  { type: 'number', description: 'Prix total des transferts en USD (facture HTV4U)' },
-          taux_usd_xpf:    { type: 'number', description: 'Taux de change USD → XPF (ex: 119.33)' },
-          frais_usps_xpf:  { type: 'number', description: 'Frais de port USPS en XPF' }
+          cout_par_cm2:        { type: 'number', description: 'Coût au cm² en XPF (mode direct — si déjà connu)' },
+          prix_total_usd:      { type: 'number', description: 'Prix total facture HTV4U en USD (mode facture)' },
+          taux_usd_xpf:        { type: 'number', description: 'Taux de change USD→XPF (ex: 119.33)' },
+          frais_usps_xpf:      { type: 'number', description: 'Frais USPS en XPF' },
+          surface_totale_cm2:  { type: 'number', description: 'Surface totale commandée en cm² (mode facture, pour calculer le cout/cm²)' },
+          marge_pct:           { type: 'number', description: 'Marge % pour prix de vente suggéré (défaut 50)' }
         },
-        required: ['formats','prix_total_usd','taux_usd_xpf']
+        required: ['formats']
       }
     },
     {
@@ -1380,17 +1387,23 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
         }
 
         case 'erp_calculer_cout_dtf': {
-          const taux    = Number(input.taux_usd_xpf) || 119.33;
-          const usps    = Number(input.frais_usps_xpf) || 0;
-          const totalXPF = Math.round((Number(input.prix_total_usd) * taux + usps) * 1.07 * 1.16);
-          const totalSurface = input.formats.reduce((s, f) => s + f.largeur_cm * f.hauteur_cm * f.quantite, 0);
+          let coutCm2 = Number(input.cout_par_cm2) || 0;
+          let coutAtterriXPF = null;
+          /* Mode facture : calculer cout/cm² depuis la facture */
+          if (!coutCm2 && input.prix_total_usd && input.surface_totale_cm2) {
+            const taux  = Number(input.taux_usd_xpf) || 119.33;
+            const usps  = Number(input.frais_usps_xpf) || 0;
+            coutAtterriXPF = Math.round((Number(input.prix_total_usd) * taux + usps) * 1.07 * 1.16);
+            coutCm2 = coutAtterriXPF / Number(input.surface_totale_cm2);
+          }
+          if (!coutCm2) return { error: 'Fournir soit cout_par_cm2, soit prix_total_usd + surface_totale_cm2' };
+          const marge = Number(input.marge_pct) || 50;
           const resultats = input.formats.map(f => {
-            const surf      = f.largeur_cm * f.hauteur_cm * f.quantite;
-            const ratio     = totalSurface > 0 ? surf / totalSurface : 1 / input.formats.length;
-            const cout      = f.quantite > 0 ? Math.round(totalXPF * ratio / f.quantite) : 0;
-            return { nom: f.nom, dimensions: `${f.largeur_cm}×${f.hauteur_cm}cm`, quantite: f.quantite, cout_unitaire_xpf: cout };
+            const surface = f.largeur_cm * f.hauteur_cm;
+            const cout    = Math.max(1, Math.round(surface * coutCm2));
+            return { nom: f.nom, dimensions: `${f.largeur_cm}×${f.hauteur_cm}cm`, surface_cm2: surface, cout_unitaire_xpf: cout, prix_vente_suggere_xpf: Math.round(cout * (1 + marge / 100)) };
           });
-          return { cout_total_atterre_xpf: totalXPF, resultats };
+          return { cout_par_cm2_xpf: Math.round(coutCm2 * 1000) / 1000, cout_atterre_xpf: coutAtterriXPF, marge_pct: marge, resultats };
         }
 
         case 'erp_calculer_cout_thermocollant': {
