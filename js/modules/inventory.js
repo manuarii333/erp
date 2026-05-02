@@ -22,6 +22,9 @@ const Inventory = (() => {
   /* Image produit en cours d'édition (base64 ou URL) */
   let _pendingImage = null;
 
+  /* Galerie multi-images produit — tableau {url, label, varianteRef, ordre} */
+  let _pendingGallery = null;
+
   /* Variantes en cours d'édition — tableau d'objets
      { taille, couleur, coupe, ref, prix, cout, quantite } */
   let _currentVariantes = [];
@@ -431,6 +434,11 @@ const Inventory = (() => {
       _pendingImage = produit.image;
     }
 
+    /* Initialiser la galerie depuis le produit existant */
+    if (_pendingGallery === null) {
+      _pendingGallery = Array.isArray(produit.images) ? produit.images.map(i => ({ ...i })) : [];
+    }
+
     /* Initialiser les variantes depuis le produit existant — dédupliquer au chargement */
     _currentVariantes = _deduplicateVariantes((produit.variantes || []).map(v => ({ ...v })));
 
@@ -449,6 +457,7 @@ const Inventory = (() => {
     toolbar.querySelector('#btn-prod-back').addEventListener('click', () => {
       _state.mode         = 'list';
       _pendingImage       = null;
+      _pendingGallery     = null;
       _currentVariantes   = [];
       _currentProductKind = 'simple';
       _renderProductList(toolbar, area);
@@ -585,6 +594,37 @@ const Inventory = (() => {
           </div>
         </div>
 
+        <!-- Galerie multi-images produit -->
+        <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;
+          padding:16px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">
+              📸 Galerie produit &amp; variantes
+            </div>
+            <span style="font-size:11px;color:var(--text-muted);">
+              Uploadées sur le serveur — utilisables dans MockupForge
+            </span>
+          </div>
+          <div id="prod-gallery-grid" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;min-height:20px;"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;white-space:nowrap;">
+              ＋ Ajouter une photo
+              <input type="file" id="gallery-file-input" accept="image/*" style="display:none;" />
+            </label>
+            <select id="gallery-variante-select"
+              style="font-size:12px;padding:5px 10px;cursor:pointer;background:var(--bg-elevated);
+                     border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);
+                     font-family:inherit;">
+              <option value="">— Photo générale —</option>
+            </select>
+            <input type="text" id="gallery-label-input" placeholder="Libellé (Vue de face…)"
+              style="font-size:12px;padding:5px 10px;background:var(--bg-elevated);
+                     border:1px solid var(--border);border-radius:6px;color:var(--text-primary);
+                     flex:1;min-width:120px;font-family:inherit;" />
+          </div>
+          <div id="gallery-upload-status" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
+        </div>
+
         <!-- Toggle Produit simple / Avec variations -->
         <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;
           padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
@@ -664,6 +704,97 @@ const Inventory = (() => {
       _pendingImage = '';
       const wrap = document.getElementById('img-preview-wrap');
       if (wrap) wrap.innerHTML = `<span id="img-emoji-preview">${produit.emoji || '📦'}</span>`;
+    });
+
+    /* ── Galerie produit ── */
+    function _renderGalleryGrid() {
+      const grid = document.getElementById('prod-gallery-grid');
+      if (!grid) return;
+      if (!_pendingGallery || _pendingGallery.length === 0) {
+        grid.innerHTML = `<span style="font-size:12px;color:var(--text-muted);padding:4px 0;">
+          Aucune photo — cliquez sur "Ajouter une photo" pour commencer.</span>`;
+        return;
+      }
+      grid.innerHTML = _pendingGallery.map((img, idx) => `
+        <div style="position:relative;width:90px;flex-shrink:0;">
+          <img src="${_escI(img.url)}" alt="${_escI(img.label||'')}"
+            style="width:90px;height:90px;object-fit:cover;border-radius:8px;
+                   border:1px solid var(--border);display:block;" />
+          <div style="font-size:9px;color:var(--text-muted);text-align:center;
+            margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">
+            ${_escI(img.varianteRef ? img.varianteRef + ' — ' : '') + _escI(img.label||'Photo')}
+          </div>
+          <button onclick="window.__galleryDelete(${idx})"
+            style="position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;
+                   background:rgba(239,68,68,.85);color:#fff;border:none;cursor:pointer;
+                   font-size:10px;line-height:18px;text-align:center;padding:0;">✕</button>
+        </div>`).join('');
+    }
+
+    window.__galleryDelete = (idx) => {
+      _pendingGallery.splice(idx, 1);
+      _renderGalleryGrid();
+    };
+
+    /* Peupler le select variantes dans la galerie */
+    (function _populateVarianteSelect() {
+      const sel = document.getElementById('gallery-variante-select');
+      if (!sel) return;
+      const refs = [...new Set((_currentVariantes || []).map(v => v.ref).filter(Boolean))];
+      const couleurs = [...new Set((_currentVariantes || []).map(v => v.couleur).filter(Boolean))];
+      const extra = couleurs.length ? couleurs : refs;
+      extra.forEach(val => {
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = val;
+        sel.appendChild(opt);
+      });
+    })();
+
+    _renderGalleryGrid();
+
+    document.getElementById('gallery-file-input')?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        if (typeof toast === 'function') toast('Image trop volumineuse (max 5 Mo).', 'error');
+        return;
+      }
+      const status = document.getElementById('gallery-upload-status');
+      if (status) status.textContent = '⏳ Upload en cours…';
+
+      const prodId     = _state.currentId || 'new-' + Date.now();
+      const varianteRef = document.getElementById('gallery-variante-select')?.value || '';
+      const label       = document.getElementById('gallery-label-input')?.value.trim() || 'Photo produit';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('produit_id',   prodId);
+      formData.append('variante_ref', varianteRef);
+      formData.append('label',        label);
+
+      try {
+        const resp = await fetch('api/upload.php', {
+          method:  'POST',
+          headers: { 'x-api-key': 'hcs-erp-2026' },
+          body:    formData
+        });
+        const result = await resp.json();
+        if (result.ok && result.url) {
+          _pendingGallery.push({ url: result.url, label: result.label, varianteRef, ordre: _pendingGallery.length });
+          _renderGalleryGrid();
+          if (status) status.textContent = `✅ "${result.label}" uploadée avec succès.`;
+          if (typeof document.getElementById('gallery-label-input') !== 'undefined') {
+            const li = document.getElementById('gallery-label-input');
+            if (li) li.value = '';
+          }
+          /* Réinitialiser l'input file pour permettre un 2e upload du même fichier */
+          e.target.value = '';
+        } else {
+          if (status) status.textContent = `❌ Erreur : ${result.error || 'Upload échoué'}`;
+        }
+      } catch (err) {
+        if (status) status.textContent = `❌ Erreur réseau : ${err.message}`;
+      }
     });
 
     renderForm('product-form-container', {
@@ -980,6 +1111,11 @@ const Inventory = (() => {
       data.image = _pendingImage;
     }
 
+    /* Galerie multi-images */
+    if (_pendingGallery !== null) {
+      data.images = _pendingGallery;
+    }
+
     /* Produit simple : pas de variantes ni d'attributs */
     const isVariable = (data.productKind || 'simple') === 'variable';
 
@@ -1025,6 +1161,7 @@ const Inventory = (() => {
     }
 
     _pendingImage     = null;
+    _pendingGallery   = null;
     _currentVariantes = [];
     _state.mode = 'list';
     _renderProductList(

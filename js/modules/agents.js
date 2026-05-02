@@ -254,7 +254,30 @@ VALIDATION ACHATS : <50k XPF autonome / 50-200k → HCS-Finance / >200k → HCS-
 
 APPS : stock-dashboard.html ⭐ / dtf-calculator-hcs-v2.html / calculateur-transfert-thermocollant.html
 
-INTERACTIONS : Agent 5 Planning (vérif stock) | Rupture critique → Agent 5 + HCS-Finance | Livraison prête → HCS-Support + Agent 2 | BL reçu → Agent 5
+GESTION DES VISUELS PRODUITS
+Tu es responsable de l'inventaire des images produits dans l'ERP. Chaque produit et chaque variante peut avoir une galerie de photos uploadées sur le serveur HCS.
+
+INVENTAIRE IMAGES
+→ erp_produit_images() : bilan global — liste produits avec/sans images
+→ erp_produit_images(produit_id:'prod-019') : galerie complète d'un produit avec URLs
+
+WORKFLOW AJOUT IMAGES (tu guides l'utilisateur)
+1. Identifier le produit via erp_get_produits() ou erp_get_produit()
+2. Indiquer à l'utilisateur d'ouvrir la fiche produit dans Stock > Produits
+3. Faire défiler jusqu'à la section "📸 Galerie produit & variantes"
+4. Pour chaque variante : choisir la variante dans le select, saisir un libellé, cliquer "+ Ajouter une photo"
+5. L'image s'uploade automatiquement sur le serveur HCS et l'URL est enregistrée dans le produit
+
+CORRESPONDANCE MOCKUPFORGE
+Quand un produit a des images dans sa galerie, les URLs peuvent être utilisées comme templates visuels dans MockupForge v12. L'agent HCS-Logo se charge de créer les collections MockupForge avec la correspondance ERP.
+Signaler à HCS-Logo quand un produit vient d'être complété en images : il peut alors créer la collection MockupForge correspondante.
+
+PRIORITÉS IMAGES
+- Produits phare en premier : t-shirts, polos, casquettes (les plus commandés)
+- Par variante couleur si possible (blanc, noir, gris, couleurs)
+- Vues recommandées : "Vue de face", "Vue de dos", "Détail logo"
+
+INTERACTIONS : Agent 5 Planning (vérif stock) | Rupture critique → Agent 5 + HCS-Finance | Livraison prête → HCS-Support + Agent 2 | BL reçu → Agent 5 | Images complètes → HCS-Logo (MockupForge)
 
 TONALITÉ : Méthodique, chiffré, anticipatif, transparent sur coûts d'urgence.
 FORMAT : tableaux stocks, listes numérotées, emojis statut (✅ ⚠️ 🚨), montants XPF.`
@@ -1004,6 +1027,16 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
       }
     },
     {
+      name: 'erp_produit_images',
+      description: `Récupère la galerie d'images d'un produit ERP (photos uploadées sur le serveur HCS). Retourne la liste des images avec URL, libellé, et variante associée. Utilisé par HCS-Logistique pour inventorier les visuels, et par HCS-Logo pour faire la correspondance avec MockupForge.`,
+      input_schema: {
+        type: 'object',
+        properties: {
+          produit_id: { type: 'string', description: 'ID du produit ERP (ex: prod-019). Si absent, liste tous les produits qui ont au moins une image.' }
+        }
+      }
+    },
+    {
       name: 'erp_mockupforge_catalog',
       description: `Liste les produits disponibles dans le catalogue MockupForge v12 (t-shirts, casquettes, etc.) et les collections déjà créées. Utiliser avant de créer une collection pour connaître les produits disponibles et les collections existantes.`,
       input_schema: { type: 'object', properties: {} }
@@ -1695,6 +1728,47 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
             Store.syncAllToMySQL('produits').catch(() => {});
           }
           return { ok: true, produit_id: input.produit_id, mises_a_jour: update, message: `Produit ${produit.nom} mis à jour. Sync MySQL lancée.` };
+        }
+
+        /* ── Galerie images produit ── */
+
+        case 'erp_produit_images': {
+          const produits = Store.getAll('produits') || [];
+          if (input.produit_id) {
+            const prod = produits.find(p => p.id === input.produit_id || p.sku === input.produit_id);
+            if (!prod) return { error: `Produit "${input.produit_id}" introuvable.` };
+            const images = Array.isArray(prod.images) ? prod.images : [];
+            return {
+              ok: true,
+              produit_id:  prod.id,
+              produit_nom: prod.nom,
+              sku:         prod.sku || '',
+              nb_images:   images.length,
+              images:      images,
+              image_principale: prod.image || null,
+              note: images.length === 0
+                ? 'Aucune image dans la galerie. Ouvrir la fiche produit (Stock > Produits) pour en ajouter.'
+                : `${images.length} image(s) disponible(s) pour MockupForge.`
+            };
+          } else {
+            const avecImages = produits
+              .filter(p => (Array.isArray(p.images) && p.images.length > 0) || p.image)
+              .map(p => ({
+                id:        p.id,
+                nom:       p.nom,
+                sku:       p.sku || '',
+                categorie: p.categorie || '',
+                nb_images: (Array.isArray(p.images) ? p.images.length : 0) + (p.image ? 1 : 0),
+                apercu_url: (p.images && p.images[0]) ? p.images[0].url : (p.image || null)
+              }));
+            const sansImages = produits.filter(p => (!Array.isArray(p.images) || p.images.length === 0) && !p.image);
+            return {
+              ok: true,
+              produits_avec_images: avecImages,
+              produits_sans_images: sansImages.map(p => ({ id: p.id, nom: p.nom, sku: p.sku || '' })),
+              bilan: `${avecImages.length} produit(s) avec images / ${sansImages.length} produit(s) sans image`
+            };
+          }
         }
 
         /* ── MockupForge — collections & correspondance catalogue ── */
