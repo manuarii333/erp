@@ -1460,9 +1460,10 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
     _updateMessages(el);
 
     try {
-      /* Messages pour l'API (sans le champ 'time') */
+      /* Messages pour l'API — fenêtre glissante de 30 messages max pour éviter le dépassement de tokens */
       const apiMessages = _chatHistory
-        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+        .slice(-30)
         .map(m => ({ role: m.role, content: m.content }));
 
       const systemPrompt = await _buildSystemPrompt(agent);
@@ -2066,7 +2067,12 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
   /** Persiste la mémoire partagée et les historiques dans localStorage */
   function _saveMemory() {
     localStorage.setItem(STORAGE_KEY_MEM,  JSON.stringify(_sharedFacts));
-    localStorage.setItem(STORAGE_KEY_HIST, JSON.stringify(_agentHistories));
+    /* Trimmer les historiques à 50 messages max par agent avant sauvegarde */
+    const trimmed = {};
+    for (const [id, hist] of Object.entries(_agentHistories)) {
+      trimmed[id] = Array.isArray(hist) ? hist.filter(m => typeof m.content === 'string').slice(-50) : [];
+    }
+    localStorage.setItem(STORAGE_KEY_HIST, JSON.stringify(trimmed));
   }
 
   /** Charge les sessions depuis localStorage */
