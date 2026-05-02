@@ -626,6 +626,39 @@ PNG fond blanc 72dpi        → Présentation / validation client
 SVG                         → Usage web / broderie CNC
 Export minimum              : 2000px sur le plus grand côté
 
+━━━ GESTION COLLECTIONS MOCKUPFORGE ━━━
+
+Tu peux créer et organiser des collections produits dans MockupForge directement depuis l'ERP — les données sont partagées via localStorage (même domaine).
+
+ÉTAPE A — Consulter le catalogue et les collections existantes
+→ erp_mockupforge_catalog
+Retourne : produits MockupForge disponibles (tshirt, casquette) + collections déjà créées avec leur contenu.
+
+ÉTAPE B — Créer une nouvelle collection
+→ erp_mockupforge_create_collection(nom, icon, couleur)
+Exemples de collections HCS :
+  "T-Shirts HCS Pro"        → icon 👕, couleur #7c3aed
+  "Accessoires MANAWEAR"    → icon 🧢, couleur #d97706
+  "Collection Été 2026"     → icon ✨, couleur #059669
+
+ÉTAPE C — Ajouter des produits à la collection + correspondance ERP
+→ erp_mockupforge_add_product(collection_id, produit_mockup, erp_prod_id, erp_prod_nom)
+Produits MockupForge disponibles : tshirt | casquette
+La correspondance ERP (erp_prod_id) lie le visuel mockup au produit réel dans le catalogue HCS (SKU, prix, variantes, stock).
+
+Exemple de correspondance :
+  produit_mockup: "tshirt"    ←→  erp_prod_id: "prod-001" (T-Shirt Blanc HCS, 1800 XPF)
+  produit_mockup: "casquette" ←→  erp_prod_id: "prod-007" (Casquette HCS Snap, 2500 XPF)
+
+ÉTAPE D — Finaliser dans MockupForge
+Après avoir créé la structure (collection + produits) via l'agent :
+1. Ouvrir MockupForge → erp_mockup_forge
+2. La collection apparaît déjà avec les produits ajoutés
+3. Configurer pour chaque produit : références couleurs (blanc, noir, gris...) + upload photos réelles des produits HCS comme templates
+4. Les clients voient ensuite le mockup avec le logo superposé sur la vraie photo du produit
+
+NOTE IMPORTANTE : Les photos/templates visuels des produits (photos réelles des t-shirts et casquettes HCS) doivent être uploadées manuellement dans MockupForge — l'agent ne peut pas importer des images. Il prépare la structure, toi tu fournis les photos.
+
 INTERACTIONS : Logo validé → HCS-Atelier (production) | Mockup finalisé → HCS-Marketing (campagnes) | Fiche produit → HCS-Catalogue | Charte complète → HCS-Orchestrateur pour archivage
 
 TONALITÉ : Directeur artistique qui propose et questionne, pas qui impose. Concret, visuel dans les descriptions. Curieux de comprendre les goûts de Grace. Patient — construire une identité visuelle prend plusieurs sessions.
@@ -968,6 +1001,38 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
           confirme:        { type: 'boolean', description: 'Doit être true pour confirmer la mise à jour (protection anti-erreur)' }
         },
         required: ['produit_id','confirme']
+      }
+    },
+    {
+      name: 'erp_mockupforge_catalog',
+      description: `Liste les produits disponibles dans le catalogue MockupForge v12 (t-shirts, casquettes, etc.) et les collections déjà créées. Utiliser avant de créer une collection pour connaître les produits disponibles et les collections existantes.`,
+      input_schema: { type: 'object', properties: {} }
+    },
+    {
+      name: 'erp_mockupforge_create_collection',
+      description: `Crée une nouvelle collection dans MockupForge v12 (stockée dans localStorage, visible dès l'ouverture de MockupForge). Une collection regroupe des produits à présenter aux clients (ex: "Collection MANAWEAR Été 2026", "T-Shirts HCS Pro").`,
+      input_schema: {
+        type: 'object',
+        properties: {
+          nom:   { type: 'string',  description: 'Nom de la collection (ex: "Collection MANAWEAR Été 2026")' },
+          icon:  { type: 'string',  description: 'Emoji représentant la collection (ex: "👕", "🧢", "✨")' },
+          couleur: { type: 'string', description: 'Couleur hex de la collection (ex: "#7c3aed"). Laisser vide pour couleur automatique.' }
+        },
+        required: ['nom']
+      }
+    },
+    {
+      name: 'erp_mockupforge_add_product',
+      description: `Ajoute un produit du catalogue MockupForge à une collection existante, avec correspondance optionnelle vers un produit ERP. Produits MockupForge disponibles : tshirt, casquette. La correspondance ERP permet de lier le visuel mockup au produit réel du catalogue HCS (SKU, prix, variantes).`,
+      input_schema: {
+        type: 'object',
+        properties: {
+          collection_id:  { type: 'string', description: 'ID de la collection MockupForge (obtenu via erp_mockupforge_catalog)' },
+          produit_mockup: { type: 'string', description: 'ID produit MockupForge : tshirt | casquette' },
+          erp_prod_id:    { type: 'string', description: 'ID produit ERP correspondant (ex: prod-001) — optionnel, pour lier mockup et catalogue HCS' },
+          erp_prod_nom:   { type: 'string', description: 'Nom du produit ERP pour affichage (ex: "T-Shirt Blanc HCS") — optionnel' }
+        },
+        required: ['collection_id', 'produit_mockup']
       }
     }
   ];
@@ -1630,6 +1695,67 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
             Store.syncAllToMySQL('produits').catch(() => {});
           }
           return { ok: true, produit_id: input.produit_id, mises_a_jour: update, message: `Produit ${produit.nom} mis à jour. Sync MySQL lancée.` };
+        }
+
+        /* ── MockupForge — collections & correspondance catalogue ── */
+
+        case 'erp_mockupforge_catalog': {
+          const lsGet = (k, d) => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch { return d; } };
+          const collections = lsGet('mfw_collections_v1', []);
+          const PRODUITS_MFW = [
+            { id: 'tshirt',    nom: 'T-Shirt',   icon: '👕', vues: ['front','back'], zones: 'Poitrine, Manche G., Manche D., Dos, Nuque, Flanc' },
+            { id: 'casquette', nom: 'Casquette', icon: '🧢', vues: ['front'],        zones: 'Panneau frontal, Flanc' }
+          ];
+          return {
+            ok: true,
+            catalogue_mockupforge: PRODUITS_MFW,
+            collections_existantes: collections.map(c => ({
+              id: c.id, nom: c.name, icon: c.icon, couleur: c.color,
+              nb_produits: (c.products || []).length,
+              produits: (c.products || []).map(p => ({ produit_mockup: p.prodId, erp_prod_id: p.erpProdId || null, erp_prod_nom: p.erpProdNom || null }))
+            })),
+            note: 'Pour ajouter des produits non listés (hoodie, polo, tote bag), ils doivent être activés dans MockupForge d\'abord.'
+          };
+        }
+
+        case 'erp_mockupforge_create_collection': {
+          const lsGet = (k, d) => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch { return d; } };
+          const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { } };
+          const COLL_COLORS = ['#7c3aed','#2563eb','#059669','#d97706','#dc2626','#db2777','#0891b2'];
+          const collections = lsGet('mfw_collections_v1', []);
+          const id = 'coll_' + Date.now().toString(36);
+          const couleur = input.couleur || COLL_COLORS[collections.length % COLL_COLORS.length];
+          const coll = { id, name: input.nom, icon: input.icon || '📦', color: couleur, products: [] };
+          collections.push(coll);
+          lsSet('mfw_collections_v1', collections);
+          return { ok: true, message: `Collection "${input.nom}" créée`, collection_id: id, couleur, note: 'Ouvrez MockupForge pour voir la collection et y ajouter des templates visuels.' };
+        }
+
+        case 'erp_mockupforge_add_product': {
+          const lsGet = (k, d) => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch { return d; } };
+          const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { } };
+          const PRODUITS_VALIDES = ['tshirt', 'casquette'];
+          if (!PRODUITS_VALIDES.includes(input.produit_mockup)) {
+            return { error: `Produit "${input.produit_mockup}" non disponible. Produits valides : ${PRODUITS_VALIDES.join(', ')}` };
+          }
+          const collections = lsGet('mfw_collections_v1', []);
+          const coll = collections.find(c => c.id === input.collection_id);
+          if (!coll) return { error: `Collection "${input.collection_id}" introuvable. Utilisez erp_mockupforge_catalog pour lister les collections existantes.` };
+          if (!coll.products) coll.products = [];
+          if (coll.products.find(p => p.prodId === input.produit_mockup)) {
+            return { ok: false, message: `Le produit "${input.produit_mockup}" est déjà dans la collection "${coll.name}".` };
+          }
+          const entry = { prodId: input.produit_mockup, views: {}, refs: [] };
+          if (input.erp_prod_id)  entry.erpProdId  = input.erp_prod_id;
+          if (input.erp_prod_nom) entry.erpProdNom = input.erp_prod_nom;
+          coll.products.push(entry);
+          lsSet('mfw_collections_v1', collections);
+          return {
+            ok: true,
+            message: `"${input.produit_mockup}" ajouté à la collection "${coll.name}"`,
+            correspondance_erp: input.erp_prod_id ? `Lié au produit ERP ${input.erp_prod_id} (${input.erp_prod_nom || ''})` : 'Aucune correspondance ERP définie',
+            etape_suivante: `Ouvrez MockupForge → collection "${coll.name}" → configurez le produit (références couleurs + upload templates photo).`
+          };
         }
 
         default:
