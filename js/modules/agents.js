@@ -1070,6 +1070,9 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
     }
   ];
 
+  /* Version du module — vérifiable via window.AGENTS_MODULE_VERSION */
+  window.AGENTS_MODULE_VERSION = '2026050104';
+
   /* ================================================================
      MATRICE D'ESCALADE INTER-AGENTS — Pack v1.0
      Définit vers quel agent router selon la situation
@@ -1472,7 +1475,21 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
         .slice(-20)
         .map(m => ({ role: m.role, content: m.content.length > 6000 ? m.content.slice(0, 6000) + '…[tronqué]' : m.content }));
 
-      const systemPrompt = await _buildSystemPrompt(agent);
+      let systemPrompt = await _buildSystemPrompt(agent);
+
+      /* ── Diagnostic & garde-fou tokens ── */
+      const estSys  = Math.ceil(systemPrompt.length / 4);
+      const estMsgs = Math.ceil(JSON.stringify(apiMessages).length / 4);
+      const estTools = Math.ceil(JSON.stringify(ERP_TOOLS).length / 4);
+      const estTotal = estSys + estMsgs + estTools + 500;
+      console.log(`[Agents v2] tokens estimés — system:${estSys} msgs:${estMsgs} tools:${estTools} total:${estTotal}`);
+
+      /* Si le total dépasse 150 000 tokens, tronquer agressivement le system prompt */
+      if (estTotal > 150000) {
+        console.warn('[Agents v2] System prompt trop long ('+systemPrompt.length+' chars) — troncature');
+        systemPrompt = systemPrompt.slice(0, 50000) + '\n\n[contexte tronqué pour limiter les tokens]';
+      }
+
       const model = agent.modele === 'claude-opus-4-6' ? 'claude-opus-4-6' : 'claude-sonnet-4-6';
 
       /* Boucle tool_use : Claude peut appeler plusieurs outils avant de répondre */
@@ -1558,6 +1575,25 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
   }
 
   /** Exécute un outil ERP et retourne le résultat en JSON */
+  /** Retire les champs lourds (variantes, images base64, paliers…) d'un produit avant envoi à l'API.
+   *  Empêche le dépassement de tokens quand le tool_result contient des produits avec variantes. */
+  function _stripProduit(p) {
+    if (!p || typeof p !== 'object') return p;
+    const { variantes, image, images, paliers, tailles, couleurs, ...rest } = p;
+    /* Tronquer description longue */
+    if (rest.description && rest.description.length > 300) {
+      rest.description = rest.description.slice(0, 300) + '…';
+    }
+    /* Résumer les variantes : juste le compte */
+    if (variantes) {
+      try {
+        const v = typeof variantes === 'string' ? JSON.parse(variantes) : variantes;
+        rest.nb_variantes = Array.isArray(v) ? v.length : Object.keys(v).length;
+      } catch (_) { rest.nb_variantes = '?'; }
+    }
+    return rest;
+  }
+
   async function _executeTool(name, input) {
     if (typeof window.MYSQL === 'undefined') return { error: 'MySQL non disponible' };
     try {
@@ -1568,8 +1604,11 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
             limit: Math.min(input.limit || 10, 50)
           });
 
-        case 'erp_get_produits':
-          return await window.MYSQL.getAll('produits', { limit: input.limit || 50 });
+        case 'erp_get_produits': {
+          const rows = await window.MYSQL.getAll('produits', { limit: input.limit || 50 });
+          const items = Array.isArray(rows) ? rows : (rows.items || []);
+          return items.map(_stripProduit);
+        }
 
         case 'erp_get_contacts':
           return input.query
@@ -1717,7 +1756,7 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
           if (input.id)  produit = produits.find(p => p.id === input.id);
           if (!produit && input.sku) produit = produits.find(p => p.sku === input.sku);
           if (!produit)  return { error: 'Produit non trouvé', id: input.id, sku: input.sku };
-          return { produit };
+          return { produit: _stripProduit(produit) };
         }
 
         case 'erp_update_produit_cout': {
