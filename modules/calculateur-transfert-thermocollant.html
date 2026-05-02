@@ -58,25 +58,38 @@ const DEFAULT_VINYLS = [
   { name:'Vinyle Contrecollé', priceUSD:12.50 },
 ];
 
+const LS_THERMO = 'hcs_thermo_calc_params';
 function CalculateurVinyle() {
+  /* ── Chargement des paramètres persistants ── */
+  const _p = (() => { try { return JSON.parse(localStorage.getItem(LS_THERMO)) || {}; } catch { return {}; } })();
+
   /* ── State ── */
-  const [selectedIdx,      setSelectedIdx]      = useState(0);
-  const [vinyls,           setVinyls]            = useState(DEFAULT_VINYLS);
-  const [yardsOrdered,     setYardsOrdered]      = useState(10);
-  const [marginPercent,    setMarginPercent]      = useState(300);
-  const [dimensionsText,   setDimensionsText]    = useState('10x15\n15x20\n5x10\n10x10\n24x24\n30x30');
-  const [marginLogos,      setMarginLogos]        = useState(1);
-  const [quickH,           setQuickH]             = useState(10);
-  const [quickL,           setQuickL]             = useState(15);
-  const [usdXpf,           setUsdXpf]             = useState(109.5);
-  const [shippingUSD,      setShippingUSD]        = useState(66);
-  const [dutyPct,          setDutyPct]            = useState(7);
-  const [tvaPct,           setTvaPct]             = useState(16);
-  const [brokerageUSD,     setBrokerageUSD]       = useState(50);
-  const [handlingUSD,      setHandlingUSD]        = useState(15);
+  const [selectedIdx,      setSelectedIdx]      = useState(_p.selectedIdx      ?? 0);
+  const [vinyls,           setVinyls]            = useState(_p.vinyls           ?? DEFAULT_VINYLS);
+  const [yardsOrdered,     setYardsOrdered]      = useState(_p.yardsOrdered     ?? 10);
+  const [marginPercent,    setMarginPercent]      = useState(_p.marginPercent    ?? 300);
+  const [dimensionsText,   setDimensionsText]    = useState(_p.dimensionsText   ?? '10x15\n15x20\n5x10\n10x10\n24x24\n30x30');
+  const [marginLogos,      setMarginLogos]        = useState(_p.marginLogos      ?? 1);
+  const [quickH,           setQuickH]             = useState(_p.quickH           ?? 10);
+  const [quickL,           setQuickL]             = useState(_p.quickL           ?? 15);
+  const [usdXpf,           setUsdXpf]             = useState(_p.usdXpf           ?? 109.5);
+  const [shippingUSD,      setShippingUSD]        = useState(_p.shippingUSD      ?? 66);
+  const [dutyPct,          setDutyPct]            = useState(_p.dutyPct          ?? 7);
+  const [tvaPct,           setTvaPct]             = useState(_p.tvaPct           ?? 16);
+  const [brokerageUSD,     setBrokerageUSD]       = useState(_p.brokerageUSD     ?? 50);
+  const [handlingUSD,      setHandlingUSD]        = useState(_p.handlingUSD      ?? 15);
   const [showResults,      setShowResults]        = useState(false);
   const [editingPrix,      setEditingPrix]        = useState(false);
   const resultsRef = useRef(null);
+
+  /* ── Sauvegarde automatique des paramètres ── */
+  useEffect(() => {
+    localStorage.setItem(LS_THERMO, JSON.stringify({
+      selectedIdx, vinyls, yardsOrdered, marginPercent, dimensionsText,
+      marginLogos, quickH, quickL, usdXpf, shippingUSD, dutyPct, tvaPct, brokerageUSD, handlingUSD
+    }));
+  }, [selectedIdx, vinyls, yardsOrdered, marginPercent, dimensionsText,
+      marginLogos, quickH, quickL, usdXpf, shippingUSD, dutyPct, tvaPct, brokerageUSD, handlingUSD]);
 
   /* ── Constantes rouleau ── */
   const ROLL_W = 50, YARD_H = 91.44, YARD_AREA = ROLL_W * YARD_H;

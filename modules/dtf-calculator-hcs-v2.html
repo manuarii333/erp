@@ -39,18 +39,33 @@
   <script type="text/babel">
     const { useState, useMemo, useEffect, useRef } = React;
 
+    const LS_DTF = 'hcs_dtf_calc_params';
     function DTFOrderCalculator() {
-      const [usdToXpf, setUsdToXpf] = useState(109.5);
+      /* ── Chargement des paramètres persistants ── */
+      const _p = (() => { try { return JSON.parse(localStorage.getItem(LS_DTF)) || {}; } catch { return {}; } })();
+
+      const [usdToXpf, setUsdToXpf] = useState(_p.usdToXpf    ?? 109.5);
       const [showPricing, setShowPricing] = useState(false);
       const [historyItems, setHistoryItems] = useState([]);
       const [showHistory, setShowHistory] = useState(false);
-      const [coeffMarge, setCoeffMarge] = useState(250);
-      const [quickH, setQuickH] = useState(10);
-      const [quickL, setQuickL] = useState(15);
+      const [coeffMarge, setCoeffMarge] = useState(_p.coeffMarge ?? 250);
+      const [quickH, setQuickH] = useState(_p.quickH ?? 10);
+      const [quickL, setQuickL] = useState(_p.quickL ?? 15);
+      const [orderQtyTier, setOrderQtyTier] = useState(_p.orderQtyTier ?? 20);
+      const [clientDesigns, setClientDesigns] = useState(_p.clientDesigns ?? [
+        { id:1, name:'Logo poitrine', width:25, height:30, qty:15 },
+        { id:2, name:'Logo dos',      width:30, height:35, qty:10 },
+      ]);
+      const [designGap, setDesignGap] = useState(_p.designGap ?? 0.5);
       const lastSavedRef = useRef(null);
       const YARD_H_DTF = 91.44;
 
-      const [htv4uPricing, setHtv4uPricing] = useState({
+      /* ── Sauvegarde automatique des paramètres ── */
+      useEffect(() => {
+        localStorage.setItem(LS_DTF, JSON.stringify({ usdToXpf, coeffMarge, quickH, quickL, orderQtyTier, clientDesigns, designGap, htv4uPricing }));
+      }, [usdToXpf, coeffMarge, quickH, quickL, orderQtyTier, clientDesigns, designGap, htv4uPricing]);
+
+      const [htv4uPricing, setHtv4uPricing] = useState(_p.htv4uPricing || {
         sheet: [
           { qtyMin:1, qtyMax:5,   price:5.99,  discount:0   },
           { qtyMin:6, qtyMax:10,  price:5.84,  discount:2.5 },
@@ -98,14 +113,6 @@
         return tier ? tier.price : tiers[tiers.length - 1].price;
       };
 
-      const [orderQtyTier, setOrderQtyTier] = useState(20);
-
-      const [clientDesigns, setClientDesigns] = useState([
-        { id:1, name:'Logo poitrine', width:25, height:30, qty:15 },
-        { id:2, name:'Logo dos',      width:30, height:35, qty:10 },
-      ]);
-
-      const [designGap, setDesignGap] = useState(0.5);
       const SHEET_WIDTH_CM = 55.88;
 
       const shippingRatesXPF = useMemo(() => ({
