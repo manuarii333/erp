@@ -19,7 +19,7 @@ if (file_exists($_envFile)) {
         if (!str_contains($_line, '=')) continue;
         [$_k, $_v] = explode('=', $_line, 2);
         $_k = trim($_k);
-        $_v = trim($_v, " \t\"'");
+        $_v = trim($_v, " \t\r\n\"'");
         if ($_k !== '' && getenv($_k) === false) putenv("$_k=$_v");
     }
 }
