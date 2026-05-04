@@ -142,9 +142,11 @@ const APPS = [
     color: '#00d4aa',
     pinned: true,
     views: [
-      { id: 'dashboard', label: 'Tableau de bord', icon: '⬡',  section: 'Agents IA' },
-      { id: 'chat',      label: 'Chat agents',     icon: '💬', section: 'Agents IA' },
-      { id: 'sessions',  label: 'Historique',      icon: '📋', section: 'Agents IA' }
+      { id: 'dashboard',       label: 'Tableau de bord',   icon: '⬡',  section: 'Agents IA' },
+      { id: 'chat',            label: 'Chat agents',        icon: '💬', section: 'Agents IA' },
+      { id: 'prompts',         label: 'Prompts',            icon: '📋', section: 'Agents IA' },
+      { id: 'sessions',        label: 'Historique',         icon: '🕓', section: 'Agents IA' },
+      { id: 'apprentissages',  label: 'Apprentissages',     icon: '🧠', section: 'Agents IA' }
     ]
   },
   {
@@ -204,7 +206,7 @@ const APPS = [
       { id: 'mockup-forge-v12', label: 'MockupForge v12',   icon: '🖼️', section: 'Applications HCS' },
       { id: 'dtf-studio',      label: 'DTF Studio Creator', icon: '🎬', section: 'Applications HCS', external: true, url: 'apps/dtf-studio.html' },
       { id: 'ext-dtf-composer',label: 'DTF Composer v4',   icon: '🎨', section: 'Applications HCS', external: true, url: '../agents/agent3_visuel/dtf-composer-v4.html' },
-      { id: 'dtf-calculator-hcs-v2',               label: 'Calculateur DTF',        icon: '🧮', section: 'Applications HCS' },
+      { id: 'calculateur-transfert-dtf-v2',         label: 'Calculateur Transfert DTF V2', icon: '🎨', section: 'Applications HCS' },
       { id: 'calculateur-vinyl-hcs',               label: 'Calculateur Vinyle',      icon: '✂️', section: 'Applications HCS' },
       { id: 'calculateur-transfert-thermocollant', label: 'Calculateur Transfert',   icon: '♨️', section: 'Applications HCS' },
       { id: 'product-creator',                     label: 'Product Creator CSV',     icon: '📦', section: 'Applications HCS' },
@@ -212,7 +214,8 @@ const APPS = [
       { id: 'ext-pass-hcs',    label: 'Pass HCS',          icon: '🎫', section: 'Applications HCS', external: true, url: '../hcs-hub-ecosystem/hcs-hub-ecosystem/hcs-pass-test.html' },
       { id: 'ext-hub',         label: 'HCS Hub',           icon: '🗄️', section: 'Applications HCS', external: true, url: '../hcs-hub.html' },
       { id: 'ext-cockpit',     label: 'HCS Cockpit',       icon: '🚀', section: 'Applications HCS', external: true, url: '../hcs-hub-ecosystem/hcs-hub-ecosystem/hcs-cockpit.html' },
-      { id: 'agents-profiles', label: 'Profils Agents IA', icon: '🤖', section: 'Applications HCS', external: true, url: 'apps/hcs-agents-profiles.html' }
+      { id: 'agents-profiles',  label: 'Profils Agents IA', icon: '🤖', section: 'Applications HCS', external: true, url: 'apps/hcs-agents-profiles.html' },
+      { id: 'workflow-builder', label: 'Workflow Builder',   icon: '⛓',  section: 'Applications HCS', external: true, url: 'apps/hcs-workflow-builder.html' }
     ]
   }
 ];
@@ -473,6 +476,11 @@ function openView(viewId) {
 function renderView() {
   const container = document.getElementById('view-content');
   if (!container) return;
+
+  /* Toujours réinitialiser les styles inline posés par renderIframe()
+     pour que le overflow-y:scroll du CSS reprenne la main */
+  container.style.overflow = '';
+  container.style.padding  = '';
 
   const app  = AppState.currentApp;
   const view = AppState.currentView;

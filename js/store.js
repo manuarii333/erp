@@ -593,13 +593,25 @@ const Store = (() => {
 
   /**
    * Envoie une mise à jour vers MySQL.
-   * Utilise _mysql_id si disponible, sinon ignore.
+   * Si _mysql_id absent (ex: produits seed) → upsert complet via store_id.
    */
   async function _syncMySQLUpdate(collection, storeId, updates) {
     if (!window.MYSQL || !MYSQL_TABLES.has(collection)) return;
     try {
       const record = (db[collection] || []).find(r => r.id === storeId);
-      if (!record || !record._mysql_id) return;
+      if (!record) return;
+      if (!record._mysql_id) {
+        /* Fallback upsert : envoie l'enregistrement complet avec store_id.
+           base.php utilise INSERT … ON DUPLICATE KEY UPDATE → idempotent. */
+        const payload = _buildMySQLPayload(record);
+        const created = await window.MYSQL.create(collection, payload);
+        if (created && created.id) {
+          record._mysql_id = created.id;
+          try { localStorage.setItem(LS_KEY, JSON.stringify(db)); } catch (_) {}
+          console.info(`[Store] MySQL upsert ${collection}/${storeId} → mysql_id=${created.id}`);
+        }
+        return;
+      }
       const payload = _buildMySQLPayload(updates);
       await window.MYSQL.update(collection, record._mysql_id, payload);
     } catch (e) {
@@ -815,9 +827,9 @@ const Store = (() => {
     const errors = [];
 
     for (const col of PUSH_COLS) {
-      /* Ignorer les records du seed (IDs statiques type prod-001, cont-001) */
-      const isSeedId = r => /^[a-z]+-\d{3,4}$/.test(r.id);
-      const orphans = (db[col] || []).filter(r => !r._mysql_id && !isSeedId(r));
+      /* Tous les records sans _mysql_id, y compris les produits seed (prod-001…)
+         qui peuvent avoir été modifiés et doivent être persistés en MySQL. */
+      const orphans = (db[col] || []).filter(r => !r._mysql_id);
       for (const record of orphans) {
         try {
           const payload = _buildMySQLPayload(record);
@@ -890,6 +902,58 @@ const Store = (() => {
     return { created, updated, errors };
   }
 
+  /**
+   * MySQL → localStorage : PULL GLOBAL (MySQL fait autorité).
+   * Pour chaque collection, récupère tous les enregistrements MySQL
+   * et écrase les records locaux correspondants (match par store_id ou _mysql_id).
+   * Les records locaux sans contrepartie MySQL sont conservés.
+   *
+   * @param {string[]} [collections]  — liste optionnelle ; défaut : toutes les tables sync
+   * @returns {Promise<{updated: number, added: number, errors: string[]}>}
+   */
+  async function pullAllFromMySQL(collections) {
+    if (!window.MYSQL) return { updated: 0, added: 0, errors: ['MySQL non disponible'] };
+    if (!db) load();
+
+    const DEFAULT_COLS = ['produits', 'contacts', 'fournisseurs', 'devis', 'commandes', 'factures'];
+    const COLS = Array.isArray(collections) ? collections : DEFAULT_COLS;
+    let updated = 0, added = 0;
+    const errors = [];
+
+    for (const col of COLS) {
+      try {
+        const rows = await window.MYSQL.getAll(col, { limit: 5000 });
+        if (!Array.isArray(rows) || !rows.length) continue;
+        if (!db[col]) db[col] = [];
+
+        for (const row of rows) {
+          const record = _mysqlRowToLocal(col, row);
+
+          /* Cherche le record local : d'abord par store_id, puis par _mysql_id */
+          let idx = row.store_id ? db[col].findIndex(r => r.id === row.store_id) : -1;
+          if (idx < 0) idx = db[col].findIndex(r => r._mysql_id === row.id);
+
+          if (idx >= 0) {
+            db[col][idx] = record;   /* Écrase avec la version MySQL */
+            updated++;
+          } else {
+            db[col].push(record);    /* Nouveau depuis MySQL */
+            added++;
+          }
+        }
+      } catch (e) {
+        errors.push(`${col}: ${e.message}`);
+        console.warn(`[Store] pullAllFromMySQL ${col} échoué:`, e.message);
+      }
+    }
+
+    if (updated + added > 0) {
+      save();
+      console.info(`[Store] pullAllFromMySQL : ↓${updated} mis à jour, +${added} ajouté(s)`);
+    }
+    return { updated, added, errors };
+  }
+
   /* ---------- API PUBLIQUE ---------- */
   return {
     load,
@@ -914,7 +978,8 @@ const Store = (() => {
     applyDefaultVariants,
     syncFromMySQL,
     pushMissingToMySQL,
-    syncAllToMySQL
+    syncAllToMySQL,
+    pullAllFromMySQL
   };
 })();
 

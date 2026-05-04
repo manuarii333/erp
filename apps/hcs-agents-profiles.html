@@ -7,11 +7,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --esp:#1a0e07; --bd:#2a1508; --bm:#3b1f0e;
-  --car:#c4813a; --carl:#e09a4f; --cr:#f5ede0; --crd:#c8b89a;
-  --amb:#f0a030; --sur:#231510;
-  --bor:rgba(196,129,58,.2); --borl:rgba(196,129,58,.08);
-  --mut:#8a7060; --r:12px; --rs:8px;
+  --esp:#0a0f1e; --bd:#0d1530; --bm:#0f1e3d;
+  --car:#00d4ff; --carl:#4de8ff; --cr:#e2f0ff; --crd:#a8c4e8;
+  --amb:#00d4ff; --sur:#080d1a;
+  --bor:rgba(0,212,255,.2); --borl:rgba(0,212,255,.08);
+  --mut:#4a6080; --r:12px; --rs:8px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -63,11 +63,11 @@ body{font-family:'Inter',sans-serif;background:var(--esp);color:var(--cr);font-s
 .ph-tags{display:flex;gap:7px;flex-wrap:wrap}
 .tag{font-family:'DM Mono',monospace;font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.06);color:var(--crd);border:1px solid var(--borl)}
 .tag.opus{background:rgba(99,102,241,.15);color:#a5b4fc;border-color:rgba(99,102,241,.3)}
-.tag.sonnet{background:rgba(196,129,58,.15);color:var(--carl);border-color:rgba(196,129,58,.3)}
-.tag.actif{background:rgba(16,185,129,.1);color:#6ee7b7;border-color:rgba(16,185,129,.25)}
-.tag.n8n{background:rgba(220,38,38,.1);color:#fca5a5;border-color:rgba(220,38,38,.2)}
-.tag.erp{background:rgba(249,115,22,.1);color:#fdba74;border-color:rgba(249,115,22,.2)}
-.tag.managed{background:rgba(139,92,246,.1);color:#c4b5fd;border-color:rgba(139,92,246,.2)}
+.tag.sonnet{background:rgba(0,212,255,.12);color:var(--carl);border-color:rgba(0,212,255,.3)}
+.tag.actif{background:rgba(16,185,129,.12);color:#6ee7b7;border-color:rgba(16,185,129,.3)}
+.tag.n8n{background:rgba(251,113,133,.12);color:#fda4af;border-color:rgba(251,113,133,.25)}
+.tag.erp{background:rgba(249,115,22,.12);color:#fdba74;border-color:rgba(249,115,22,.25)}
+.tag.managed{background:rgba(139,92,246,.12);color:#c4b5fd;border-color:rgba(139,92,246,.25)}
 
 /* Stats */
 .stats{display:flex;border-bottom:1px solid var(--bor);background:var(--sur)}
@@ -154,7 +154,7 @@ body{font-family:'Inter',sans-serif;background:var(--esp);color:var(--cr);font-s
 
 /* Buttons */
 .btn{padding:7px 14px;border-radius:var(--rs);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .12s}
-.btn-p{background:var(--car);color:var(--esp)}
+.btn-p{background:var(--car);color:#06101f}
 .btn-p:hover{background:var(--carl)}
 .btn-s{background:rgba(255,255,255,.06);color:var(--crd);border:1px solid var(--bor)}
 .btn-s:hover{background:rgba(255,255,255,.1)}
@@ -183,6 +183,19 @@ body{font-family:'Inter',sans-serif;background:var(--esp);color:var(--cr);font-s
 .btn-ai{background:rgba(196,129,58,.08);border:1px dashed var(--bor);color:var(--car);border-radius:6px;padding:6px 11px;cursor:pointer;font-size:11px;text-align:left;width:100%}
 .btn-ai:hover{background:rgba(196,129,58,.15)}
 .m-ftr{padding:14px 20px;border-top:1px solid var(--bor);display:flex;justify-content:flex-end;gap:9px}
+
+/* Prompts opérateurs */
+.pr-cats{display:flex;flex-direction:column;gap:22px}
+.pr-cat-lbl{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;color:var(--car);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.pr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.pr-card{background:var(--bm);border:1px solid var(--bor);border-radius:var(--r);display:flex;flex-direction:column}
+.pr-card-hd{padding:9px 12px;border-bottom:1px solid var(--borl)}
+.pr-card-tit{font-size:12px;font-weight:600;color:var(--cr)}
+.pr-card-body{padding:12px;font-size:11px;color:var(--crd);line-height:1.65;flex:1;white-space:pre-wrap}
+.pr-card-ft{padding:7px 10px;border-top:1px solid var(--borl);display:flex;justify-content:flex-end;gap:6px}
+.btn-cpy{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);color:var(--car);border-radius:5px;padding:3px 9px;cursor:pointer;font-size:10px;font-family:'Inter',sans-serif;font-weight:600;transition:all .12s}
+.btn-cpy:hover{background:rgba(0,212,255,.15)}
+.pr-empty{text-align:center;padding:36px 20px;color:var(--mut);font-size:13px}
 </style>
 </head>
 <body>
@@ -409,6 +422,135 @@ const AGENTS = [
     ] },
 ];
 
+/* ── Prompts opérateurs ── */
+const AGENTS_PROMPTS = {
+  'agent_hcs_triage_1': [
+    { cat:'Classification', titre:'Router un message entrant',
+      texte:'Analyse ce message et classe-le dans une des 5 catégories (DEVIS, SAV, MOCKUP, INFO_SERVICES, HORS_PERIMETRE).\nIndique : catégorie, agent destinataire, score de confiance (0-100%), raison.\n\nMessage :\n[COLLER LE MESSAGE ICI]' },
+    { cat:'Détection urgence', titre:'Évaluer le niveau d\'urgence',
+      texte:'Ce message nécessite-t-il une réponse urgente ? Évalue : délai mentionné, événement daté, client attendant depuis >24h, ton (MAJUSCULES, !!!, anxieux).\nRéponds : Urgence oui/non — Niveau 1 à 5 — Raison.\n\nMessage :\n[COLLER LE MESSAGE ICI]' },
+  ],
+  'agent_011Ca1i5Lk4BaMSRTMCtdkjk': [
+    { cat:'Devis', titre:'Établir un devis complet',
+      texte:'Établis un devis pour cette demande. Vérifie les 7 infos : quantité, textile, couleur, tailles, technique, dimensions, délai.\nNumérote DEV-2026-XXX. TVA 13% (services) ou 16% (marchandises). Affiche HT + TVA + TTC en XPF.\n\nDemande :\n[COLLER LA DEMANDE CLIENT ICI]' },
+    { cat:'Devis', titre:'Appliquer remise volume',
+      texte:'Calcule le prix final avec remise volume.\nGrille : -5% à 50 pcs / -10% à 100 pcs / -15% à 200 pcs+.\nAffiche : prix unitaire HT, sous-total HT, remise XPF, TVA, total TTC.\n\nQuantité : [X pcs]\nProduit : [...]' },
+    { cat:'Relances', titre:'Relancer un devis sans réponse',
+      texte:'Rédige un message de relance chaleureux pour un devis sans réponse depuis [X jours]. Ton polynésien (ia orana, māuruuru). Propose d\'ajuster si besoin. Pas d\'urgence artificielle.\n\nClient : [Nom]\nDevis : [DEV-2026-XXX]\nMontant : [X XPF]' },
+  ],
+  'agent_hcs_picwish_3': [
+    { cat:'Traitement', titre:'Préparer un logo pour production DTF',
+      texte:'Analyse ce fichier logo et guide le traitement pour DTF.\nVérifie : fond transparent (PNG), résolution ≥300 DPI, artefacts JPEG à nettoyer.\nIndique les étapes dans l\'ordre : PicWish → DTF Studio.\n\nFichier : [NOM DU FICHIER]\nUsage prévu : [DTF / vinyle / mockup]' },
+    { cat:'Qualité', titre:'Valider qualité avant impression',
+      texte:'Ce fichier est-il prêt pour l\'impression ?\nAnalyse : DPI, format (PNG/PDF/SVG), transparence, espace couleur (CMJN/RVB), dimensions vs gabarit.\nConclusion : ✅ Prêt / ⚠️ À corriger / ❌ À refaire + corrections à faire.\n\nFichier : [NOM]\nTechnique : [DTF / vinyle]' },
+  ],
+  'agent_011Ca1i2FzUX3zNd4xuM4PHa': [
+    { cat:'Production', titre:'Paramètres machine pour pressage DTF',
+      texte:'Donne les paramètres exacts pour presser ce transfert DTF.\nTextile : [coton 100% / polyester / mélange].\nFournis : température, durée, pression, peel (chaud/froid), points de contrôle qualité avant et après pressage.' },
+    { cat:'Checklist', titre:'Checklist qualité avant lancement OF',
+      texte:'Lance la checklist qualité 4 étapes pour cet OF.\n1. Avant : fichier OK, matières disponibles, machines réglées\n2. Coupe : dimensions correctes\n3. Pressage : barème respecté\n4. Après : rendu visuel, solidité, emballage\n\nN° OF : [NUMÉRO]' },
+    { cat:'Suivi OF', titre:'Mettre à jour statut d\'un OF',
+      texte:'Mets à jour l\'OF au nouveau statut et notifie les agents si nécessaire.\nStatuts : attente → matiere → reservation → prod → qualite → pret\n\nN° OF : [NUMÉRO]\nNouveau statut : [STATUT]\nRaison : [RAISON]' },
+  ],
+  'agent_hcs_planning_5': [
+    { cat:'Planning', titre:'Planifier les OFs du jour',
+      texte:'Planifie les OFs en attente pour aujourd\'hui selon les priorités :\n1. Urgences <48h\n2. Événements datés\n3. Gros clients (>200 pcs)\n4. Volume\n5. FIFO\nCapacité max journalière à 70%. Vérifie matières avant affectation machine.' },
+    { cat:'Arbitrage', titre:'Résoudre un conflit de planning machine',
+      texte:'Deux OFs se disputent la même machine au même créneau. Aide à arbitrer.\n\nOF A : quantité [X], client [NOM], délai [DATE], priorité [1-5]\nOF B : quantité [X], client [NOM], délai [DATE], priorité [1-5]\n\nPropose la décision avec justification.' },
+  ],
+  'agent_011Ca1i5a41GExc8u42YVC4y': [
+    { cat:'Stocks', titre:'Vérifier les niveaux de stock critiques',
+      texte:'Vérifie les niveaux de stock matières principales (films DTF, vinyle Oracal 651, flock, transferts HTV4U).\n🚨 Critique ≤20% / ⚠️ Surveillance 20-50% / ✅ OK ≥50%.\nPropose commande si niveau critique détecté.' },
+    { cat:'Commandes', titre:'Préparer une commande fournisseur',
+      texte:'Prépare le bon de commande pour réapprovisionnement.\nFournisseur : [HTV4U USA / Stahls USA / France]\nMatières : [LISTE + quantités]\nBudget : [X XPF]\nDélai : [bateau 20-30j / avion 5-7j]\nValidation requise si >50k XPF.' },
+    { cat:'Galerie', titre:'Inventorier les images d\'un produit',
+      texte:'Inventorie les images uploadées pour ce produit.\nIndique : nombre d\'images, variantes couvertes (couleurs, tailles), URLs disponibles.\nSignale les variantes manquantes.\n\nProduit : [NOM / ID]' },
+  ],
+  'agent_011Ca1i5WyDUg2fQCJSUzWq5': [
+    { cat:'Trésorerie', titre:'Bilan financier du jour',
+      texte:'Donne le bilan financier d\'aujourd\'hui.\nCA du jour, dépenses, marge brute (cible >50%), solde trésorerie.\nCompare aux objectifs mensuels.\nSignale : marge <30%, dépense non prévue, impayé >J+30.' },
+    { cat:'TVA', titre:'Calculer la TVA polynésienne',
+      texte:'Calcule la TVA pour cette transaction.\nTaux : 13% (services) / 16% (marchandises) / 0% (export).\nAffiche : Montant HT, TVA, Total TTC en XPF.\n\nMontant HT : [X XPF]\nType : [service / marchandise / export]\nClient : [particulier / entreprise PF / export]' },
+    { cat:'Impayés', titre:'Identifier et relancer les impayés',
+      texte:'Identifie les factures impayées dépassant J+30. Pour chaque impayé : client, montant, date échéance, nb jours dépassement.\nRédige un message de relance ferme et professionnel en XPF.\n\nClient ciblé : [NOM ou "tous les clients"]' },
+  ],
+  'agent_011Ca1i5QZW9BuYFmAEUbrt3': [
+    { cat:'Campagnes', titre:'Brief campagne Facebook / Instagram',
+      texte:'Crée le brief d\'une campagne pour [HCS B2B / MANAWEAR B2C].\nCible : [description audience]\nObjectif : [notoriété / conversion / trafic boutique]\nBudget : [X XPF]\nÉvénement PF : [Heiva juillet / Hawaiki Nui novembre / autre]\nGénère 3 accroches (bilingue FR/tahitien si MANAWEAR).' },
+    { cat:'Content', titre:'Planifier le calendrier éditorial du mois',
+      texte:'Planifie le calendrier éditorial du mois prochain pour [HCS / MANAWEAR / les deux].\nIntègre les événements PF du mois.\nRépartis : [X posts Facebook + X stories IG + X TikToks].\nFormat tableau : date, plateforme, sujet, format visuel, copy.' },
+  ],
+  'agent_011Ca1i5cqgmXC8pfK6n8YvJ': [
+    { cat:'Collections', titre:'Proposer une collection MANAWEAR',
+      texte:'Propose une nouvelle collection MANAWEAR ancrée culture polynésienne.\nInclus : nom, storytelling (mana, fenua, tamarii Tahiti), palette, 3-5 visuels suggérés, positionnement prix XPF, événement PF associé.' },
+    { cat:'DTF Studio', titre:'Générer un prompt pour DTF Studio Creator',
+      texte:'Génère un prompt optimisé pour DTF Studio Creator.\nContraintes DTF : couleurs illimitées, résolution ≥300 DPI, fond blanc ou transparent.\nInclus : style artistique, palette, éléments polynésiens (tiaré, honu, tatau, tapa, va\'a…), dimensions.\n\nDirection visuelle : [DESCRIPTION]' },
+  ],
+  'agent_011Ca1i5TrwZCPHXnqW8EjqM': [
+    { cat:'SAV', titre:'Traiter une réclamation client',
+      texte:'Traite cette réclamation selon le workflow SAV 8 étapes.\nResponsabilité :\n• Défaut fabrication HCS → réimpression gratuite\n• Erreur fichier client → devis reprise -30%\n• Retard livraison HCS → geste commercial 5-10%\nRédige la réponse avec ton empathique (ia orana).\n\nRéclamation : [DÉCRIRE LE PROBLÈME]' },
+    { cat:'Suivi', titre:'Vérifier le statut d\'une commande',
+      texte:'Vérifie le statut de cette commande et prépare une réponse client rassurante.\nIndique : statut OF actuel, délai estimé, prochaine étape.\n\nCommande : [NUMÉRO / NOM CLIENT]' },
+  ],
+  'agent_011Ca1i5g4QWANXkWTS8FCDT': [
+    { cat:'Arbitrage', titre:'Résoudre un conflit inter-agents',
+      texte:'Analyse ce conflit et tranche. Si décision hors seuils → escalade vers Grace.\nIndique : analyse des positions, décision finale, notification aux agents concernés.\n\nAgents en conflit : [NOM A] vs [NOM B]\nSujet : [DÉCRIRE]' },
+    { cat:'Validation', titre:'Valider une décision hors seuils',
+      texte:'Valide ou refuse cette décision qui dépasse les seuils d\'autonomie standards.\nAnalyse : risque, bénéfice, alternative, recommandation.\nDécision : ✅ Approuvé / ⚠️ Sous conditions / ❌ Refusé + justification.\n\nAgent demandeur : [NOM]\nDécision : [DÉCRIRE]\nMontant / Impact : [X XPF]' },
+  ],
+  'agent_hcs_catalogue_12': [
+    { cat:'Prix de revient', titre:'Mettre à jour coûts DTF après variation USD/XPF',
+      texte:'Le taux USD/XPF a changé. Récupère les calculs DTF actuels (erp_get_calculs type:dtf), identifie les produits "Services DTF", calcule les nouveaux attrIncrements pour chaque format (A7 à A3+). Présente tableau avant/après — attends ma validation avant toute modification.\n\nNouveau taux : [X XPF/USD]\nUSPS : [X XPF]' },
+    { cat:'Prix de revient', titre:'Mettre à jour les coûts par variante (Transferts DTF)',
+      texte:'Pour les produits Transferts DTF avec variantes format L×H cm : récupère les produits (erp_get_produits), calcule le coût de revient de chaque variante avec erp_calculer_cout_dtf en utilisant les dimensions réelles. Présente le tableau complet avant/après. Attends ma validation explicite avant d\'appliquer avec erp_update_produit_cout.\n\nTaux actuel : [X XPF/USD]\nUSPS : [X XPF]' },
+    { cat:'Audit', titre:'Audit catalogue hebdomadaire',
+      texte:'Lance l\'audit catalogue du lundi. Identifie dans l\'ordre :\n1. Produits sans attrIncrements (prix de revient non calculé)\n2. Produits sans variantes (fiche incomplète)\n3. Produits sans description\nClasse par priorité (produits en commande active d\'abord). Génère le rapport + plan d\'action numéroté.' },
+    { cat:'Thermocollant', titre:'Recalculer coûts thermocollant Stahls USA',
+      texte:'Les tarifs Stahls USA ont changé. Calcule les nouveaux coûts pour toutes les gammes (EasyWeed, ThermoFlex, StripFlock, GlitterFlex et autres). Pour chaque gamme : nouveau cout_par_cm², variation vs ancien, produits ERP impactés. Présente le récapitulatif avant modification.' },
+  ],
+  'agent_hcs_logo_13': [
+    { cat:'Création logo', titre:'Démarrer une création logo',
+      texte:'Je veux créer un nouveau logo. Pose-moi tes 3 questions max (usage prévu, feeling désiré, contraintes techniques). Ensuite propose 2-3 directions visuelles avec palette et références. Attends mon choix avant de générer le prompt DTF Studio.' },
+    { cat:'MockupForge', titre:'Créer une collection MockupForge depuis l\'ERP',
+      texte:'Crée une collection MockupForge pour ce produit.\n1. Vérifie l\'inventaire images (erp_produit_images)\n2. Crée la collection (erp_mockupforge_create_collection avec couleur COLL_COLORS officielle)\n3. Ajoute les produits avec mapping ERP (erp_mockupforge_add_product)\n\nProduit ERP : [NOM / ID]' },
+    { cat:'Audit visuel', titre:'Audit visuel catalogue du lundi',
+      texte:'Lance l\'audit visuel du catalogue.\nPour chaque produit : images uploadées oui/non, variantes couvertes, collection MockupForge oui/non.\nPriorité : t-shirts et polos phare d\'abord, puis variantes couleur.\nGénère le rapport + plan d\'upload + collections à créer.' },
+  ],
+};
+
+function getPromptCount(id){ return (AGENTS_PROMPTS[id]||[]).length; }
+
+function copyPrByIdx(agId, idx, btn){
+  const txt = (AGENTS_PROMPTS[agId]||[])[idx]?.texte||'';
+  navigator.clipboard.writeText(txt).then(()=>{
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copié !';
+    btn.style.cssText = 'background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:#6ee7b7';
+    setTimeout(()=>{ btn.textContent = orig; btn.removeAttribute('style'); }, 1500);
+  });
+}
+
+function rdrPromptsHtml(a){
+  const proms = AGENTS_PROMPTS[a.id]||[];
+  if(!proms.length) return `<div class="pr-empty"><div style="font-size:28px;margin-bottom:10px">📋</div>Aucun prompt défini pour cet agent.<br><span style="font-size:11px;margin-top:6px;display:block">Les prompts seront ajoutés lors des prochaines sessions.</span></div>`;
+  const cats = {};
+  proms.forEach((p,i)=>{ if(!cats[p.cat]) cats[p.cat]=[]; cats[p.cat].push({...p,_i:i}); });
+  return `<div class="pr-cats">${Object.entries(cats).map(([cat,ps])=>`
+    <div>
+      <div class="pr-cat-lbl">${cat}</div>
+      <div class="pr-grid">${ps.map(p=>`
+        <div class="pr-card">
+          <div class="pr-card-hd"><div class="pr-card-tit">${p.titre}</div></div>
+          <div class="pr-card-body">${p.texte.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+          <div class="pr-card-ft">
+            <button class="btn-cpy" onclick="copyPrByIdx('${a.id}',${p._i},this)">📋 Copier</button>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
 /* ── État ── */
 let cur = AGENTS[11]; // HCS-Catalogue par défaut
 let curTab = 'caps';
@@ -470,7 +612,7 @@ function rdrSB(f=''){
 /* ── Profile ── */
 function rdrMain(){
   const a=cur; const evos=getEvos(a.id);
-  const tl={caps:'Capacités',outils:'Outils & Apps',chaines:'Chaînes d\'activités',evol:'Évolution'};
+  const tl={caps:'Capacités',outils:'Outils & Apps',chaines:'Chaînes d\'activités',evol:'Évolution',prompts:'Prompts'};
   const typeL={n8n:'n8n',managed:'Managed',erp:'ERP Module'}[a.type]||a.type;
   const typeC={n8n:'n8n',managed:'managed',erp:'erp'}[a.type]||'';
   const rgb=h2r(a.color);
@@ -495,12 +637,13 @@ function rdrMain(){
       <div class="st"><div class="stv">${a.caps.length}</div><div class="stl">Capacités<br>documentées</div></div>
       <div class="st"><div class="stv" style="color:${a.color}">${a.chains.length}</div><div class="stl">Chaînes<br>d\'activités</div></div>
       <div class="st"><div class="stv">${evos.length}</div><div class="stl">Évolutions<br>enregistrées</div></div>
+      <div class="st"><div class="stv" style="color:${a.color}">${getPromptCount(a.id)||'—'}</div><div class="stl">Prompts<br>opérateurs</div></div>
     </div>
     <div class="tabs">
       ${Object.entries(tl).map(([k,v])=>`
         <button class="tb ${curTab===k?'active':''}" onclick="swTab('${k}')">${v}${
-          (k==='chaines'&&a.chains.length>0)||(k==='evol'&&evos.length>0)?
-          ` <span style="background:rgba(${rgb},.2);color:${a.color};font-size:9px;padding:1px 5px;border-radius:3px;margin-left:3px">${k==='chaines'?a.chains.length:evos.length}</span>`:''
+          (k==='chaines'&&a.chains.length>0)||(k==='evol'&&evos.length>0)||(k==='prompts'&&getPromptCount(a.id)>0)?
+          ` <span style="background:rgba(${rgb},.2);color:${a.color};font-size:9px;padding:1px 5px;border-radius:3px;margin-left:3px">${k==='chaines'?a.chains.length:k==='evol'?evos.length:getPromptCount(a.id)}</span>`:''
         }</button>`).join('')}
     </div>
 
@@ -564,6 +707,11 @@ function rdrMain(){
           </div>
         </div>`).join('')}</div>`
       :`<div class="evo-empty"><div style="font-size:28px;margin-bottom:10px">📋</div>Aucune évolution enregistrée.<br><button class="btn btn-p btn-sm" style="margin-top:10px" onclick="openModal('${a.id}')">+ Première évolution</button></div>`}
+    </div>
+
+    <!-- Prompts opérateurs -->
+    <div class="tbc ${curTab==='prompts'?'active':''}" id="tc-prompts">
+      ${rdrPromptsHtml(a)}
     </div>
   `;
 }

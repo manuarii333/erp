@@ -78,6 +78,10 @@
       <div class="topbar-right">
         <span id="user-badge" class="user-badge"></span>
         <!-- Bouton bascule mode sombre -->
+        <button id="btn-mysql-pull" class="btn-ghost btn-sm"
+          title="Synchroniser toutes les données depuis le serveur MySQL"
+          style="font-size:1rem;padding:4px 8px;min-width:32px;"
+          onclick="syncFromServer(this)">☁↓</button>
         <button id="btn-theme" class="btn-ghost btn-sm" title="Basculer mode sombre / clair"
           style="font-size:1rem;padding:4px 8px;min-width:32px;">🌙</button>
         <button class="btn-ghost btn-sm" id="btn-logout">⏻ Déconnexion</button>
@@ -180,7 +184,7 @@
   <script src="js/modules/advisor.js?v=2026042001"></script>
   <script src="js/modules/rh.js?v=2026042001"></script>
   <script src="js/modules/agents-prompts-enhanced.js?v=2026042001"></script>
-  <script src="js/modules/agents-v2.js"></script>
+  <script src="js/modules/agents.js?v=2026050201"></script>
   <script src="js/modules/audit.js?v=2026042001"></script>
   <!-- PocketBase + Migration -->
   <script src="js/pocketbase.js?v=2026042001"></script>
@@ -193,6 +197,39 @@
        SIDEBAR TOGGLE — responsive burger menu
        ======================================================== -->
   <script>
+    /* ---- Pull MySQL global ---- */
+    async function syncFromServer(btn) {
+      if (!btn) btn = document.getElementById('btn-mysql-pull');
+      const orig = btn ? btn.textContent : '';
+      if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+      try {
+        const r = await Store.pullAllFromMySQL();
+        const total = r.updated + r.added;
+        let msg, type;
+        if (r.errors.length) {
+          msg = `Sync partielle : ${total} màj, ${r.errors.length} erreur(s)`;
+          type = 'warning';
+        } else if (total === 0) {
+          msg = 'Déjà à jour — aucune modification détectée';
+          type = 'info';
+        } else {
+          msg = `Sync OK — ${r.updated} mis à jour, ${r.added} ajouté(s)`;
+          type = 'success';
+        }
+        if (typeof Toast !== 'undefined') Toast.show(msg, type);
+        else alert(msg);
+        /* Rechargement léger si des données ont changé */
+        if (total > 0) setTimeout(() => window.location.reload(), 1800);
+      } catch(e) {
+        const err = 'Erreur sync : ' + e.message;
+        if (typeof Toast !== 'undefined') Toast.show(err, 'error');
+        else alert(err);
+      } finally {
+        if (btn) { btn.textContent = orig; btn.disabled = false; }
+      }
+    }
+
     /* ---- Bouton mode sombre ---- */
     (function() {
       const btn = document.getElementById('btn-theme');

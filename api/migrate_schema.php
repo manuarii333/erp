@@ -101,6 +101,8 @@ $migrations = [
         'attr_increments'=> 'LONGTEXT NULL',
         'formats_prix'   => 'LONGTEXT NULL',
         'custom_attrs'   => 'LONGTEXT NULL',
+        'product_kind'   => 'VARCHAR(50) NULL DEFAULT "simple"',
+        'updated_at'     => 'DATETIME NULL',
     ],
     'bons_achat' => [
         'store_id'           => 'VARCHAR(100) NULL',
