@@ -134,7 +134,7 @@
     .tab-btn.active-tab { background:rgba(255,107,0,0.12); border-color:rgba(255,107,0,0.4); color:#FF6B00; }
     .tab-btn:hover:not(.active-tab) { color:#ccc; border-color:#333; }
     /* Canvas sélection couleur */
-    #sel-canvas { display:block; width:100%; cursor:crosshair; background-image:linear-gradient(45deg,#141414 25%,transparent 25%),linear-gradient(-45deg,#141414 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#141414 75%),linear-gradient(-45deg,transparent 75%,#141414 75%); background-size:12px 12px; background-position:0 0,0 6px,6px -6px,-6px 0; background-color:#0a0a0a; }
+    #sel-canvas { display:block; width:100%; cursor:crosshair; background-image:linear-gradient(45deg,#aaaaaa 25%,transparent 25%),linear-gradient(-45deg,#aaaaaa 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#aaaaaa 75%),linear-gradient(-45deg,transparent 75%,#aaaaaa 75%); background-size:12px 12px; background-position:0 0,0 6px,6px -6px,-6px 0; background-color:#cccccc; }
     #sel-zone { position:relative; margin-top:12px; border-radius:8px; overflow:hidden; border:2px dashed #333; min-height:72px; display:flex; align-items:center; justify-content:center; transition:border-color 0.2s; }
     #sel-zone.has-image { border-style:solid; border-color:#FF6B00; }
     #sel-canvas-overlay { position:absolute; inset:0; pointer-events:none; z-index:4; }
@@ -256,6 +256,20 @@
           <!-- Palette couleurs supprimées -->
           <div id="sel-palette" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;min-height:16px;"></div>
           <p class="text-xs mt-2" style="color:#555;">Cliquez sur n'importe quelle zone colorée pour la supprimer (BFS depuis le point cliqué). Plusieurs clics cumulatifs possibles.</p>
+          <!-- Actions post-sélection -->
+          <div id="sel-actions-post" style="display:none;margin-top:12px;border-top:1px solid #2a2a2a;padding-top:12px;">
+            <p style="font-size:11px;color:#888;margin-bottom:8px;">Résultat prêt — que voulez-vous faire ?</p>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-secondary rounded-lg text-xs" style="flex:1;padding:8px 4px;display:flex;align-items:center;justify-content:center;gap:5px;" onclick="recadrerDepuisSelection()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 3 3 3 3 6"/><polyline points="18 3 21 3 21 6"/><polyline points="6 21 3 21 3 18"/><polyline points="18 21 21 21 21 18"/><rect x="7" y="7" width="10" height="10"/></svg>
+                Recadrer
+              </button>
+              <button class="btn-primary rounded-lg text-xs" style="flex:1;padding:8px 4px;display:flex;align-items:center;justify-content:center;gap:5px;" onclick="telechargerSelectionCourante()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Télécharger PNG
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1690,6 +1704,7 @@ function _onCanvasClick(e) {
       document.getElementById('btn-sel-undo').disabled = selState.historique.length <= 1;
       // Ajouter couleur à la palette visuelle
       _ajouterCouleurPalette(courant, rx, ry);
+      _mettreAJourBoutonsSel();
       ajouterLog(`Sélection couleur : zone supprimée (tolérance ${tol})`, 'success');
     })
     .catch(err => {
@@ -1737,6 +1752,7 @@ function annulerSelection() {
   // Retirer le dernier point de la palette
   const pal = document.getElementById('sel-palette');
   if (pal.lastChild) pal.removeChild(pal.lastChild);
+  _mettreAJourBoutonsSel();
   ajouterLog('Sélection couleur annulée.', 'info');
 }
 
@@ -1749,8 +1765,36 @@ function reinitialiserSelection() {
   document.getElementById('source-preview-inline').src = selState.base;
   document.getElementById('sel-palette').innerHTML = '';
   document.getElementById('btn-sel-undo').disabled = true;
+  _mettreAJourBoutonsSel();
   initCanvasSelection(selState.base);
   ajouterLog('Sélection couleur réinitialisée.', 'info');
+}
+
+/* Affiche/masque le bloc Recadrer+Télécharger selon l'état de l'historique */
+function _mettreAJourBoutonsSel() {
+  const el = document.getElementById('sel-actions-post');
+  if (el) el.style.display = selState.historique.length > 1 ? '' : 'none';
+}
+
+/* Ouvre le recadrage avec l'image actuelle de la sélection */
+function recadrerDepuisSelection() {
+  const curr = selState.historique[selState.historique.length - 1];
+  if (!curr) return;
+  activerCropManuel(curr, null);
+  ajouterLog('Recadrage ouvert depuis la sélection couleur.', 'info');
+}
+
+/* Télécharge l'image courante de la sélection en PNG */
+function telechargerSelectionCourante() {
+  const curr = selState.historique[selState.historique.length - 1];
+  if (!curr) return;
+  const a = document.createElement('a');
+  a.href = curr;
+  a.download = 'hcs-detourage-' + new Date().toISOString().slice(0,19).replace(/[T:]/g,'-') + '.png';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  ajouterLog('Image téléchargée (PNG transparent).', 'success');
 }
 
 /**
