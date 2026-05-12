@@ -2910,7 +2910,7 @@ function ckRender() {
 }
 function normalizePhone(raw) {
   if (!raw) return '';
-  let p = raw.replace(/[-\s.]/g, '');
+  let p = raw.replace(/[-\\s.]/g, '');
   if (p.startsWith('+')) return p;
   if (p.startsWith('00')) return '+' + p.slice(2);
   if (/^\\d{8}$/.test(p)) return '+689' + p;
@@ -3987,7 +3987,7 @@ function gfStep3HTML() {
   var prod=PRODS[_s.prodIdx]||{};
   var price=gfGetPrice();
   if (location.protocol!=='https:') {
-    return '<div class="fl-https-warn"><div style="font-size:1.2rem;margin-bottom:6px">⚠️</div><strong>HTTPS requis pour le paiement.</strong><br>Cette page doit être servie en HTTPS pour activer le paiement sécurisé OSB.<br><span style="font-size:.65rem;opacity:.7">Publiez via le Worker pour obtenir l\'URL sécurisée.</span></div>';
+    return '<div class="fl-https-warn"><div style="font-size:1.2rem;margin-bottom:6px">⚠️</div><strong>HTTPS requis pour le paiement.</strong><br>Cette page doit être servie en HTTPS pour activer le paiement sécurisé OSB.<br><span style="font-size:.65rem;opacity:.7">Publiez via le Worker pour obtenir l\\'URL sécurisée.</span></div>';
   }
   return '<div class="fl-pz-price"><div class="fl-pz-price-val">'+price.toLocaleString('fr-FR')+' XPF</div><div class="fl-pz-price-lbl">'+prod.n+' — paiement sécurisé OSB</div></div>'
     +'<div class="fl-pz-badges"><div style="padding:4px 9px;border-radius:5px;background:#1A1F71"><span style="color:#fff;font-weight:900;font-size:.7rem;letter-spacing:1px">VISA</span></div>'
