@@ -113,6 +113,20 @@ const APPS = [
      MODULES SECONDAIRES — accessibles via "⋯ Plus"
      ==================================================== */
   {
+    id: 'fidelite',
+    label: 'Fidélité',
+    icon: '⭐',
+    color: '#f6d365',
+    pinned: false,
+    views: [
+      { id: 'programme',  label: 'Programme Fidélité', icon: '⭐', section: 'Comptes Clients',
+        href: 'apps/andromeda-campaign.html' },
+      { id: 'portail',    label: 'Portail Client',     icon: '🔗', section: 'Comptes Clients',
+        href: 'apps/compte-client.html' },
+      { id: 'envoyer-lien', label: 'Envoyer un lien', icon: '📧', section: 'Comptes Clients' }
+    ]
+  },
+  {
     id: 'comptabilite',
     label: 'Comptabilité',
     icon: '💰',
@@ -191,18 +205,21 @@ const APPS = [
       { id: 'admin-photos-produits',   label: 'Photos Produits',       icon: '📸', section: 'Visuel & Contenu' },
       { id: 'hcs-designer',            label: '⬡ HCS Designer',        icon: '🎨', section: 'Visuel & Contenu' },
       { id: 'picwish-pipeline',        label: 'PicWish Pipeline',      icon: '🖼',  section: 'Visuel & Contenu', external: true, url: 'apps/picwish-pipeline.html' },
+      { id: 'tshirt-mockup-studio',    label: 'T-Shirt Mockup Studio', icon: '👕',  section: 'Visuel & Contenu', external: true, url: 'apps/tshirt-mockup-studio.html' },
       { id: 'content-generator',       label: 'Content Generator',     icon: '✍️', section: 'Visuel & Contenu' },
       { id: 'stock-dashboard',         label: 'Stock Dashboard',       icon: '📦', section: 'Gestion'          },
-      { id: 'finance-dashboard',       label: 'Finance Dashboard',     icon: '💰', section: 'Gestion'          },
+      { id: 'finance-dashboard',        label: 'Finance Dashboard',     icon: '💰', section: 'Gestion'          },
       { id: 'rapport-pl',              label: 'Rapport P&L',           icon: '📈', section: 'Gestion'          },
+      { id: 'sessions-comptables',     label: 'Sessions Comptables',   icon: '📅', section: 'Gestion'          },
       { id: 'ocr-scanner',             label: 'Scanner OCR',           icon: '🔍', section: 'Gestion'          },
+      { id: 'guide-erp',               label: '📖 Guide ERP',          icon: '📖', section: 'Aide'             },
       { id: 'supervision-dashboard',   label: 'Supervision',           icon: '👁',  section: 'Supervision'      },
       { id: 'routine-dashboard',       label: 'Routines',              icon: '🔄', section: 'Supervision'      },
       { id: 'vocal-dashboard',         label: 'Agent Vocal',           icon: '🎙', section: 'Supervision'      },
       { id: 'advisor',                  label: '⬡ Grace — Advisor IA',  icon: '🤖', section: 'Supervision'      },
       { id: 'dev-studio',               label: 'Dev Studio',            icon: '🛠',  section: 'Développement'    },
       /* ── Applications HCS externes ── */
-      { id: 'ext-andromeda',   label: 'Andromeda Builder', icon: '📡', section: 'Applications HCS', external: true, url: '../campaign/andromeda-campaign.html' },
+      { id: 'ext-andromeda',   label: 'Andromeda Builder', icon: '📡', section: 'Applications HCS', external: true, url: 'apps/andromeda-campaign.html' },
       { id: 'mockup-forge-v12', label: 'MockupForge v12',   icon: '🖼️', section: 'Applications HCS' },
       { id: 'dtf-studio',      label: 'DTF Studio Creator', icon: '🎬', section: 'Applications HCS', external: true, url: 'apps/dtf-studio.html' },
       { id: 'ext-dtf-composer',label: 'DTF Composer v4',   icon: '🎨', section: 'Applications HCS', external: true, url: '../agents/agent3_visuel/dtf-composer-v4.html' },
@@ -230,13 +247,39 @@ const AppState = {
   searchQuery: ''
 };
 
+/* Exposé pour Store.sync — rafraîchit la vue courante après sync MySQL */
+window.App = {
+  refresh: () => {
+    if (AppState.currentView) openView(AppState.currentView);
+    else if (AppState.currentApp) openApp(AppState.currentApp);
+  }
+};
+
 /* ----------------------------------------------------------------
    INITIALISATION
    Lance l'app après le login
    ---------------------------------------------------------------- */
 function initApp() {
   renderTopbar();
-  openApp('dashboard');
+
+  /* Restaurer la navigation depuis le hash URL (lien permanent) */
+  const _startHash = window.location.hash.replace('#', '').trim();
+  if (_startHash && _startHash.includes('/')) {
+    const [_appId, _viewId] = _startHash.split('/');
+    const _appOk = APPS.find(a => a.id === _appId);
+    if (_appOk) {
+      openApp(_appId);
+      if (_viewId) setTimeout(() => openView(_viewId), 80);
+    } else {
+      openApp('dashboard');
+    }
+  } else if (_startHash) {
+    const _appOk = APPS.find(a => a.id === _startHash);
+    openApp(_appOk ? _startHash : 'dashboard');
+  } else {
+    openApp('dashboard');
+  }
+
   bindToolbar();
   bindModal();
   initGlobalSearch(); // Ctrl+K recherche globale
@@ -254,7 +297,7 @@ function initApp() {
     let ok = 0, err = 0;
     for (const p of list) {
       try {
-        await Store.create('products', p);
+        await Store.create('produits', p);
         ok++;
       } catch (_) { err++; }
     }
@@ -408,6 +451,14 @@ function openApp(appId) {
   }
 }
 
+/* Synchronise l'URL avec l'état courant (hash routing — lien permanent) */
+function _syncHash() {
+  const hash = '#' + AppState.currentApp + '/' + (AppState.currentView || '');
+  if (window.location.hash !== hash) {
+    history.replaceState(null, '', hash);
+  }
+}
+
 /* ----------------------------------------------------------------
    SIDEBAR : rendu des sous-menus du module actif
    ---------------------------------------------------------------- */
@@ -456,6 +507,7 @@ function renderSidebar(app) {
    ---------------------------------------------------------------- */
 function openView(viewId) {
   AppState.currentView = viewId;
+  _syncHash();
 
   // Marquer actif dans la sidebar
   document.querySelectorAll('.sidebar-item').forEach(btn => {
@@ -482,6 +534,10 @@ function renderView() {
   container.style.overflow = '';
   container.style.padding  = '';
 
+  /* Restaurer la toolbar ERP (masquée par les modules plein écran) */
+  const _tb = document.getElementById('toolbar');
+  if (_tb) _tb.style.display = '';
+
   const app  = AppState.currentApp;
   const view = AppState.currentView;
 
@@ -501,10 +557,18 @@ function renderView() {
         break;
       }
       /* Contacts et Pipeline délégués au module CRM */
-      if ((view === 'contacts' || view === 'pipeline') && typeof CRM !== 'undefined') {
-        CRM.init(document.getElementById('toolbar-actions'), container, view);
-      } else if (typeof Sales !== 'undefined') {
-        Sales.init(document.getElementById('toolbar-actions'), container, view);
+      if ((view === 'contacts' || view === 'pipeline') && typeof window.CRM !== 'undefined') {
+        window.CRM.init(document.getElementById('toolbar-actions'), container, view);
+      } else if (typeof window.Sales !== 'undefined') {
+        try {
+          window.Sales.init(document.getElementById('toolbar-actions'), container, view);
+        } catch(e) {
+          container.innerHTML = `<div style="padding:24px;color:var(--accent-red,#ff6b6b);">
+            <strong>Erreur module Ventes</strong><br><code>${e.message}</code></div>`;
+          console.error('[renderView] Sales.init error:', e);
+        }
+      } else {
+        container.innerHTML = '<div style="padding:24px;color:var(--text-muted);">Module Ventes non chargé.</div>';
       }
       break;
     case 'stock':
@@ -683,15 +747,17 @@ function closeModal() {
 
 /* ---- DASHBOARD ---- */
 function renderDashboard(view, container) {
-  const db   = Store.getDB();
-  const now  = new Date();
+  const db      = Store.getDB();
+  const now     = new Date();
   const session = Auth.getSession();
   const isAdmin = session && session.role === 'admin';
 
-  /* ---- KPI 1 : CA du mois (factures payées) ---- */
-  const moisCur = now.getMonth();
-  const anCur   = now.getFullYear();
-  const caMois  = (db.factures || [])
+  /* ── FINANCE ── */
+  const moisCur   = now.getMonth();
+  const anCur     = now.getFullYear();
+  const moisLabel = now.toLocaleDateString('fr-FR', { month: 'long' });
+
+  const caMois = (db.factures || [])
     .filter(f => {
       if (!['Payée','Payé'].includes(f.statut)) return false;
       const d = new Date(f.date || f._createdAt);
@@ -699,213 +765,484 @@ function renderDashboard(view, container) {
     })
     .reduce((s, f) => s + (f.totalTTC || 0), 0);
 
-  /* ---- KPI 2 : Commandes en cours ---- */
-  const commandesEnCours = (db.commandes || [])
-    .filter(c => ['Confirmé','En cours','Prêt','En production'].includes(c.statut)).length;
-
-  /* ---- KPI 3 : Devis en attente ---- */
-  const devisEnAttente = (db.devis || [])
-    .filter(d => ['Brouillon','Envoyé','En attente'].includes(d.statut)).length;
-
-  /* ---- KPI 4 : Alertes stock ---- */
-  const alertesStock = (db.produits || [])
-    .filter(p => (p.stock || 0) <= (p.stockMin || 5)).length;
-
-  /* ---- KPI 5 : OF en production ---- */
-  const ofEnProd = (db.ordresFab || [])
-    .filter(of => ['En cours','Planifié','Prêt'].includes(of.statut)).length;
-
-  /* ---- KPI 6 : Factures impayées ---- */
-  const facturesImpayees = (db.factures || [])
-    .filter(f => !['Payée','Payé','Annulée','Annulé'].includes(f.statut)).length;
-
-  /* ---- KPI 7 : Trésorerie (512000 Banque + 530000 Caisse) ---- */
   const tresorerie = (db.ecritures || [])
     .filter(e => ['512000','530000','512','530'].includes(String(e.compte || '')))
     .reduce((s, e) => s + (Number(e.debit) || 0) - (Number(e.credit) || 0), 0);
 
-  /* ---- KPI 8 : Pipeline CRM ---- */
-  const pipeline = (db.opportunites || [])
-    .filter(o => !['Gagné','Perdu'].includes(o.statut)).length;
+  const impayeesListe    = (db.factures || []).filter(f => !['Payée','Payé','Annulée','Annulé'].includes(f.statut));
+  const facturesImpayees = impayeesListe.length;
+  const montantImpayees  = impayeesListe.reduce((s, f) => s + (f.totalTTC || 0), 0);
 
-  /* ---- CA des 30 derniers jours ---- */
+  const depensesMois = (db.ecritures || [])
+    .filter(e => {
+      const c = String(e.compte || '');
+      if (!/^6/.test(c)) return false;
+      const d = new Date(e.date || e._createdAt);
+      return d.getMonth() === moisCur && d.getFullYear() === anCur;
+    })
+    .reduce((s, e) => s + (Number(e.debit) || 0), 0);
+
+  const resultatNet = caMois - depensesMois;
+  const objectifCA  = Number(localStorage.getItem('hcs_objectif_ca') || 500000);
+  const objectifPct = objectifCA > 0 ? Math.min(100, Math.round((caMois / objectifCA) * 100)) : 0;
+
+  /* ── VENTES ── */
+  const commandesEnCours = (db.commandes || [])
+    .filter(c => ['Confirmé','En cours','Prêt','En production'].includes(c.statut)).length;
+  const devisEnAttente = (db.devis || [])
+    .filter(d => ['Brouillon','Envoyé','En attente'].includes(d.statut)).length;
+  const alertesStock = (db.produits || [])
+    .filter(p => (p.stock || 0) <= (p.stockMin || 5)).length;
+
+  /* ── PRODUCTION ── */
+  const ofEnProd = (db.ordresFab || [])
+    .filter(of => ['En cours','Planifié','Prêt'].includes(of.statut)).length;
+  const ofListe = (db.ordresFab || [])
+    .filter(of => ['En cours','Planifié','Prêt'].includes(of.statut))
+    .sort((a, b) => new Date(a.datePrevue || a._createdAt || 0) - new Date(b.datePrevue || b._createdAt || 0))
+    .slice(0, 5);
+
+  /* ── ACHATS ── */
+  const bonsAchat = (db.bonsAchat || [])
+    .filter(b => !['Reçu','Annulé'].includes(b.statut))
+    .sort((a, b) => new Date(b._createdAt || 0) - new Date(a._createdAt || 0))
+    .slice(0, 5);
+  const stockBas = (db.produits || [])
+    .filter(p => (p.stock || 0) <= (p.stockMin || 5) && (p.stockMin || 5) > 0)
+    .sort((a, b) => (a.stock || 0) - (b.stock || 0))
+    .slice(0, 4);
+
+  /* ── PIPELINE CRM ── */
+  const STAGES_CRM = ['Nouveau','Qualifié','Proposition','Négociation','Gagné'];
+  const STAGE_COLORS = { Nouveau:'#6B7280', Qualifié:'#2563EB', Proposition:'#D97706', Négociation:'#7C3AED', Gagné:'#16A34A' };
+  const pipeline       = (db.opportunites || []).filter(o => !['Gagné','Perdu'].includes(o.statut)).length;
+  const pipelineTotal  = (db.opportunites || []).reduce((s, o) => s + (o.montant || 0), 0);
+  const oppsByStade    = {};
+  STAGES_CRM.forEach(s => { oppsByStade[s] = { count: 0, montant: 0 }; });
+  (db.opportunites || []).forEach(o => {
+    const s = o.stade || 'Nouveau';
+    if (oppsByStade[s]) { oppsByStade[s].count++; oppsByStade[s].montant += (o.montant || 0); }
+  });
+  const topOpps = (db.opportunites || [])
+    .filter(o => o.statut !== 'Perdu')
+    .sort((a, b) => (b.montant || 0) - (a.montant || 0))
+    .slice(0, 5);
+
+  /* ── AGENTS IA ── */
+  const agentsHistory = (() => {
+    try { return JSON.parse(localStorage.getItem('hcs_agents_histories') || '{}'); } catch(e) { return {}; }
+  })();
+  const AGENTS_DASH = [
+    { id:'agent_hcs_triage_1',             nom:'TEIVA',    role:'Triage',     icon:'📨', color:'#10B981' },
+    { id:'agent_011Ca1i5Lk4BaMSRTMCtdkjk', nom:'TAMATOA',  role:'Commercial', icon:'🤝', color:'#4A5FFF' },
+    { id:'agent_hcs_picwish',              nom:'PicWish',  role:'Visuel',     icon:'🖼', color:'#8B5CF6' },
+    { id:'agent_hcs_planning',             nom:'Planning', role:'Production', icon:'📅', color:'#F59E0B' },
+    { id:'agent_hcs_marketing',            nom:'Marketing',role:'Marketing',  icon:'📡', color:'#EC4899' },
+    { id:'agent_hcs_catalogue',            nom:'Catalogue',role:'Catalogue',  icon:'📦', color:'#0891B2' },
+    { id:'agent_hcs_logo',                 nom:'Logo',     role:'Design',     icon:'🎨', color:'#F97316' },
+    { id:'agent_hcs_finance',              nom:'Finance',  role:'Finance',    icon:'💰', color:'#16A34A' }
+  ];
+
+  /* ── CA 30 jours ── */
   const days30 = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    days30.push({
-      date:  d.toISOString().slice(0, 10),
-      label: d.getDate() + '/' + (d.getMonth() + 1),
-      ca:    0
-    });
+    days30.push({ date: d.toISOString().slice(0, 10), label: d.getDate() + '/' + (d.getMonth() + 1), ca: 0 });
   }
   (db.factures || []).filter(f => ['Payée','Payé'].includes(f.statut)).forEach(f => {
-    const key = (f.date || f._createdAt || '').slice(0, 10);
+    const key  = (f.date || f._createdAt || '').slice(0, 10);
     const slot = days30.find(x => x.date === key);
     if (slot) slot.ca += (f.totalTTC || 0);
   });
 
-  /* ---- Dernières activités ---- */
+  /* ── Activité récente ── */
   const allActivity = [
-    ...(db.ecritures  || []).map(e => ({ ...e, _type: 'ecriture' })),
-    ...(db.factures   || []).map(f => ({ ...f, _type: 'facture'  })),
-    ...(db.commandes  || []).map(c => ({ ...c, _type: 'commande' }))
-  ].sort((a, b) => {
-    const ta = new Date(b._updatedAt || b._createdAt || b.date || 0).getTime();
-    const tb = new Date(a._updatedAt || a._createdAt || a.date || 0).getTime();
-    return ta - tb;
-  }).slice(0, 5);
+    ...(db.ecritures || []).map(e => ({ ...e, _type: 'ecriture' })),
+    ...(db.factures  || []).map(f => ({ ...f, _type: 'facture'  })),
+    ...(db.commandes || []).map(c => ({ ...c, _type: 'commande' }))
+  ].sort((a, b) => new Date(b._updatedAt || b._createdAt || b.date || 0) - new Date(a._updatedAt || a._createdAt || a.date || 0)).slice(0, 5);
 
-  const moisLabel = now.toLocaleDateString('fr-FR', { month: 'long' });
+  /* ── Alertes ── */
+  const alertsList = [];
+  if (stockBas.length > 0)
+    alertsList.push({ type:'warning', icon:'📦', msg:`${stockBas.length} produit(s) sous le seuil : ${stockBas.slice(0,2).map(p=>p.nom).join(', ')}${stockBas.length>2?'…':''}` });
+  if (impayeesListe.length > 0)
+    alertsList.push({ type:'error', icon:'🧾', msg:`${impayeesListe.length} facture(s) impayée(s) — ${fmt(montantImpayees)}` });
+  const retard = (db.commandes || []).filter(c => ['Confirmé','En production'].includes(c.statut) && c.dateLivraison && new Date(c.dateLivraison) < now);
+  if (retard.length > 0)
+    alertsList.push({ type:'error', icon:'⏰', msg:`${retard.length} commande(s) en retard de livraison.` });
 
+  /* ── Helpers HTML ── */
+  const sTitle = (icon, label, sub, linkApp, linkLabel) =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:16px;">${icon}</span>
+      <div style="flex:1;">
+        <span style="font-size:14px;font-weight:700;">${label}</span>
+        ${sub ? `<span style="font-size:11px;color:#6B7280;margin-left:8px;">${sub}</span>` : ''}
+      </div>
+      ${linkApp ? `<button class="btn btn-ghost btn-sm" onclick="openApp('${linkApp}')" style="font-size:11px;padding:2px 8px;">${linkLabel||'Voir →'}</button>` : ''}
+    </div>`;
+
+  const pill = (label, value, color) =>
+    `<span style="padding:2px 8px;border-radius:12px;font-size:11px;background:${color}22;color:${color};font-weight:600;">${label}: ${value}</span>`;
+
+  const agentMini = (agent) => {
+    const hist    = agentsHistory[agent.id] || [];
+    const lastMsg = hist.filter(m => m.role === 'assistant').slice(-1)[0];
+    const preview = lastMsg ? escapeHtml(lastMsg.content.substring(0, 55)) + '…' : 'Aucune activité';
+    const lastTs  = hist.length > 0 ? (hist[hist.length - 1].ts || '') : '';
+    const active  = hist.length > 0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);cursor:pointer;"
+      onclick="openApp('agents');setTimeout(()=>openView('chat'),80)">
+      <div style="position:relative;flex-shrink:0;">
+        <div style="width:30px;height:30px;border-radius:50%;background:${agent.color}22;display:flex;align-items:center;justify-content:center;font-size:14px;">${agent.icon}</div>
+        <div style="position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;background:${active?'#16A34A':'#6B7280'};border:2px solid var(--bg-primary,#1a0e07);"></div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:600;">${agent.nom} <span style="font-weight:400;color:#6B7280;">· ${agent.role}</span></div>
+        <div style="font-size:10px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
+      </div>
+      ${lastTs ? `<div style="font-size:10px;color:#6B7280;flex-shrink:0;">${fmtDateRelative(lastTs)}</div>` : ''}
+    </div>`;
+  };
+
+  const objColor = objectifPct >= 80 ? '#16A34A' : objectifPct >= 50 ? '#D97706' : '#DC2626';
+
+  /* ════════════════════════════════════════════════════════
+     RENDU HTML PRINCIPAL
+     ════════════════════════════════════════════════════════ */
   container.innerHTML = `
+
+    <!-- En-tête + Raccourcis -->
     <div class="page-header">
       <div class="page-title">Bonjour, ${escapeHtml(session?.prenom || 'Utilisateur')} 👋</div>
       <div class="page-subtitle">Tableau de bord HCS · ${fmtDate(now)}</div>
     </div>
-
-    <!-- Raccourcis rapides -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
       <button class="btn btn-primary btn-sm" onclick="openApp('ventes')">📄 Nouveau devis</button>
-      <button class="btn btn-secondary btn-sm" onclick="openApp('ventes');setTimeout(()=>openView('orders'),60)">📦 Nouvelle commande</button>
-      <button class="btn btn-secondary btn-sm" onclick="openApp('ventes');setTimeout(()=>openView('contacts'),60)">👤 Nouveau contact</button>
+      <button class="btn btn-secondary btn-sm" onclick="openApp('ventes');setTimeout(()=>openView('orders'),60)">📦 Commande</button>
+      <button class="btn btn-secondary btn-sm" onclick="openApp('ventes');setTimeout(()=>openView('contacts'),60)">👤 Contact</button>
+      <button class="btn btn-secondary btn-sm" onclick="openApp('crm');setTimeout(()=>openView('pipeline'),60)">🎯 Pipeline</button>
       ${isAdmin ? `
-        <button class="btn btn-secondary btn-sm" onclick="openApp('stock')">📋 Nouveau produit</button>
-        <button class="btn btn-secondary btn-sm" onclick="openApp('production')">🏭 Nouvel OF</button>
-        <button class="btn btn-secondary btn-sm" onclick="openApp('caisse')">🛒 Ouvrir caisse</button>
+        <button class="btn btn-secondary btn-sm" onclick="openApp('stock')">📋 Produit</button>
+        <button class="btn btn-secondary btn-sm" onclick="openApp('production')">🏭 OF</button>
+        <button class="btn btn-secondary btn-sm" onclick="openApp('caisse')">🛒 Caisse</button>
+        <button class="btn btn-secondary btn-sm" onclick="openApp('comptabilite')">💰 Compta</button>
       ` : ''}
     </div>
 
-    <!-- Alertes intelligentes -->
-    <div id="dash-alerts-block" style="margin-bottom:18px;"></div>
-
-    <!-- 8 KPI cards en grille 4×2 -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;">
-      <div id="dash-k1"></div>
-      <div id="dash-k2"></div>
-      <div id="dash-k3"></div>
-      <div id="dash-k4"></div>
-      <div id="dash-k5"></div>
-      <div id="dash-k6"></div>
-      <div id="dash-k7"></div>
-      <div id="dash-k8"></div>
+    <!-- Alertes -->
+    <div style="margin-bottom:16px;">
+      ${alertsList.length === 0
+        ? `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;background:rgba(22,163,74,0.1);border:1px solid rgba(22,163,74,0.25);border-radius:8px;color:#16A34A;font-size:13px;">✅ Tout est en ordre — aucune alerte.</div>`
+        : alertsList.map(a => {
+            const bg  = a.type==='error' ? 'rgba(220,38,38,0.1)' : 'rgba(217,119,6,0.1)';
+            const bdr = a.type==='error' ? 'rgba(220,38,38,0.25)' : 'rgba(217,119,6,0.25)';
+            const cl  = a.type==='error' ? '#DC2626' : '#D97706';
+            return `<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:${bg};border:1px solid ${bdr};border-radius:8px;color:${cl};font-size:13px;margin-bottom:6px;">
+              <span style="font-size:15px;">${a.icon}</span><span>${escapeHtml(a.msg)}</span></div>`;
+          }).join('')}
     </div>
 
-    <!-- Graphique CA + Dernières activités -->
-    <div style="display:grid;grid-template-columns:3fr 2fr;gap:20px;">
+    <!-- ══════════════════════════════════════════
+         SECTION 1 — FINANCE & BUDGET
+         ══════════════════════════════════════════ -->
+    <div style="margin-bottom:6px;">${sTitle('💰','Finance & Budget', moisLabel + ' · XPF', 'comptabilite', 'Comptabilité →')}</div>
+
+    <!-- 6 KPIs Finance -->
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px;">
+      <div id="dash-k1"></div>
+      <div id="dash-k7"></div>
+      <div id="dash-k-res"></div>
+      <div id="dash-k-imp"></div>
+      <div id="dash-k-dep"></div>
+      <div id="dash-k-obj"></div>
+    </div>
+
+    <!-- Sparkline CA + Budget -->
+    <div style="display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:24px;">
       <div class="card">
         <div class="card-header">
           <div class="card-title">CA des 30 derniers jours</div>
           <div style="font-size:12px;color:#6B7280;">Factures payées · XPF</div>
         </div>
-        <div style="padding:4px 16px 16px;">
-          <div id="dash-sparkline" style="height:90px;"></div>
+        <div style="padding:4px 16px 14px;">
+          <div id="dash-sparkline" style="height:85px;"></div>
           <div style="display:flex;justify-content:space-between;font-size:10px;color:#9CA3AF;margin-top:4px;">
-            <span>${days30[0].label}</span>
-            <span>${days30[14].label}</span>
-            <span>${days30[29].label}</span>
+            <span>${days30[0].label}</span><span>${days30[14].label}</span><span>${days30[29].label}</span>
           </div>
         </div>
       </div>
       <div class="card">
         <div class="card-header">
-          <div class="card-title">Dernières activités</div>
+          <div class="card-title">Budget mensuel</div>
+          <div style="font-size:12px;color:#6B7280;">Objectif vs Réalisé</div>
         </div>
-        <div style="padding:0 16px 16px;" id="dash-activities"></div>
+        <div style="padding:0 16px 14px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:12px;color:#6B7280;">Réalisé</span>
+            <span style="font-size:13px;font-weight:700;color:#16A34A;">${fmt(caMois)}</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:8px;overflow:hidden;margin-bottom:4px;">
+            <div style="height:100%;width:${objectifPct}%;background:linear-gradient(90deg,${objColor},${objColor}88);border-radius:6px;transition:width 0.8s ease;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#6B7280;margin-bottom:14px;">
+            <span>0</span>
+            <span style="color:${objColor};font-weight:600;">${objectifPct}%</span>
+            <span style="cursor:pointer;text-decoration:underline dotted;"
+              onclick="var v=prompt('Objectif CA mensuel (XPF):','${objectifCA}');if(v&&!isNaN(v)){localStorage.setItem('hcs_objectif_ca',v);renderDashboard('overview',document.getElementById('view-content'));}">
+              ${fmt(objectifCA)}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-size:12px;color:#6B7280;">Recettes</span>
+              <span style="font-size:12px;font-weight:600;color:#16A34A;">+${fmt(caMois)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-size:12px;color:#6B7280;">Dépenses</span>
+              <span style="font-size:12px;font-weight:600;color:#DC2626;">−${fmt(depensesMois)}</span>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,0.08);"></div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-size:12px;font-weight:600;">Résultat net</span>
+              <span style="font-size:13px;font-weight:700;color:${resultatNet>=0?'#16A34A':'#DC2626'};">${resultatNet>=0?'+':''}${fmt(resultatNet)}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Mémos rapides -->
-    <div class="card" style="margin-top:20px;">
-      <div class="card-header">
-        <div class="card-title">📝 Mémos rapides</div>
+    <!-- ══════════════════════════════════════════
+         SECTION 2 — PLANNING
+         ══════════════════════════════════════════ -->
+    <div style="margin-bottom:6px;">${sTitle('📅','Planning','Production · Achats · R&D')}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px;">
+
+      <!-- Production -->
+      <div class="card">
+        <div style="padding:12px 14px 0;">${sTitle('⚙️','Production',ofEnProd+' OF actifs','production','Atelier →')}</div>
+        <div style="padding:0 14px 12px;">
+          ${ofListe.length === 0
+            ? `<div style="padding:12px;text-align:center;color:#6B7280;font-size:12px;">Aucun OF en cours</div>`
+            : ofListe.map(of => {
+                const sc = of.statut==='En cours'?'#16A34A': of.statut==='Prêt'?'#2563EB':'#D97706';
+                return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <div style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0;"></div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(of.ref||of.id||'—')}</div>
+                    <div style="font-size:10px;color:#6B7280;">${escapeHtml(of.produit||of.client||'')}${of.datePrevue?' · '+fmtDate(of.datePrevue):''}</div>
+                  </div>
+                  <span style="font-size:9px;padding:1px 5px;border-radius:8px;background:${sc}22;color:${sc};flex-shrink:0;">${escapeHtml(of.statut)}</span>
+                </div>`;
+              }).join('')}
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;">
+            ${pill('En cours',(db.ordresFab||[]).filter(o=>o.statut==='En cours').length,'#16A34A')}
+            ${pill('Planifié',(db.ordresFab||[]).filter(o=>o.statut==='Planifié').length,'#D97706')}
+            ${pill('Prêt',(db.ordresFab||[]).filter(o=>o.statut==='Prêt').length,'#2563EB')}
+          </div>
+        </div>
       </div>
-      <div id="dash-memos" style="padding:0 4px 4px;"></div>
+
+      <!-- Achats -->
+      <div class="card">
+        <div style="padding:12px 14px 0;">${sTitle('🛒','Achats',bonsAchat.length+' bons en attente','stock','Stock →')}</div>
+        <div style="padding:0 14px 12px;">
+          ${bonsAchat.length === 0
+            ? `<div style="padding:8px 0;color:#6B7280;font-size:12px;text-align:center;">Aucun bon en attente</div>`
+            : bonsAchat.map(b => `
+              <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                <span style="font-size:13px;flex-shrink:0;">📄</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(b.reference||b.fournisseur||'—')}</div>
+                  <div style="font-size:10px;color:#6B7280;">${escapeHtml(b.fournisseur||'')} · ${fmtDate(b.date)}</div>
+                </div>
+                <span style="font-size:10px;font-weight:600;color:#D97706;flex-shrink:0;">${fmt(b.totalTTC||0)}</span>
+              </div>`).join('')}
+          <div style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
+            <div style="font-size:10px;font-weight:600;color:#6B7280;margin-bottom:4px;">⚠️ Stock critique</div>
+            ${stockBas.length === 0
+              ? `<div style="font-size:11px;color:#16A34A;">✅ Aucun produit critique</div>`
+              : stockBas.map(p => `
+                <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:10px;">
+                  <span style="color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(p.nom)}</span>
+                  <span style="color:#DC2626;font-weight:600;">${p.stock||0}/${p.stockMin||5}</span>
+                </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- R&D / Devis -->
+      <div class="card">
+        <div style="padding:12px 14px 0;">${sTitle('🔬','R&D · Devis actifs',devisEnAttente+' en cours','ventes','Devis →')}</div>
+        <div style="padding:0 14px 12px;">
+          ${(db.devis||[]).filter(d=>['Brouillon','Envoyé','En attente'].includes(d.statut))
+              .sort((a,b)=>new Date(b._updatedAt||0)-new Date(a._updatedAt||0)).slice(0,5)
+              .map(d => {
+                const sc = d.statut==='Envoyé'?'#2563EB':'#D97706';
+                return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <div style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0;"></div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.client||d.ref||'—')}</div>
+                    <div style="font-size:10px;color:#6B7280;">${escapeHtml(d.ref||'')} · ${fmtDate(d.date||d._createdAt)}</div>
+                  </div>
+                  <span style="font-size:10px;font-weight:600;color:${sc};flex-shrink:0;">${fmt(d.totalTTC||0)}</span>
+                </div>`;
+              }).join('') || `<div style="padding:12px;text-align:center;color:#6B7280;font-size:12px;">Aucun devis actif</div>`}
+          <div style="display:flex;gap:4px;margin-top:8px;">
+            ${pill('Brouillon',(db.devis||[]).filter(d=>d.statut==='Brouillon').length,'#6B7280')}
+            ${pill('Envoyé',(db.devis||[]).filter(d=>d.statut==='Envoyé').length,'#2563EB')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         SECTION 3 — PIPELINE CRM
+         ══════════════════════════════════════════ -->
+    <div style="margin-bottom:6px;">${sTitle('🎯','Pipeline CRM',pipeline+' opportunités actives · '+fmt(pipelineTotal)+' total','crm','Pipeline →')}</div>
+    <div class="card" style="margin-bottom:24px;">
+      <div style="padding:14px 16px;">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;">
+          ${STAGES_CRM.map(s => {
+            const data  = oppsByStade[s] || { count:0, montant:0 };
+            const color = STAGE_COLORS[s];
+            return `<div style="text-align:center;padding:10px 6px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid ${color}30;cursor:pointer;"
+              onclick="openApp('crm');setTimeout(()=>openView('pipeline'),80)">
+              <div style="font-size:22px;font-weight:800;color:${color};">${data.count}</div>
+              <div style="font-size:11px;font-weight:600;margin:2px 0;">${s}</div>
+              <div style="font-size:10px;color:#6B7280;">${data.montant>0?fmt(data.montant):'—'}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:6px;">Top opportunités</div>
+        ${topOpps.length === 0
+          ? `<div style="padding:12px;text-align:center;color:#6B7280;font-size:12px;">Aucune opportunité active</div>`
+          : topOpps.map(o => {
+              const color = STAGE_COLORS[o.stade] || '#6B7280';
+              const prob  = o.probabilite || 0;
+              return `<div style="display:flex;align-items:center;gap:10px;padding:7px 8px;background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:4px;cursor:pointer;"
+                onclick="openApp('crm');setTimeout(()=>openView('pipeline'),80)">
+                <div style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:12px;font-weight:600;">${escapeHtml(o.nom||'—')}</div>
+                  <div style="font-size:10px;color:#6B7280;">${escapeHtml(o.stade)} · prob. ${prob}%</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0;">
+                  <div style="font-size:11px;font-weight:700;color:${color};">${fmt(o.montant||0)}</div>
+                  <div style="width:56px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px;">
+                    <div style="height:100%;width:${prob}%;background:${color};border-radius:2px;"></div>
+                  </div>
+                </div>
+              </div>`;
+            }).join('')}
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         SECTION 4 — MARKETING & AGENTS IA
+         ══════════════════════════════════════════ -->
+    <div style="margin-bottom:6px;">${sTitle('📡','Marketing & Agents IA','Actions · Planning · Feedback')}</div>
+    <div style="display:grid;grid-template-columns:2fr 3fr;gap:14px;margin-bottom:24px;">
+
+      <!-- Marketing -->
+      <div class="card">
+        <div style="padding:12px 14px 0;">${sTitle('📣','Actions marketing','','outils','Andromeda →')}</div>
+        <div style="padding:0 14px 12px;">
+          <div style="font-size:10px;font-weight:600;color:#6B7280;margin-bottom:6px;">CAMPAGNES & ACTIONS</div>
+          <div id="dash-mkt-actions"></div>
+          <div style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
+            <div style="font-size:10px;font-weight:600;color:#6B7280;margin-bottom:4px;">AJOUTER UNE ACTION</div>
+            <div style="display:flex;gap:6px;">
+              <input id="new-mkt-input" type="text" placeholder="Nouvelle action marketing…"
+                style="flex:1;padding:5px 8px;border:1px solid rgba(255,255,255,0.12);border-radius:6px;font-size:11px;background:transparent;color:inherit;outline:none;"
+                onkeydown="if(event.key==='Enter'){var v=this.value.trim();if(v){var m=JSON.parse(localStorage.getItem('hcs_mkt_actions')||'[]');m.unshift({text:v,date:new Date().toISOString()});localStorage.setItem('hcs_mkt_actions',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));}}" />
+              <button onclick="var v=document.getElementById('new-mkt-input')?.value?.trim();if(v){var m=JSON.parse(localStorage.getItem('hcs_mkt_actions')||'[]');m.unshift({text:v,date:new Date().toISOString()});localStorage.setItem('hcs_mkt_actions',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));}"
+                style="padding:5px 10px;background:var(--caramel,#c4813a);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0;">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agents IA -->
+      <div class="card">
+        <div style="padding:12px 14px 0;">${sTitle('🤖','Agents IA',AGENTS_DASH.length+' agents configurés','agents','Agents →')}</div>
+        <div style="padding:0 14px 12px;display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+          ${AGENTS_DASH.map(a => agentMini(a)).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         BOTTOM — Activité + Mémos
+         ══════════════════════════════════════════ -->
+    <div style="display:grid;grid-template-columns:3fr 2fr;gap:14px;">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Activité récente</div></div>
+        <div style="padding:0 16px 14px;" id="dash-activities"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📝 Mémos rapides</div></div>
+        <div id="dash-memos" style="padding:0 4px 4px;"></div>
+      </div>
     </div>
   `;
 
-  /* Rendu des KPI cards */
-  statCard('dash-k1', { icon: '💰', value: caMois,          label: 'CA du mois',          color: '#16A34A', format: true, sub: 'Factures payées · ' + moisLabel });
-  statCard('dash-k2', { icon: '📋', value: commandesEnCours, label: 'Commandes en cours',  color: '#2563EB', sub: 'Confirmées / En production' });
-  statCard('dash-k3', { icon: '📝', value: devisEnAttente,   label: 'Devis en attente',    color: '#D97706', sub: 'Brouillons / Envoyés' });
-  statCard('dash-k4', { icon: '⚠️', value: alertesStock,    label: 'Alertes stock',       color: alertesStock > 0 ? '#DC2626' : '#6B7280', sub: 'Produits sous seuil' });
-  statCard('dash-k5', { icon: '🏭', value: ofEnProd,         label: 'OF en production',    color: '#7C3AED', sub: 'En cours / Planifiés' });
-  statCard('dash-k6', { icon: '🧾', value: facturesImpayees, label: 'Factures impayées',   color: facturesImpayees > 0 ? '#DC2626' : '#6B7280', sub: 'En attente de paiement' });
-  statCard('dash-k7', { icon: '🏦', value: tresorerie,       label: 'Trésorerie',          color: '#0891B2', format: true, sub: 'Banque + Caisse' });
-  statCard('dash-k8', { icon: '🎯', value: pipeline,         label: 'Pipeline CRM',        color: '#6D28D9', sub: 'Opportunités actives' });
+  /* ── Post-render : KPIs Finance ── */
+  statCard('dash-k1',    { icon:'💰', value:caMois,          label:'CA du mois',    color:'#16A34A', format:true, sub:'Factures payées · '+moisLabel });
+  statCard('dash-k7',    { icon:'🏦', value:tresorerie,      label:'Trésorerie',    color:'#0891B2', format:true, sub:'Banque + Caisse' });
+  statCard('dash-k-res', { icon:resultatNet>=0?'📈':'📉', value:Math.abs(resultatNet), label:'Résultat net', color:resultatNet>=0?'#16A34A':'#DC2626', format:true, sub:resultatNet>=0?'Bénéfice':'Perte' });
+  statCard('dash-k-imp', { icon:'🧾', value:montantImpayees, label:'Impayées',      color:facturesImpayees>0?'#DC2626':'#6B7280', format:true, sub:facturesImpayees+' facture(s)' });
+  statCard('dash-k-dep', { icon:'💸', value:depensesMois,    label:'Dépenses mois', color:'#D97706', format:true, sub:'Comptes charges' });
+  statCard('dash-k-obj', { icon:'🎯', value:objectifPct,     label:'Objectif CA',   color:objColor, sub:'% atteint ce mois' });
 
-  /* Sparkline CA 30 jours */
-  sparkline('dash-sparkline', { values: days30.map(d => d.ca), color: '#16A34A', height: 80 });
+  /* ── Sparkline ── */
+  sparkline('dash-sparkline', { values: days30.map(d => d.ca), color:'#16A34A', height:80 });
 
-  /* Dernières activités */
+  /* ── Activité récente ── */
   document.getElementById('dash-activities').innerHTML = _dashActivities(allActivity);
 
-  /* ---- Alertes intelligentes ---- */
-  (function renderAlerts() {
-    const block = document.getElementById('dash-alerts-block');
-    if (!block) return;
-    const alerts = [];
-
-    /* Stock bas */
-    const stockBas = (db.produits || []).filter(p => (p.stock || 0) <= (p.stockMin || 5) && (p.stockMin || 5) > 0);
-    if (stockBas.length > 0) {
-      alerts.push({ type: 'warning', icon: '📦', msg: `${stockBas.length} produit(s) sous le seuil d'alerte : ${stockBas.slice(0,2).map(p=>p.nom).join(', ')}${stockBas.length>2?'…':''}` });
-    }
-
-    /* Factures impayées */
-    const impayees = (db.factures || []).filter(f => !['Payé','Payée','Annulée','Annulé'].includes(f.statut));
-    if (impayees.length > 0) {
-      const totalImp = impayees.reduce((s,f) => s+(f.totalTTC||0), 0);
-      alerts.push({ type: 'error', icon: '🧾', msg: `${impayees.length} facture(s) en attente de paiement — ${fmt(totalImp)}` });
-    }
-
-    /* Commandes en retard (> 48h depuis date livraison) */
-    const now2 = new Date();
-    const retard = (db.commandes || []).filter(c => {
-      if (!['Confirmé','En production'].includes(c.statut)) return false;
-      if (!c.dateLivraison) return false;
-      return new Date(c.dateLivraison) < now2;
-    });
-    if (retard.length > 0) {
-      alerts.push({ type: 'error', icon: '⏰', msg: `${retard.length} commande(s) en retard de livraison.` });
-    }
-
-    if (alerts.length === 0) {
-      block.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;color:#16A34A;font-size:13px;">✅ Tout est en ordre — aucune alerte.</div>`;
+  /* ── Actions marketing ── */
+  (function() {
+    const el = document.getElementById('dash-mkt-actions');
+    if (!el) return;
+    const actions = JSON.parse(localStorage.getItem('hcs_mkt_actions') || '[]');
+    if (actions.length === 0) {
+      el.innerHTML = `<div style="font-size:11px;color:#6B7280;padding:4px 0;">Aucune action enregistrée — ajoutez une action ci-dessous.</div>`;
       return;
     }
-
-    block.innerHTML = alerts.map(a => {
-      const bg    = a.type === 'error' ? '#FEF2F2' : '#FFFBEB';
-      const border= a.type === 'error' ? '#FECACA' : '#FDE68A';
-      const color = a.type === 'error' ? '#DC2626' : '#D97706';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:${bg};border:1px solid ${border};border-radius:8px;color:${color};font-size:13px;margin-bottom:6px;">
-        <span style="font-size:16px;">${a.icon}</span><span>${escapeHtml(a.msg)}</span>
-      </div>`;
-    }).join('');
+    el.innerHTML = actions.slice(0, 5).map((a, i) => `
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <span style="font-size:13px;flex-shrink:0;">📣</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;line-height:1.4;">${escapeHtml(a.text)}</div>
+          <div style="font-size:10px;color:#6B7280;">${fmtDateRelative(a.date)}</div>
+        </div>
+        <button onclick="event.stopPropagation();var m=JSON.parse(localStorage.getItem('hcs_mkt_actions')||'[]');m.splice(${i},1);localStorage.setItem('hcs_mkt_actions',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));"
+          style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:12px;padding:0;flex-shrink:0;">✕</button>
+      </div>`).join('');
   })();
 
-  /* ---- Mémos rapides ---- */
-  (function renderMemos() {
-    const memosEl = document.getElementById('dash-memos');
-    if (!memosEl) return;
+  /* ── Mémos rapides ── */
+  (function() {
+    const el = document.getElementById('dash-memos');
+    if (!el) return;
     const memos = JSON.parse(localStorage.getItem('hcs_memos') || '[]');
-    memosEl.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        ${memos.slice(0,5).map((m,i) => `
-          <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:#FFFBEB;border-radius:6px;border:1px solid #FDE68A;">
-            <span style="font-size:11px;flex:1;color:#92400E;line-height:1.4;">${escapeHtml(m.text)}</span>
-            <button onclick="event.stopPropagation();var m=JSON.parse(localStorage.getItem('hcs_memos')||'[]');m.splice(${i},1);localStorage.setItem('hcs_memos',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));"
-              style="background:none;border:none;cursor:pointer;color:#D97706;font-size:14px;line-height:1;padding:0;">✕</button>
-          </div>`).join('')}
-        <div style="display:flex;gap:6px;margin-top:4px;">
-          <input id="new-memo-input" type="text" placeholder="Nouvelle note rapide…"
-            style="flex:1;padding:6px 10px;border:1px solid #E2E8F0;border-radius:6px;font-size:12px;outline:none;"
-            onkeydown="if(event.key==='Enter'){var v=this.value.trim();if(v){var m=JSON.parse(localStorage.getItem('hcs_memos')||'[]');m.unshift({text:v,date:new Date().toISOString()});localStorage.setItem('hcs_memos',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));}}" />
-          <button onclick="var v=document.getElementById('new-memo-input')?.value?.trim();if(v){var m=JSON.parse(localStorage.getItem('hcs_memos')||'[]');m.unshift({text:v,date:new Date().toISOString()});localStorage.setItem('hcs_memos',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));}"
-            style="padding:6px 12px;background:var(--accent-blue);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">Ajouter</button>
-        </div>
-      </div>`;
+    el.innerHTML = `<div style="display:flex;flex-direction:column;gap:5px;padding:4px 10px 8px;">
+      ${memos.slice(0, 4).map((m, i) => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 8px;background:rgba(196,129,58,0.08);border-radius:6px;border:1px solid rgba(196,129,58,0.2);">
+          <span style="font-size:11px;flex:1;line-height:1.4;">${escapeHtml(m.text)}</span>
+          <button onclick="event.stopPropagation();var m=JSON.parse(localStorage.getItem('hcs_memos')||'[]');m.splice(${i},1);localStorage.setItem('hcs_memos',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));"
+            style="background:none;border:none;cursor:pointer;color:#c4813a;font-size:12px;padding:0;flex-shrink:0;">✕</button>
+        </div>`).join('')}
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <input id="new-memo-input" type="text" placeholder="Nouvelle note…"
+          style="flex:1;padding:5px 8px;border:1px solid rgba(255,255,255,0.12);border-radius:6px;font-size:11px;background:transparent;color:inherit;outline:none;"
+          onkeydown="if(event.key==='Enter'){var v=this.value.trim();if(v){var m=JSON.parse(localStorage.getItem('hcs_memos')||'[]');m.unshift({text:v,date:new Date().toISOString()});localStorage.setItem('hcs_memos',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));}}" />
+        <button onclick="var v=document.getElementById('new-memo-input')?.value?.trim();if(v){var m=JSON.parse(localStorage.getItem('hcs_memos')||'[]');m.unshift({text:v,date:new Date().toISOString()});localStorage.setItem('hcs_memos',JSON.stringify(m));renderDashboard('overview',document.getElementById('view-content'));}"
+          style="padding:5px 10px;background:var(--caramel,#c4813a);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0;">+</button>
+      </div>
+    </div>`;
   })();
 }
 
@@ -966,6 +1303,9 @@ function _dashActivities(items) {
 function renderIframe(src, container) {
   container.style.padding = '0';
   container.style.overflow = 'hidden';
+  /* Masquer la toolbar ERP — le module plein écran a sa propre UI */
+  const _tb = document.getElementById('toolbar');
+  if (_tb) _tb.style.display = 'none';
   container.innerHTML = `
     <iframe
       src="${src}"
@@ -977,11 +1317,15 @@ function renderIframe(src, container) {
 
 /* ---- RH ---- */
 function renderRH(view, container) {
-  container.innerHTML = `
-    <div class="table-empty">
-      <div class="empty-icon">👤</div>
-      <p>Module RH — Vue "${view}" à venir</p>
-    </div>`;
+  if (typeof RH !== 'undefined' && typeof RH.init === 'function') {
+    RH.init(view, container);
+  } else {
+    container.innerHTML = `
+      <div class="table-empty">
+        <div class="empty-icon">👤</div>
+        <p>Module RH — chargement…</p>
+      </div>`;
+  }
 }
 
 /* ---- MESSAGERIE — délégué à js/modules/discuss.js ---- */

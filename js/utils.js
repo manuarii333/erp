@@ -256,32 +256,7 @@ function fmtPct(val) {
   }) + ' %';
 }
 
-/**
- * Affiche une notification toast à l'écran.
- * @param {string} message
- * @param {'info'|'success'|'error'} [type='info']
- * @param {number} [duration=3000] - Durée en ms
- */
-function toast(message, type = 'info', duration = 3000) {
-  let container = document.querySelector('.toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.className = 'toast-container';
-    document.body.appendChild(container);
-  }
-
-  const icons = { info: 'ℹ️', success: '✅', error: '❌' };
-  const t = document.createElement('div');
-  t.className = `toast toast-${type}`;
-  t.innerHTML = `<span>${icons[type]||'ℹ️'}</span> ${message}`;
-  container.appendChild(t);
-
-  setTimeout(() => {
-    t.style.opacity = '0';
-    t.style.transition = 'opacity 0.3s ease';
-    setTimeout(() => t.remove(), 300);
-  }, duration);
-}
+/* toast() défini dans js/components/toast.js — ne pas dupliquer ici */
 
 /* ================================================================
    EXPORT XLS — Format SpreadsheetML (lisible par Excel + Google Sheets)

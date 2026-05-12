@@ -18,6 +18,7 @@ const Agents = (() => {
     {
       id:      'agent_hcs_triage_1',
       nom:     'Agent 1 — Triage',
+      prenom:  'TEIVA',
       role:    'Réception & Classification',
       icon:    '📨',
       color:   '#10B981',
@@ -25,6 +26,7 @@ const Agents = (() => {
       statut:  'actif',
       webhook: 'https://hcstahiti.app.n8n.cloud/webhook/hcs-triage',
       description: 'Classifier messages entrants (Gmail, Messenger) et router vers le bon agent. EN PRODUCTION via n8n.',
+      competences: ['Classification msgs', 'Routing Gmail/Messenger', 'Détection urgence', 'Extraction données', 'Anti-spam'],
       systemPrompt: `Tu es HCS-Agent-1-Triage, le premier point de contact numérique de High Coffee Shirt (HCS) à Tahiti.
 
 TON RÔLE
@@ -63,12 +65,14 @@ EN CAS DE DOUTE : confidence < 80% + needs_human_triage: true.`
       id:      'agent_011Ca1i5Lk4BaMSRTMCtdkjk',
       webhook: 'https://hcstahiti.app.n8n.cloud/webhook/agent-2-commercial',
       nom:     'HCS-Commercial',
+      prenom:  'TAMATOA',
       role:  'Agent Commercial & Devis',
       icon:  '🤝',
       color: '#4A5FFF',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: 'Qualification demandes, devis chiffrés HCS (XPF, double TVA 13%/16%), pipeline et relances.',
+      competences: ['Devis XPF', 'Qualification', 'Pipeline client', 'TVA 13%/16%', 'Relances', 'Odoo devis'],
       systemPrompt: `Tu es HCS-Agent-2-Commercial, l'agent commercial digital de HCS à Tahiti.
 
 RÔLE : Qualifier les demandes DEVIS reçues d'Agent 1, établir des devis précis, répondre au client avec professionnalisme et chaleur.
@@ -103,12 +107,14 @@ INTERACTIONS : Mockup → Agent 3 PicWish | Livraison îles → HCS-Logistique |
     {
       id:    'agent_hcs_picwish_3',
       nom:   'Agent 3 — PicWish',
+      prenom:'POE',
       role:  'Traitement Images',
       icon:  '🖼️',
       color: '#06B6D4',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: 'Détourage, upscale et nettoyage images pour production DTF/vinyle/mockup. ~15-20 images/semaine.',
+      competences: ['Détourage logos', 'Upscale images', 'Préparation DTF', 'Analyse qualité', 'Optimisation fichiers'],
       systemPrompt: `Tu es HCS-Agent-3-PicWish, spécialiste du traitement d'images de HCS.
 
 RÔLE : Transformer les images clients brutes en fichiers prêts pour la production (DTF, vinyle, broderie, mockup).
@@ -145,12 +151,14 @@ TONALITÉ : Technique avec agents (DPI, formats, chemins). Pédagogique si conta
     {
       id:    'agent_011Ca1i2FzUX3zNd4xuM4PHa',
       nom:   'HCS-Atelier',
+      prenom:'TANE',
       role:  'Responsable Production',
       icon:  '⚙️',
       color: '#FF6B6B',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: 'Assistant opérateurs atelier : paramètres machines DTF/vinyle, checklists qualité 4 étapes, suivi OFs.',
+      competences: ['Paramètres machines', 'DTF 22 pouces', 'Vinyle/flex/flock', 'Checklists qualité', 'Suivi OFs'],
       systemPrompt: `Tu es HCS-Agent-4-Atelier, le bras droit numérique des opérateurs production HCS.
 
 RÔLE : Assistant des opérateurs physiques — guide technique DTF/vinyle/broderie, gardien qualité (checklist, timers), relais vers autres agents.
@@ -187,12 +195,14 @@ LIMITES : Ne modifies pas les OFs (Agent 5) / Ne commandes pas matière (HCS-Log
       id:      'agent_hcs_planning_5',
       webhook: 'https://hcstahiti.app.n8n.cloud/webhook/agent-5-planning',
       nom:   'Agent 5 — Planning',
+      prenom:'MATA',
       role:  'Planning Production',
       icon:  '📅',
       color: '#8B5CF6',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: "Optimisation planning atelier, création OFs, arbitrage machines/délais. Chef d'orchestre production.",
+      competences: ['Ordonnancement', 'Création OFs', 'Arbitrage délais', 'Capacité atelier', '7 machines'],
       systemPrompt: `Tu es HCS-Agent-5-Planning, chef d'orchestre de la production HCS.
 
 RÔLE : Optimiser la planification entre devis validés / 7 machines / stock matières / délais clients / capacité atelier.
@@ -230,12 +240,14 @@ TONALITÉ : Analytique, chiffré, structuré, proactif, décisif. Pas de contact
     {
       id:    'agent_011Ca1i5a41GExc8u42YVC4y',
       nom:   'HCS-Logistique',
+      prenom:'HIRO',
       role:  'Responsable Logistique',
       icon:  '📦',
       color: '#6B7280',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: 'Stocks matières, commandes fournisseurs (France/USA HTV4U/NZ), livraisons Tahiti et îles.',
+      competences: ['Stocks matières', 'HTV4U USA', 'Commandes fournisseurs', 'Livraisons îles', 'Alertes seuils'],
       systemPrompt: `Tu es HCS-Logistique, gardien du stock et des approvisionnements HCS.
 
 RÔLE : Gérer tout ce qui entre/sort de l'atelier. Assurer que la prod ne s'arrête jamais par manque de matière.
@@ -287,12 +299,14 @@ FORMAT : tableaux stocks, listes numérotées, emojis statut (✅ ⚠️ 🚨), 
     {
       id:    'agent_011Ca1i5WyDUg2fQCJSUzWq5',
       nom:   'HCS-Finance',
+      prenom:'ORO',
       role:  'Analyste Financier',
       icon:  '💰',
       color: '#F59E0B',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: 'Trésorerie quotidienne, TVA double taux PF (13%/16%), KPIs, alertes impayés, conseils chiffrés.',
+      competences: ['Trésorerie XPF', 'TVA PF double taux', 'KPIs financiers', 'Alertes impayés', 'Rapports mensuels'],
       systemPrompt: `Tu es HCS-Finance, gardien des chiffres HCS.
 
 RÔLE : Surveillance santé financière quotidienne — trésorerie, validation factures, rapports, TVA Polynésie, alertes impayés, conseils stratégiques chiffrés.
@@ -321,12 +335,14 @@ FORMAT : séparateurs ━━━, chiffres alignés, emojis 🟢⚠️🚨, recom
     {
       id:    'agent_011Ca1i5QZW9BuYFmAEUbrt3',
       nom:   'HCS-Marketing',
+      prenom:'TIARE',
       role:  'Responsable Marketing',
       icon:  '📢',
       color: '#B07BFF',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: 'Campagnes FB/IG/TikTok, stratégie MANAWEAR, builder Andromeda (8 verticales), calendrier événementiel PF.',
+      competences: ['Campagnes FB/IG', 'MANAWEAR strategy', 'Andromeda Builder', 'TikTok', 'Calendrier PF'],
       systemPrompt: `Tu es HCS-Marketing, responsable marketing HCS (B2B) et MANAWEAR (streetwear polynésien premium).
 
 RÔLE : Campagnes Facebook/Instagram/TikTok, création contenu, stratégie marque (HCS vs MANAWEAR), partenariats/événements, landing pages Andromeda.
@@ -357,12 +373,14 @@ LIMITES : Budget >100k → Orchestrateur / Pas de stéréotypes polynésiens car
     {
       id:    'agent_011Ca1i5cqgmXC8pfK6n8YvJ',
       nom:   'HCS-Music',
+      prenom:'REVA',
       role:  'Agent Créatif Polynésien',
       icon:  '🎵',
       color: '#EC4899',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: 'Concepts collections MANAWEAR, storytelling polynésien (mana, fenua, tatau), merchandising artistes.',
+      competences: ['Collections MANAWEAR', 'Storytelling tahitien', 'Collaborations artistes', 'Merchandising', 'Reo Tahiti'],
       systemPrompt: `Tu es HCS-Music, gardien de l'âme polynésienne dans les créations HCS et MANAWEAR.
 
 RÔLE : Conception projets créatifs ancrés culture polynésienne — collections capsules MANAWEAR, collaborations artistes locaux, storytelling marque, concepts merchandising événements.
@@ -390,12 +408,14 @@ LIMITES : Jamais symboles sacrés sans contexte / Collaboration >300k → Orches
     {
       id:    'agent_011Ca1i5TrwZCPHXnqW8EjqM',
       nom:   'HCS-Support',
+      prenom:'TEHANI',
       role:  'Support Client (SAV)',
       icon:  '🎧',
       color: '#00D4AA',
       modele:'claude-sonnet-4-6',
       statut:'actif',
       description: 'SAV empathique, suivi commandes, réclamations. Délai cible <4h. Réimpression gratuite sur défaut HCS.',
+      competences: ['SAV empathique', 'Suivi commandes', 'Réclamations', 'Réimpressions gratuites', 'Gestes commerciaux'],
       systemPrompt: `Tu es HCS-Support, responsable SAV HCS.
 
 RÔLE : Satisfaction client post-commande — questions commandes en cours, réclamations avec empathie, suivi livraisons, résolution problèmes niveau 1.
@@ -426,12 +446,28 @@ LIMITES : Remboursement total → Orchestrateur / Remise >15% → Agent 2 / Comp
     {
       id:      'agent_hcs_catalogue_12',
       nom:     'HCS-Catalogue',
+      prenom:  'REI',
       role:    'Gestionnaire Catalogue & Prix',
       icon:    '🗂️',
       color:   '#F97316',
       modele:  'claude-sonnet-4-6',
       statut:  'actif',
       description: 'Création/modification fiches produits, gestion variantes, prix de revient, import CSV, sync MySQL.',
+      competences: ['Fiches produits', 'Gestion variantes', 'Coût DTF ★', 'Coût thermocollant ★', 'Import CSV', 'Sync MySQL'],
+      apprentissages: [
+        {
+          titre: 'Calcul coût DTF — Workflow 5 étapes',
+          date: '2026-05-02',
+          outils: ['erp_get_calculs(dtf)', 'erp_get_produit', 'erp_calculer_cout_dtf', 'erp_update_produit_cout'],
+          description: 'Lire cout_par_cm2 depuis MySQL → inspecter variantes produit → calculer coût par format → présenter récap à Grace → mettre à jour variantes[].cout via variantes_cout[].'
+        },
+        {
+          titre: 'Calcul coût thermocollant — Même workflow',
+          date: '2026-05-02',
+          outils: ['erp_get_calculs(thermocollant)', 'erp_calculer_cout_thermocollant', 'erp_update_produit_cout'],
+          description: 'Identique DTF avec type:thermocollant. Formats vinyle : A5 14×20, A4 20×28, A3 28×40, Coeur 8×8, Poitrine 20×20, Dos 28×28, Manche 8×8.'
+        }
+      ],
       systemPrompt: `Tu es HCS-Catalogue, gestionnaire du catalogue produits HCS.
 
 RÔLE : Créer, modifier et organiser les fiches produits de l'ERP HCS — variantes, prix de revient, attributs personnalisés, synchronisation MySQL.
@@ -518,24 +554,102 @@ LOGIQUE MÉTIER HCS — PRIX DE REVIENT
    Coût logo = coût_cm² × largeur_cm × hauteur_cm
    → Le calculateur thermocollant (modules/calculateur-transfert-thermocollant.html) gère chaque gamme et sauvegarde dans MySQL (type:'thermocollant')
 
-3. WORKFLOW MISE À JOUR CATALOGUE
-   ÉTAPE 1 : erp_get_calculs(type:'dtf') ou erp_get_calculs(type:'thermocollant')
-             → récupère le dernier calcul avec cout_par_cm2 et formats_detail
-   ÉTAPE 2 : erp_get_produits() → trouve les produits DTF/thermocollant concernés
-             (categorie 'Services DTF' ou 'Services Thermocollant')
-   ÉTAPE 3 : Pour chaque format du produit (customAttrs/attrIncrements) :
-             coût = cout_par_cm2 × largeur_cm × hauteur_cm
-   ÉTAPE 4 : erp_update_produit_cout(produit_id, attr_increments:{...}, confirme:true)
-   ÉTAPE 5 : Confirmer les valeurs à l'utilisateur avant de valider
+3. WORKFLOW MISE À JOUR PRIX DE REVIENT — TRANSFERTS DTF
 
-4. PARAMÈTRES PERSISTANTS (sauvegardés localStorage)
-   - DTF : taux USD/XPF, tarifs HTV4U par palier, formats habituels
-   - Thermocollant : gammes de vinyle avec prix USD, fret, douane, TVA, courtage, manutention
-   → L'utilisateur met à jour ces paramètres dans les calculateurs quand les tarifs changent
-   → Le calcul se met à jour automatiquement → save MySQL → agent peut relire et mettre à jour le catalogue
+   Tu as accès à DEUX calculateurs DTF :
+   A) Calculateur Transfert DTF V2 (modules/calculateur-transfert-dtf-v2.html)
+      → 2 gammes HTV4U : DTF Transfer Textile (Sheet/1Y/2Y/3Y/5Y) + UV DTF Custom Sticker (6"/12"/1YD)
+      → Paliers de prix HTV4U : 1-5 / 6-10 / 11-19 / 20+ rouleaux
+      → Sauvegardes MySQL : type='dtf' et type='uvdtf'
+   B) Calculateur Transfert Thermocollant (modules/calculateur-transfert-thermocollant.html)
+      → Vinyle EasyWeed, Oracal, ThermoFlex, Flex Métallisé, Flock, Glitter, etc.
+      → Sauvegardes MySQL : type='thermocollant'
+
+   ÉTAPES OBLIGATOIRES pour "mettre à jour les coûts de revient" :
+
+   ÉTAPE 1 — Lire le dernier calcul sauvegardé
+     erp_get_calculs({ type: 'dtf' })        ← DTF Transfer Textile
+     erp_get_calculs({ type: 'uvdtf' })      ← UV DTF Custom Sticker
+     erp_get_calculs({ type: 'thermocollant' })
+     → Retourne cout_par_cm2 (XPF) + formats_detail (coûts déjà calculés par format)
+     → Si formats_detail est présent : utiliser directement les cout_unitaire_xpf
+     → Si absent : calculer avec erp_calculer_cout_dtf({ cout_par_cm2, formats:[...] })
+
+   ÉTAPE 2 — Identifier le produit ERP à mettre à jour
+     erp_get_produit({ id: 'prod-008' })     ← Transfert DTF (productKind:variable)
+     erp_get_produit({ sku: 'DTF-TRANSFERT' })
+     → Vérifier les variantes existantes et leurs nom_format exacts
+
+   ÉTAPE 3 — Calculer les coûts manquants si nécessaire
+     Si cout_par_cm2 connu mais formats_detail absent :
+     erp_calculer_cout_dtf({
+       cout_par_cm2: X,
+       formats: [
+         { nom: 'Nuque 8×8', largeur_cm: 8, hauteur_cm: 8 },
+         { nom: 'Coeur 10×10', largeur_cm: 10, hauteur_cm: 10 },
+         { nom: 'Manche 10×10', largeur_cm: 10, hauteur_cm: 10 },
+         { nom: 'A5 (14×20)', largeur_cm: 14, hauteur_cm: 20 },
+         { nom: 'Poitrine 24×24', largeur_cm: 24, hauteur_cm: 24 },
+         { nom: 'Dos 24×24', largeur_cm: 24, hauteur_cm: 24 },
+         { nom: 'A4 (20×28)', largeur_cm: 20, hauteur_cm: 28 },
+         { nom: 'A3 (28×40)', largeur_cm: 28, hauteur_cm: 40 },
+         { nom: 'A2 (40×56)', largeur_cm: 40, hauteur_cm: 56 }
+       ]
+     })
+
+   ÉTAPE 4 — Présenter le récapitulatif à l'utilisateur AVANT de sauvegarder
+     Tableau : Format | Surface | Coût actuel → Nouveau coût | Variation %
+
+   ÉTAPE 5 — Mettre à jour les coûts variantes (après confirmation utilisateur)
+     erp_update_produit_cout({
+       produit_id: 'prod-008',
+       variantes_cout: [
+         { nom_format: 'Nuque 8×8', cout: 48 },
+         { nom_format: 'A4 (20×28)', cout: 423 },
+         ...
+       ],
+       confirme: true
+     })
+     → L'outil écrit dans variantes[].cout pour chaque format trouvé
+     → Sync MySQL automatique
+
+   RÈGLE : Les nom_format dans variantes_cout doivent correspondre EXACTEMENT aux valeurs
+   dans les variantes du produit (champ 'Format DTF' ou 'Format Thermocollant').
+
+4. WORKFLOW THERMOCOLLANT
+   Même logique avec erp_get_calculs({ type: 'thermocollant' }) + erp_calculer_cout_thermocollant().
+   Les produits thermocollant utilisent 'Format Thermocollant' comme clé de variante.
+   Formats standards : 'A5 14×20', 'A4 20×28', 'A3 28×40', 'Coeur 8×8', 'Poitrine 20×20', 'Dos 28×28', 'Manche 8×8'
+
+5. WORKFLOW TRANSFER DTF (produit "Transfer DTF", attribut "Format Transfert DTF")
+   Ce produit a des formats exprimés en dimensions brutes : "8×8cm", "10×10cm", "10×20cm", etc.
+   Contrairement à prod-008 (noms descriptifs), il faut PARSER les dimensions depuis le nom du format.
+
+   RÈGLE DE PARSING : "LargeurxHauteurcm" ou "Largeur×Hauteurcm"
+     "8×8cm"   → largeur=8,  hauteur=8  → surface=64 cm²
+     "10×20cm" → largeur=10, hauteur=20 → surface=200 cm²
+     "25×30cm" → largeur=25, hauteur=30 → surface=750 cm²
+
+   ÉTAPES :
+   ÉTAPE 1 : erp_get_calculs({ type: 'dtf' }) → cout_par_cm2
+   ÉTAPE 2 : erp_get_produit({ sku: 'DTF' }) ou chercher "Transfer DTF" dans erp_get_produits()
+             → noter les noms exacts des formats (ex: "8×8cm,", "10×10cm")
+             → ATTENTION : certains noms peuvent avoir une virgule finale ou des espaces — utiliser la valeur EXACTE retournée
+   ÉTAPE 3 : Pour chaque format, parser L et H depuis le nom, calculer : coût = Math.round(cout_par_cm2 × L × H)
+   ÉTAPE 4 : Présenter le tableau récapitulatif à Grace AVANT de sauvegarder
+             Format : Nom format | Dimensions | Surface cm² | Coût calculé XPF
+   ÉTAPE 5 : erp_update_produit_cout({
+               produit_id: '...',
+               variantes_cout: [
+                 { nom_format: '8×8cm,', cout: 48 },   ← utiliser le nom EXACT tel que retourné par erp_get_produit
+                 { nom_format: '10×10cm', cout: 76 },
+                 ...
+               ],
+               confirme: true
+             })
 
 5. MARGES CIBLES HCS
-   - DTF : marge brute >50% (prix vente = coût × 2.5 minimum)
+   - DTF : marge brute >60% (prix vente = coût × 2.5 minimum)
    - Thermocollant : marge brute >60% (prix vente = coût × 3 minimum)
    - Alerte si marge calculée <30% : signaler à HCS-Finance avant de valider
 
@@ -550,12 +664,15 @@ LIMITES : Ne supprime pas de produits sans confirmation explicite / Ne modifie p
     {
       id:      'agent_hcs_logo_13',
       nom:     'HCS-Logo',
+      prenom:  'MAEVA',
       role:    'Création Logos & Identité Visuelle',
+      chatUrl: '../modules/mana-chat.html',
       icon:    '✦',
       color:   '#A855F7',
       modele:  'claude-sonnet-4-6',
       statut:  'actif',
       description: 'Exploration créative logos HCS/MANAWEAR, construction de charte visuelle, génération via DTF Studio, maquettage MockupForge.',
+      competences: ['Logos & identité', 'DTF Studio IA', 'MockupForge v12', 'Charte MANAWEAR', 'Directions créatives'],
       systemPrompt: `Tu es HCS-Logo, directeur artistique de High Coffee Shirt et MANAWEAR à Tahiti.
 
 RÔLE : Aider Grace à construire l'identité visuelle de HCS et MANAWEAR depuis zéro — explorer des directions créatives, générer des concepts via DTF Studio IA, valider sur des mockups réels MockupForge, et documenter progressivement les choix qui formeront la charte graphique officielle.
@@ -693,6 +810,7 @@ LIMITES : Ne pas inventer une charte — repartir des choix réellement validés
     {
       id:    'agent_011Ca1i5g4QWANXkWTS8FCDT',
       nom:   'HCS-Orchestrateur',
+      prenom:'MANA',
       role:  'Orchestrateur Multi-Agents',
       icon:  '⬡',
       color: '#4A5FFF',
@@ -1010,16 +1128,28 @@ Retourne le coût unitaire pour chaque taille demandée.`,
       description: `Met à jour le prix de revient d'un produit dans l'ERP HCS.
 Peut mettre à jour :
 - Le coût de base (champ "cout") pour les produits simples
-- Les incréments de prix par format (attrIncrements) pour les produits à variantes DTF
+- Les incréments de prix par format (attrIncrements) pour les produits à variantes
+- Le coût individuel de chaque variante (variantes_cout) — tableau [{nom_format, cout}]
+  nom_format = valeur exacte de l'attribut "Format*" dans la variante (détecté automatiquement)
+  Fonctionne pour TOUS les types de formats : "Format DTF", "Format Thermocollant", "Format Transfert DTF", etc.
+  Exemple : [{"nom_format":"8×8cm","cout":48},{"nom_format":"10×20cm","cout":151}]
 Synchronise automatiquement vers MySQL après la mise à jour.`,
       input_schema: {
         type: 'object',
         properties: {
-          produit_id:      { type: 'string', description: 'ID du produit à mettre à jour (ex: prod-019)' },
+          produit_id:      { type: 'string', description: 'ID du produit à mettre à jour (ex: prod-008)' },
           cout:            { type: 'number', description: 'Nouveau coût de base en XPF (optionnel)' },
           attr_increments: {
             type: 'object',
-            description: 'Objet clé→valeur des incréments de prix par format (ex: {"A4 20x28": 1200, "A3 28x40": 2000}). Utilisé pour les produits DTF à variantes.'
+            description: 'Objet clé→valeur des incréments de prix par format. Pour les produits sans variantes individuelles.'
+          },
+          variantes_cout: {
+            type: 'array',
+            description: 'Coûts individuels par variante — pour les produits avec productKind:variable. Chaque entrée : {nom_format, cout}. nom_format doit correspondre exactement à la valeur dans la variante (ex: "A4 (20×28)").',
+            items: { type: 'object', properties: {
+              nom_format: { type: 'string', description: 'Valeur exacte du format dans la variante' },
+              cout:       { type: 'number', description: 'Coût de revient en XPF' }
+            }, required: ['nom_format','cout'] }
           },
           confirme:        { type: 'boolean', description: 'Doit être true pour confirmer la mise à jour (protection anti-erreur)' }
         },
@@ -1152,6 +1282,7 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
   let _currentAgent    = null;  // agent sélectionné pour le chat
   let _chatHistory     = [];    // historique messages du chat actif
   let _sessions        = [];    // toutes les sessions sauvegardées
+  let _pendingPrompt   = null;  // prompt pré-chargé depuis la vue Prompts → chat
   let _container       = null;  // référence au conteneur principal
   let _agentHistories  = {};    // historique par agent { agentId: [...messages] }
   let _sharedFacts     = [];    // faits partagés entre tous les agents
@@ -1175,9 +1306,11 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
 
     /* Dispatcher vers la bonne vue */
     switch (view) {
-      case 'chat':      _renderChat(containerEl);     break;
-      case 'sessions':  _renderSessions(containerEl); break;
-      default:          _renderDashboard(containerEl);
+      case 'chat':           _renderChat(containerEl);           break;
+      case 'prompts':        _renderPrompts(containerEl);        break;
+      case 'sessions':       _renderSessions(containerEl);       break;
+      case 'apprentissages': _renderApprentissages(containerEl); break;
+      default:               _renderDashboard(containerEl);
     }
   }
 
@@ -1220,22 +1353,30 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
     const n8nBadge = hasWebhook
       ? `<span style="font-size:10px;background:#10B981;color:#fff;padding:1px 5px;border-radius:4px;margin-left:4px">n8n</span>`
       : '';
+    const pillsHtml = (agent.competences && agent.competences.length)
+      ? `<div class="agent-competences">${agent.competences.map(c =>
+          `<span class="agent-competence-pill${c.endsWith('★') ? ' agent-competence-new' : ''}">${_esc(c)}</span>`
+        ).join('')}</div>`
+      : '';
     return `
       <div class="agent-card" data-agent-id="${agent.id}" style="--agent-color:${agent.color}">
         <div class="agent-card-header">
           <span class="agent-icon">${agent.icon}</span>
           <div class="agent-info">
+            ${agent.prenom ? `<span class="agent-prenom">${_esc(agent.prenom)}</span>` : ''}
             <span class="agent-nom">${_esc(agent.nom)}${n8nBadge}</span>
             <span class="agent-role">${_esc(agent.role)}</span>
           </div>
           <span class="agent-statut ${statutClass}">${statutLabel}</span>
         </div>
         <p class="agent-description">${_esc(agent.description)}</p>
+        ${pillsHtml}
         <div class="agent-card-footer">
           ${modeleBadge}
-          <button class="btn btn-primary btn-sm btn-agent-chat" data-agent-id="${agent.id}">
-            💬 Parler
-          </button>
+          ${agent.chatUrl
+            ? `<a class="btn btn-primary btn-sm" href="${agent.chatUrl}" target="_blank" style="text-decoration:none">🎨 DTF Studio</a>`
+            : `<button class="btn btn-primary btn-sm btn-agent-chat" data-agent-id="${agent.id}">💬 Parler</button>`
+          }
         </div>
       </div>
     `;
@@ -1322,7 +1463,7 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
             ${_chatHistory.length === 0
               ? `<div class="chat-empty">
                    <span style="font-size:2rem">${agent.icon}</span>
-                   <p>Bonjour ! Je suis <strong>${_esc(agent.nom)}</strong>.<br>${_esc(agent.description)}<br><em>Comment puis-je vous aider ?</em></p>
+                   <p>Bonjour ! Je suis <strong>${agent.prenom ? _esc(agent.prenom) + ' — ' : ''}${_esc(agent.nom)}</strong>.<br>${_esc(agent.description)}<br><em>Comment puis-je vous aider ?</em></p>
                  </div>`
               : _chatHistory.map(m => _renderMessage(m)).join('')
             }
@@ -1405,6 +1546,13 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
         _renderChat(el);
       });
     });
+
+    /* Pré-remplir le textarea si un prompt vient de la vue Prompts */
+    if (_pendingPrompt) {
+      const ta = el.querySelector('#chat-input');
+      if (ta) { ta.value = _pendingPrompt; ta.focus(); }
+      _pendingPrompt = null;
+    }
 
     /* Envoi du message (bouton) */
     el.querySelector('#btn-send-chat').addEventListener('click', () => _sendMessage(el));
@@ -1767,13 +1915,38 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
           const update = {};
           if (input.cout !== undefined) update.cout = Number(input.cout);
           if (input.attr_increments)    update.attrIncrements = input.attr_increments;
-          if (Object.keys(update).length === 0) return { error: 'Aucune valeur à mettre à jour (cout ou attr_increments requis)' };
+
+          /* Mise à jour des coûts individuels par variante */
+          const varLog = [];
+          if (Array.isArray(input.variantes_cout) && input.variantes_cout.length > 0) {
+            const variantes = [...(produit.variantes || [])];
+            input.variantes_cout.forEach(({ nom_format, cout }) => {
+              let matched = 0;
+              variantes.forEach(v => {
+                /* Détection dynamique : toute clé commençant par "Format" (Format DTF, Format Transfert DTF, Format Thermocollant…) */
+                const formatKey = Object.keys(v).find(k => /^format/i.test(k));
+                const valeur = formatKey ? v[formatKey] : undefined;
+                if (valeur && valeur.trim() === String(nom_format).trim()) {
+                  v.cout = Number(cout);
+                  matched++;
+                }
+              });
+              varLog.push({ nom_format, cout, matched });
+            });
+            update.variantes = variantes;
+          }
+
+          if (Object.keys(update).length === 0) return { error: 'Aucune valeur à mettre à jour (cout, attr_increments ou variantes_cout requis)' };
           Store.update('produits', input.produit_id, update);
           /* Sync MySQL si disponible */
           if (typeof Store.syncAllToMySQL === 'function') {
             Store.syncAllToMySQL('produits').catch(() => {});
           }
-          return { ok: true, produit_id: input.produit_id, mises_a_jour: update, message: `Produit ${produit.nom} mis à jour. Sync MySQL lancée.` };
+          const nbVarMaj = varLog.filter(l => l.matched > 0).length;
+          return { ok: true, produit_id: input.produit_id, mises_a_jour: update,
+            variantes_mises_a_jour: nbVarMaj,
+            detail_variantes: varLog,
+            message: `Produit ${produit.nom} mis à jour${nbVarMaj ? ` — ${nbVarMaj} variante(s) coût mis à jour` : ''}. Sync MySQL lancée.` };
         }
 
         /* ── Galerie images produit ── */
@@ -1896,7 +2069,7 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
       messagesEl.innerHTML = `
         <div class="chat-empty">
           <span style="font-size:2rem">${agent.icon}</span>
-          <p>Bonjour ! Je suis <strong>${_esc(agent.nom)}</strong>.<br>${_esc(agent.description)}<br><em>Comment puis-je vous aider ?</em></p>
+          <p>Bonjour ! Je suis <strong>${agent.prenom ? _esc(agent.prenom) + ' — ' : ''}${_esc(agent.nom)}</strong>.<br>${_esc(agent.description)}<br><em>Comment puis-je vous aider ?</em></p>
         </div>`;
     } else {
       messagesEl.innerHTML = _chatHistory.map(m => _renderMessage(m)).join('');
@@ -1972,6 +2145,334 @@ Synchronise automatiquement vers MySQL après la mise à jour.`,
         }
       });
     }
+  }
+
+  /* ================================================================
+     BIBLIOTHÈQUE DE PROMPTS OPÉRATEURS
+     ================================================================ */
+  const AGENTS_PROMPTS = {
+
+    // ── 1. TRIAGE ────────────────────────────────────────────────
+    'agent_hcs_triage_1': [
+      { cat: 'Classification', titre: 'Classifier un message entrant',
+        texte: 'Classe ce message client et indique le bon agent à contacter :\n\n[Coller le message ici]' },
+      { cat: 'Classification', titre: 'Vérifier une catégorisation douteuse',
+        texte: 'Ce message a été classé en [CATÉGORIE]. Confirmes-tu ? Sinon, quelle est la bonne catégorie ?\n\n[Coller le message ici]' }
+    ],
+
+    // ── 2. COMMERCIAL ────────────────────────────────────────────
+    'agent_011Ca1i5Lk4BaMSRTMCtdkjk': [
+      { cat: 'Devis', titre: 'Créer un devis textile',
+        texte: 'Crée un devis pour :\n- Client : [NOM]\n- Produit : [ex: T-shirt blanc Gildan 64000]\n- Quantité : [NB]\n- Personnalisation : [ex: DTF poitrine 24×24cm, logo fourni]\n- Délai souhaité : [ex: 2 semaines]\n- Notes : [optionnel]' },
+      { cat: 'Devis', titre: 'Relancer un client sur devis en attente',
+        texte: 'Rédige une relance pour le devis [NUMÉRO] envoyé le [DATE] à [CLIENT]. Montant : [MONTANT] XPF. Ton professionnel et chaleureux polynésien.' },
+      { cat: 'Tarification', titre: 'Calculer remise B2B',
+        texte: 'Calcule la remise applicable pour un client B2B avec un CA annuel estimé de [MONTANT] XPF. Présente les conditions du tier correspondant (Bronze / Argent / Or / Platine).' },
+      { cat: 'Tarification', titre: 'Calcul prix unitaire avec TVA',
+        texte: 'Calcule le prix TTC pour :\n- T-shirts : [MONTANT] XPF HT (TVA 16%)\n- Personnalisation DTF : [MONTANT] XPF HT (TVA 13%)\nDétaille le montant TVA par taux et le total TTC.' }
+    ],
+
+    // ── 3. PICWISH ───────────────────────────────────────────────
+    'agent_hcs_picwish_3': [
+      { cat: 'Traitement image', titre: 'Préparer un logo pour DTF',
+        texte: 'J\'ai un logo à préparer pour impression DTF. Il fera [L]×[H] cm sur le transfert. Indique les spécifications techniques requises (DPI, fond transparent, format) et les paramètres PicWish.' },
+      { cat: 'Qualité', titre: 'Upscale image basse résolution',
+        texte: 'L\'image client est en [W×H] pixels (reçue par WhatsApp). J\'ai besoin de [L]×[H] cm à 300 DPI pour DTF. L\'upscale est-il possible ? Donne les paramètres PicWish.' },
+      { cat: 'Traitement image', titre: 'Détourage logo sur fond coloré',
+        texte: 'Le logo client est sur fond [COULEUR]. Explique comment faire le détourage proprement avec PicWish pour obtenir un fond transparent sans halo.' }
+    ],
+
+    // ── 4. ATELIER ───────────────────────────────────────────────
+    'agent_011Ca1i2FzUX3zNd4xuM4PHa': [
+      { cat: 'Production', titre: 'Paramètres presse DTF',
+        texte: 'Donne les paramètres de presse pour un transfert DTF sur [TYPE DE TISSU, ex: coton 100% 180g / polyester / mixte]. Température, pression, temps, film chaud ou froid.' },
+      { cat: 'Qualité', titre: 'Checklist avant démarrage production',
+        texte: 'Lance la checklist qualité avant de démarrer la production pour l\'OF [NUMÉRO]. Produit : [NOM]. Quantité : [NB] pièces. Machine : [ex: presse-t1].' },
+      { cat: 'Qualité', titre: 'Signaler un défaut de production',
+        texte: 'Signale un défaut sur l\'OF [NUMÉRO] :\n- Nature du défaut : [ex: décalage / mauvais collage / couleur]\n- Quantité concernée : [NB] pièces\n- Photo disponible : [OUI/NON]\nQue faire ?' }
+    ],
+
+    // ── 5. PLANNING ──────────────────────────────────────────────
+    'agent_hcs_planning_5': [
+      { cat: 'Production', titre: 'Créer un ordre de fabrication',
+        texte: 'Crée un OF pour :\n- Client : [NOM]\n- Produit : [ex: 50 T-shirts DTF poitrine 24×24]\n- Devis N° : [NUMÉRO]\n- Délai livraison : [DATE]\n- Machine cible : [ex: presse-t1 / presse-c1 / plotter-2]' },
+      { cat: 'Planification', titre: 'Planning optimal de la semaine',
+        texte: 'Optimise le planning pour cette semaine. OFs en attente : [LISTE ou "voir ERP"]. Contraintes : [ex: opérateur absent lundi / presse-t2 en maintenance]. Priorise les délais urgents.' },
+      { cat: 'Planification', titre: 'Estimer la capacité disponible',
+        texte: 'Quelle est la capacité de production disponible cette semaine ? Opérateurs présents : [NB]. Machines disponibles : [LISTE]. Déduis les OF déjà planifiés.' }
+    ],
+
+    // ── 6. LOGISTIQUE ────────────────────────────────────────────
+    'agent_011Ca1i5a41GExc8u42YVC4y': [
+      { cat: 'Stock', titre: 'Vérifier les stocks critiques',
+        texte: 'Quels produits sont actuellement en dessous du seuil minimum ? Priorise par impact sur la production en cours.' },
+      { cat: 'Approvisionnement', titre: 'Commander chez HTV4U (DTF USA)',
+        texte: 'Je dois commander des transferts DTF chez HTV4U.\n- Formats : [LISTE ex: 22"×1Yard, 22"×3Yards]\n- Quantités : [QTÉ par format]\n- Besoin en atelier avant le : [DATE]\nCalcule le coût atterri estimé et le délai USPS → Tahiti.' },
+      { cat: 'Logistique', titre: 'Suivi commande fournisseur',
+        texte: 'Donne le statut de la commande passée chez [FOURNISSEUR] le [DATE]. Mode de transport : [USPS / avion / bateau]. Tracking : [NUMÉRO si disponible]. ETA estimée ?' }
+    ],
+
+    // ── 7. FINANCE ───────────────────────────────────────────────
+    'agent_011Ca1i5WyDUg2fQCJSUzWq5': [
+      { cat: 'Rapport', titre: 'Rapport trésorerie mensuel',
+        texte: 'Génère le rapport de trésorerie pour [MOIS ex: avril 2026]. Inclus :\n- CA HT total\n- TVA collectée par taux (13% / 16%)\n- Charges principales\n- Résultat net estimé\n- Alertes impayés' },
+      { cat: 'TVA', titre: 'Calculer TVA d\'un devis mixte',
+        texte: 'Calcule la TVA pour ce devis :\n- Textile (TVA 16%) : [MONTANT] XPF HT\n- Personnalisation (TVA 13%) : [MONTANT] XPF HT\nDétaille chaque ligne et donne le total TTC.' },
+      { cat: 'Recouvrement', titre: 'Procédure relance impayé',
+        texte: 'Le client [NOM] n\'a pas réglé la facture [NUMÉRO] de [MONTANT] XPF échue le [DATE]. C\'est la [1ère / 2ème / 3ème] relance. Quelle procédure appliquer ?' }
+    ],
+
+    // ── 8. MARKETING ─────────────────────────────────────────────
+    'agent_011Ca1i5g4QWANXkWTS8FCDT': [
+      { cat: 'Publicité', titre: 'Brief campagne Facebook/Instagram',
+        texte: 'Crée un brief pour une campagne Facebook/Instagram :\n- Objectif : [ex: notoriété MANAWEAR / génération leads B2B HCS]\n- Budget : [MONTANT] XPF\n- Durée : [ex: 2 semaines]\n- Événement cible : [ex: Heiva i Tahiti / rentrée scolaire / Matari\'i]' },
+      { cat: 'Contenu', titre: 'Post Instagram MANAWEAR',
+        texte: 'Rédige un post Instagram MANAWEAR sur le thème [THÈME ex: nouvelle collection / surf / Heiva]. Format : caption + hashtags. Bilingue FR/tahitien si pertinent.' },
+      { cat: 'Planification', titre: 'Calendrier événements PF à venir',
+        texte: 'Quels sont les prochains événements en Polynésie française pertinents pour HCS/MANAWEAR dans les 3 prochains mois ? Liste avec dates et opportunités marketing.' }
+    ],
+
+    // ── 9. MUSIC ─────────────────────────────────────────────────
+    'agent_011Ca1i5TrwZCPHXnqV7MqHk': [
+      { cat: 'Création', titre: 'Concept collection MANAWEAR',
+        texte: 'Développe un concept de collection MANAWEAR pour [ÉVÉNEMENT/SAISON ex: Heiva 2026 / collection hiver]. Inclus : thème, palette couleurs, motifs polynésiens suggérés, 3-4 pièces clés.' },
+      { cat: 'Partenariat', titre: 'Proposition collaboration artiste',
+        texte: 'Je veux proposer une collaboration à [ARTISTE LOCAL]. Type de merchandising adapté ? Budget production estimé pour [NB] pièces. Conditions à proposer.' }
+    ],
+
+    // ── 10. SUPPORT ──────────────────────────────────────────────
+    'agent_011Ca1i5TrwZCPHXnqW8EjqM': [
+      { cat: 'SAV', titre: 'Traiter une réclamation client',
+        texte: 'Le client [NOM] réclame pour la commande [NUMÉRO] :\n- Problème : [DESCRIPTION]\n- Photo disponible : [OUI/NON]\n- Date livraison : [DATE]\nQuelle réponse et solution proposer ?' },
+      { cat: 'Suivi', titre: 'Informer un client sur sa commande',
+        texte: 'Le client [NOM] demande où en est sa commande [NUMÉRO] passée le [DATE]. Rédige la réponse à lui envoyer avec le statut actuel et l\'ETA.' },
+      { cat: 'SAV', titre: 'Proposer un geste commercial',
+        texte: 'Suite au problème [DESCRIPTION] avec le client [NOM], quel geste commercial proposer ? Montant commande initiale : [MONTANT] XPF. C\'est un client [nouveau / régulier / VIP].' }
+    ],
+
+    // ── 12. CATALOGUE ────────────────────────────────────────────
+    'agent_hcs_catalogue_12': [
+      { cat: 'Prix de revient', titre: 'Mettre à jour coûts DTF (formats descriptifs)',
+        texte: 'Mets à jour les coûts de revient par variante du produit "Transfert DTF" (prod-008).\n\nWorkflow :\n1. erp_get_calculs({ type: \'dtf\' }) → cout_par_cm2\n2. erp_get_produit({ id: \'prod-008\' }) → noms exacts des formats\n3. Calcule coût = cout_par_cm2 × L × H pour chaque format\n4. Présente le tableau récap AVANT de sauvegarder\n5. Applique via variantes_cout[]' },
+      { cat: 'Prix de revient', titre: 'Mettre à jour coûts Transfer DTF (dimensions)',
+        texte: 'Mets à jour les coûts de revient par variante du produit "Transfer DTF" (attribut "Format Transfert DTF").\n\nWorkflow :\n1. erp_get_calculs({ type: \'dtf\' }) → cout_par_cm2\n2. erp_get_produit({ sku: \'DTF\' }) → noms exacts des formats (ex: "8×8cm", "10×20cm")\n3. Pour chaque format "L×Hcm" → parse L et H → coût = Math.round(cout_par_cm2 × L × H)\n4. Présente le tableau récap AVANT de sauvegarder\n5. Applique via variantes_cout[]' },
+      { cat: 'Prix de revient', titre: 'Mettre à jour coûts thermocollant',
+        texte: 'Mets à jour les coûts de revient par variante du produit thermocollant (prod-019).\n\nWorkflow :\n1. erp_get_calculs({ type: \'thermocollant\' }) → cout_par_cm2\n2. erp_get_produit({ id: \'prod-019\' }) → noms exacts des formats\n3. Calcule coût = cout_par_cm2 × L × H pour chaque format\n4. Présente le tableau récap AVANT de sauvegarder\n5. Applique via variantes_cout[]' },
+      { cat: 'Catalogue', titre: 'Créer un nouveau produit',
+        texte: 'Crée un nouveau produit dans l\'ERP :\n- Nom : [NOM]\n- SKU : [ex: VIN-FLEX-001]\n- Catégorie : [Services / Textile / Fourniture]\n- Prix HT : [MONTANT] XPF\n- Coût de revient : [MONTANT] XPF\n- Unité : [ex: unité / cm²]\n- Stock initial : [QTÉ]\n- Stock minimum : [QTÉ]' },
+      { cat: 'Catalogue', titre: 'Ajouter des variantes à un produit',
+        texte: 'Ajoute des variantes au produit [NOM ou ID].\n- Attribut : [ex: Format Thermocollant]\n- Valeurs : [ex: A5 14×20, A4 20×28, A3 28×40]\n- Prix incrément par valeur : [MONTANTS en XPF]\n- Coût de revient par valeur : [MONTANTS en XPF]' }
+    ],
+
+    // ── 13. LOGO ─────────────────────────────────────────────────
+    'agent_hcs_logo_13': [
+      { cat: 'Identité', titre: 'Explorer une direction logo',
+        texte: 'Je veux explorer une direction logo pour [HCS / MANAWEAR].\n- Style : [ex: moderne minimaliste / polynésien traditionnel / streetwear]\n- Couleurs préférées : [ex: noir + or / bleu lagon + blanc]\n- Éléments à inclure : [ex: vague, tiaré, café, requin, manta]\n- Usage principal : [ex: broderie casquette / DTF t-shirt / sticker]' },
+      { cat: 'MockupForge', titre: 'Tester un logo sur mockup',
+        texte: 'J\'ai un logo [DESCRIPTION]. Je veux le tester sur :\n- T-shirt [COULEUR ex: blanc / noir / marine]\n- Casquette [COULEUR]\nGénère les mockups MockupForge pour validation avant production.' }
+    ]
+  };
+
+  /* ================================================================
+     VUE 3 — PROMPTS : bibliothèque de commandes opérateurs
+     ================================================================ */
+  function _renderPrompts(el) {
+    /* Agent sélectionné dans la vue prompts (par défaut : catalogue) */
+    let _promptAgent = AGENTS_LIST.find(a => AGENTS_PROMPTS[a.id]) || AGENTS_LIST[0];
+
+    function _buildPromptView() {
+      const prompts    = AGENTS_PROMPTS[_promptAgent.id] || [];
+      const categories = [...new Set(prompts.map(p => p.cat))];
+
+      const sectionsHtml = categories.length === 0
+        ? `<p style="color:var(--text-muted);padding:var(--space-4)">Aucun prompt défini pour cet agent.</p>`
+        : categories.map(cat => {
+            const cards = prompts.filter(p => p.cat === cat).map((p, i) => `
+              <div class="prompt-card">
+                <div class="prompt-card-header">
+                  <strong class="prompt-card-titre">${_esc(p.titre)}</strong>
+                </div>
+                <pre class="prompt-card-body">${_esc(p.texte)}</pre>
+                <div class="prompt-card-footer">
+                  <button class="btn btn-ghost btn-sm btn-copy-prompt"
+                    data-texte="${_esc(p.texte)}"
+                    title="Copier dans le presse-papier">
+                    📋 Copier
+                  </button>
+                  <button class="btn btn-primary btn-sm btn-use-prompt"
+                    data-texte="${_esc(p.texte)}"
+                    data-agentid="${_esc(_promptAgent.id)}"
+                    title="Ouvrir dans le chat avec ce prompt">
+                    💬 Utiliser dans le chat →
+                  </button>
+                </div>
+              </div>
+            `).join('');
+            return `
+              <div class="prompt-section">
+                <h4 class="prompt-section-label">${_esc(cat)}</h4>
+                <div class="prompts-grid">${cards}</div>
+              </div>`;
+          }).join('');
+
+      el.querySelector('.prompts-main').innerHTML = `
+        <div style="padding:var(--space-5)">
+          <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-5)">
+            <span style="font-size:1.6rem">${_promptAgent.icon}</span>
+            <div>
+              <div style="font-weight:600;font-size:var(--text-base)">${_esc(_promptAgent.nom)}</div>
+              <div style="font-size:12px;color:var(--text-muted)">${_esc(_promptAgent.role)}</div>
+            </div>
+            <span class="badge badge-success" style="margin-left:auto">${prompts.length} prompt${prompts.length > 1 ? 's' : ''}</span>
+          </div>
+          ${sectionsHtml}
+        </div>
+      `;
+
+      /* Copier */
+      el.querySelectorAll('.btn-copy-prompt').forEach(btn => {
+        btn.addEventListener('click', () => {
+          navigator.clipboard.writeText(btn.dataset.texte).then(() => {
+            const orig = btn.textContent;
+            btn.textContent = '✓ Copié !';
+            setTimeout(() => { btn.textContent = orig; }, 1500);
+          });
+        });
+      });
+
+      /* Utiliser dans le chat */
+      el.querySelectorAll('.btn-use-prompt').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _selectAgent(btn.dataset.agentid);
+          _pendingPrompt = btn.dataset.texte;
+          openView('chat');
+        });
+      });
+    }
+
+    /* Sidebar agents */
+    const agentsAvecPrompts = AGENTS_LIST.filter(a => AGENTS_PROMPTS[a.id]);
+    const sidebarHtml = agentsAvecPrompts.map(a => `
+      <button class="prompt-agent-btn${a.id === _promptAgent.id ? ' active' : ''}"
+        data-agentid="${a.id}" style="--agent-color:${a.color}">
+        <span class="prompt-agent-icon">${a.icon}</span>
+        <div class="prompt-agent-info">
+          <span class="prompt-agent-nom">${_esc(a.nom)}</span>
+          <span class="prompt-agent-count">${(AGENTS_PROMPTS[a.id]||[]).length} prompts</span>
+        </div>
+      </button>
+    `).join('');
+
+    el.innerHTML = `
+      <div class="prompts-layout">
+        <aside class="prompts-sidebar">
+          <div class="prompts-sidebar-title">Agents</div>
+          ${sidebarHtml}
+        </aside>
+        <div class="prompts-main"></div>
+      </div>
+    `;
+
+    /* Sélection agent dans sidebar */
+    el.querySelectorAll('.prompt-agent-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _promptAgent = AGENTS_LIST.find(a => a.id === btn.dataset.agentid) || _promptAgent;
+        el.querySelectorAll('.prompt-agent-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _buildPromptView();
+      });
+    });
+
+    _buildPromptView();
+  }
+
+  /* ================================================================
+     VUE 4 — APPRENTISSAGES : compétences apprises par agent
+     ================================================================ */
+  function _renderApprentissages(el) {
+    const agentsAvecApprentissages = AGENTS_LIST.filter(a => a.apprentissages && a.apprentissages.length);
+    const agentsAvecCompetences    = AGENTS_LIST.filter(a => a.competences && a.competences.length);
+
+    /* ── Tableau synthèse compétences ── */
+    const rowsComp = agentsAvecCompetences.map(a => `
+      <tr>
+        <td style="white-space:nowrap">
+          <span style="margin-right:6px">${a.icon}</span>
+          <strong>${_esc(a.nom)}</strong>
+        </td>
+        <td>
+          <div class="agent-competences" style="flex-wrap:wrap;gap:4px">
+            ${(a.competences || []).map(c =>
+              `<span class="agent-competence-pill${c.endsWith('★') ? ' agent-competence-new' : ''}">${_esc(c)}</span>`
+            ).join('')}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    /* ── Fiches apprentissages détaillées ── */
+    const ficheHtml = agentsAvecApprentissages.length === 0
+      ? `<p style="color:var(--text-muted);padding:var(--space-4)">Aucun apprentissage enregistré pour le moment.</p>`
+      : agentsAvecApprentissages.map(a => `
+          <div class="apprentissage-agent-card">
+            <div class="apprentissage-agent-header" style="--agent-color:${a.color}">
+              <span style="font-size:1.5rem">${a.icon}</span>
+              <div>
+                <div style="font-weight:600;color:var(--text-base)">${_esc(a.nom)}</div>
+                <div style="font-size:12px;color:var(--text-muted)">${_esc(a.role)}</div>
+              </div>
+              <span class="badge badge-success" style="margin-left:auto">${a.apprentissages.length} apprentissage${a.apprentissages.length > 1 ? 's' : ''}</span>
+            </div>
+            ${a.apprentissages.map((ap, i) => `
+              <div class="apprentissage-item">
+                <div class="apprentissage-meta">
+                  <span class="apprentissage-index">#${i + 1}</span>
+                  <strong class="apprentissage-titre">${_esc(ap.titre)}</strong>
+                  <span class="apprentissage-date">📅 ${_esc(ap.date)}</span>
+                </div>
+                <p class="apprentissage-desc">${_esc(ap.description)}</p>
+                ${ap.outils && ap.outils.length ? `
+                  <div class="apprentissage-outils">
+                    <span style="font-size:11px;color:var(--text-muted);margin-right:6px">Outils :</span>
+                    ${ap.outils.map(o => `<code class="apprentissage-outil-tag">${_esc(o)}</code>`).join('')}
+                  </div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+
+    el.innerHTML = `
+      <div class="agents-dashboard">
+        <div class="agents-header">
+          <div>
+            <h2 class="agents-title">🧠 Apprentissages Agents IA</h2>
+            <p class="agents-subtitle">Compétences intégrées et connaissances acquises par les agents HCS</p>
+          </div>
+        </div>
+
+        <!-- Tableau synthèse compétences -->
+        <div class="card" style="margin-bottom:var(--space-6)">
+          <div style="padding:var(--space-4);border-bottom:1px solid var(--border)">
+            <h3 style="margin:0;font-size:var(--text-base)">🗂 Compétences par agent</h3>
+            <p style="margin:4px 0 0;font-size:12px;color:var(--text-muted)">★ = compétence nouvellement apprise</p>
+          </div>
+          <div class="table-wrap" style="overflow-x:auto">
+            <table class="table" style="min-width:500px">
+              <thead><tr><th style="width:180px">Agent</th><th>Compétences</th></tr></thead>
+              <tbody>${rowsComp}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Fiches apprentissages -->
+        <div>
+          <h3 style="margin:0 0 var(--space-4);font-size:var(--text-base)">📖 Détail des apprentissages</h3>
+          <div class="apprentissages-grid">
+            ${ficheHtml}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   /* ================================================================

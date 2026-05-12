@@ -269,6 +269,10 @@
                 Télécharger PNG
               </button>
             </div>
+            <button class="rounded-lg text-xs" style="width:100%;margin-top:8px;padding:8px 6px;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.4);color:#a78bfa;cursor:pointer;font-family:inherit;font-weight:600;" onclick="envoyerSelectionVersMockupForge()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Envoyer vers MockupForge v12 — Banque / Logos Clients
+            </button>
           </div>
         </div>
       </div>
@@ -1236,6 +1240,24 @@ async function envoyerMockupForge() {
     await PicWishDB.put(entry);
     ajouterLog(`MockupForge : image envoyée → dossier "${client}"`, 'success');
     afficherToast(`✓ Envoyé dans MockupForge — dossier "${client}"`, 'success', 5000);
+  } catch(e) {
+    ajouterLog('MockupForge erreur : ' + e.message, 'error');
+    afficherToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+async function envoyerSelectionVersMockupForge() {
+  const curr = selState.historique[selState.historique.length - 1];
+  if (!curr) { afficherToast('Aucune image détourée disponible.', 'error'); return; }
+  const client = (state.nomClient || 'Clients').trim();
+  const nom    = (state.nomClient || 'selection').replace(/\s+/g, '_');
+  const entry  = { id: Date.now().toString(36), name: nom + '_detourage', src: curr, client, date: new Date().toLocaleDateString('fr-FR') };
+  try {
+    await PicWishDB.put(entry);
+    localStorage.setItem('mfw_client_name', client);
+    ajouterLog(`MockupForge v12 : image envoyée → Banque / Logos Clients "${client}"`, 'success');
+    afficherToast(`✓ Envoyé dans MockupForge v12 — Logos Clients`, 'success', 5000);
+    setTimeout(() => window.open('../apps/mockup-forge-v12.html', '_blank'), 700);
   } catch(e) {
     ajouterLog('MockupForge erreur : ' + e.message, 'error');
     afficherToast('Erreur : ' + e.message, 'error');

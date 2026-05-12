@@ -214,36 +214,36 @@ const Accounting = (() => {
         { key: 'date',      label: 'Date',      type: 'date',  sortable: true },
         {
           key: 'reference', label: 'Référence', type: 'text',
-          render: (r) => `<span style="font-family:var(--font-mono);font-size:12px;">
-            ${_escA(r.reference || '—')}</span>`
+          render: (val) => `<span style="font-family:var(--font-mono);font-size:12px;">
+            ${_escA(val || '—')}</span>`
         },
         { key: 'libelle',   label: 'Libellé',   type: 'text'  },
         {
           key: 'compte', label: 'Compte', type: 'text',
-          render: (r) => {
-            const c = _findCompte(r.compte);
+          render: (val) => {
+            const c = _findCompte(val);
             return `
               <div>
                 <span style="font-family:var(--font-mono);font-size:12px;
-                  color:var(--accent-blue);">${_escA(r.compte || '—')}</span>
+                  color:var(--accent-blue);">${_escA(val || '—')}</span>
                 ${c ? `<div style="font-size:11px;color:var(--text-muted);">${_escA(c.libelle)}</div>` : ''}
               </div>`;
           }
         },
         {
           key: 'type', label: 'Catégorie', type: 'badge', badgeMap: TYPE_BADGE,
-          render: (r) => _typeLabel(r.type)
+          render: (val) => _typeLabel(val)
         },
         {
           key: 'debit', label: 'Débit', type: 'money',
-          render: (r) => r.debit
-            ? `<span style="font-family:var(--font-mono);color:var(--accent-red);">${fmt(Math.round(r.debit))}</span>`
+          render: (val) => val
+            ? `<span style="font-family:var(--font-mono);color:var(--accent-red);">${fmt(Math.round(val))}</span>`
             : '<span style="color:var(--text-muted);">—</span>'
         },
         {
           key: 'credit', label: 'Crédit', type: 'money',
-          render: (r) => r.credit
-            ? `<span style="font-family:var(--font-mono);color:var(--accent-green);">${fmt(Math.round(r.credit))}</span>`
+          render: (val) => val
+            ? `<span style="font-family:var(--font-mono);color:var(--accent-green);">${fmt(Math.round(val))}</span>`
             : '<span style="color:var(--text-muted);">—</span>'
         },
         {
@@ -381,29 +381,29 @@ const Accounting = (() => {
       columns: [
         {
           key: 'numero', label: 'N° Compte', type: 'text',
-          render: (r) => `<span style="font-family:var(--font-mono);font-weight:600;
-            color:var(--accent-blue);">${r.numero}</span>`
+          render: (val) => `<span style="font-family:var(--font-mono);font-weight:600;
+            color:var(--accent-blue);">${val}</span>`
         },
         { key: 'libelle', label: 'Libellé',     type: 'text', sortable: true },
         { key: 'type',    label: 'Type',         type: 'badge', badgeMap: TYPE_COLORS },
         {
           key: 'totalDebit', label: 'Mvts Débit', type: 'money',
-          render: (r) => r.totalDebit
-            ? `<span style="font-family:var(--font-mono);color:var(--accent-red);">${fmt(Math.round(r.totalDebit))}</span>`
+          render: (val) => val
+            ? `<span style="font-family:var(--font-mono);color:var(--accent-red);">${fmt(Math.round(val))}</span>`
             : '<span style="color:var(--text-muted);">—</span>'
         },
         {
           key: 'totalCredit', label: 'Mvts Crédit', type: 'money',
-          render: (r) => r.totalCredit
-            ? `<span style="font-family:var(--font-mono);color:var(--accent-green);">${fmt(Math.round(r.totalCredit))}</span>`
+          render: (val) => val
+            ? `<span style="font-family:var(--font-mono);color:var(--accent-green);">${fmt(Math.round(val))}</span>`
             : '<span style="color:var(--text-muted);">—</span>'
         },
         {
           key: 'solde', label: 'Solde', type: 'money', sortable: true,
-          render: (r) => {
-            const abs   = Math.abs(r.solde);
-            const color = r.solde >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-            const sens  = r.solde >= 0 ? '(D)' : '(C)';
+          render: (val) => {
+            const abs   = Math.abs(val);
+            const color = val >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+            const sens  = val >= 0 ? '(D)' : '(C)';
             return abs > 0
               ? `<span style="font-family:var(--font-mono);font-weight:700;color:${color};">${fmt(Math.round(abs))} ${sens}</span>`
               : '<span style="color:var(--text-muted);">—</span>';
@@ -658,35 +658,35 @@ const Accounting = (() => {
       columns: [
         {
           key: 'numero', label: 'Compte', type: 'text',
-          render: (r) => `<span style="font-family:var(--font-mono);font-weight:600;
-            color:var(--accent-blue);">${r.numero}</span>`
+          render: (val) => `<span style="font-family:var(--font-mono);font-weight:600;
+            color:var(--accent-blue);">${val}</span>`
         },
         { key: 'libelle',     label: 'Libellé',      type: 'text' },
         { key: 'type',        label: 'Type',          type: 'badge', badgeMap: TYPE_COLORS },
         {
           key: 'totalDebit',  label: 'Total Débit',   type: 'money',
-          render: (r) => r.totalDebit
-            ? `<span style="font-family:var(--font-mono);">${fmt(Math.round(r.totalDebit))}</span>`
+          render: (val) => val
+            ? `<span style="font-family:var(--font-mono);">${fmt(Math.round(val))}</span>`
             : '—'
         },
         {
           key: 'totalCredit', label: 'Total Crédit',  type: 'money',
-          render: (r) => r.totalCredit
-            ? `<span style="font-family:var(--font-mono);">${fmt(Math.round(r.totalCredit))}</span>`
+          render: (val) => val
+            ? `<span style="font-family:var(--font-mono);">${fmt(Math.round(val))}</span>`
             : '—'
         },
         {
           key: 'soldeD', label: 'Solde Déb.', type: 'money',
-          render: (r) => r.soldeD > 0
+          render: (val) => val > 0
             ? `<span style="font-family:var(--font-mono);font-weight:700;
-                color:var(--accent-orange);">${fmt(Math.round(r.soldeD))}</span>`
+                color:var(--accent-orange);">${fmt(Math.round(val))}</span>`
             : '—'
         },
         {
           key: 'soldeC', label: 'Solde Créd.', type: 'money',
-          render: (r) => r.soldeC > 0
+          render: (val) => val > 0
             ? `<span style="font-family:var(--font-mono);font-weight:700;
-                color:var(--accent-blue);">${fmt(Math.round(r.soldeC))}</span>`
+                color:var(--accent-blue);">${fmt(Math.round(val))}</span>`
             : '—'
         }
       ],

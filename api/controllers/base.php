@@ -123,6 +123,12 @@ class BaseController {
             $newId = $row['last_id'] ?? 0;
         }
 
+        /* Si toujours 0 : ON DUPLICATE KEY UPDATE sans changement réel → renvoyer les données
+           sans tenter getOne(0) qui échouerait avec 404 */
+        if (!$newId || (int)$newId === 0) {
+            return $data + ['_upserted' => true];
+        }
+
         return $this->getOne($newId);
     }
 

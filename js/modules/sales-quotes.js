@@ -655,6 +655,12 @@ window.SalesQuotes = (() => {
         btns.push(`<button class="btn btn-primary btn-sm" data-q-action="convertir">📦 → Commande</button>`);
       }
     }
+    if (['Confirmé'].includes(statut) || factureLiee) {
+      btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="recreer-planning"
+        title="Recréer / mettre à jour la carte dans le planning de production" style="color:var(--accent-orange,#FF6B00);">
+        ♻️ Planning</button>`);
+    }
+    btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="analyser-marges" title="Analyser les marges de ce devis">⬡ Marges</button>`);
     btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="supprimer" style="color:var(--accent-red);margin-left:8px;" title="Supprimer ce devis">🗑 Supprimer</button>`);
     return btns.join('');
   }
@@ -838,6 +844,23 @@ window.SalesQuotes = (() => {
         if (action === 'voir-commande') {
           const cmdId = btn.dataset.linkedId;
           if (cmdId) { C()._goForm('orders', cmdId, toolbar, area); }
+          return;
+        }
+
+        if (action === 'analyser-marges') {
+          const target = window.location.pathname.includes('/apps/') ? 'devis-analyser.html' : 'apps/devis-analyser.html';
+          window.open(`${target}?id=${encodeURIComponent(doc.id)}`, '_blank');
+          return;
+        }
+
+        if (action === 'recreer-planning') {
+          const docActuel = Store.getById('devis', doc.id) || doc;
+          showConfirm(
+            `Recréer la carte planning pour "${docActuel.ref}" ?\nSi une carte existe déjà elle sera mise à jour.`,
+            () => {
+              C()._pushPlanningCard(docActuel, docActuel.ref);
+            }
+          );
           return;
         }
 

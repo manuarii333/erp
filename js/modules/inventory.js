@@ -131,13 +131,19 @@ const Inventory = (() => {
       const btn = toolbar.querySelector('#btn-sync-mysql');
       btn.disabled = true;
       btn.textContent = '⏳ Sync…';
+      const total = (Store.getAll('produits') || []).length;
+      if (window.SyncProgress) window.SyncProgress.show(total);
       try {
-        const r = await Store.syncAllToMySQL('produits');
+        const r = await Store.syncAllToMySQL('produits', function(p) {
+          if (window.SyncProgress) window.SyncProgress.update(p);
+        });
+        if (window.SyncProgress) window.SyncProgress.hide();
         const msg = `☁ Sync terminée — ${r.created} créé(s), ${r.updated} mis à jour` +
           (r.errors.length ? ` (${r.errors.length} erreur(s))` : '');
         if (typeof showToast === 'function') showToast(msg, r.errors.length ? 'warning' : 'success');
         else alert(msg);
       } catch (e) {
+        if (window.SyncProgress) window.SyncProgress.hide();
         if (typeof showToast === 'function') showToast('Erreur sync MySQL : ' + e.message, 'error');
       } finally {
         btn.disabled = false;
@@ -2584,6 +2590,25 @@ const Inventory = (() => {
       dynKeys = allKeys.filter(k => attrVals[k].length > 0);
     }
 
+    /* Compléter avec les attrs standards (taille/couleur/coupe) si présents dans les variantes
+       mais absents du picker — cas TUC : taille dans variantes mais pas dans customAttrs */
+    ['taille', 'couleur', 'coupe'].forEach(std => {
+      if (dynKeys.some(k => k.toLowerCase() === std)) return;
+      let vals;
+      if (std === 'taille') {
+        const fromField = (produit.tailles || '').split(',').map(s => s.trim()).filter(Boolean);
+        vals = fromField.length
+          ? fromField
+          : [...new Set(variantes.map(v => v.taille).filter(Boolean))];
+      } else {
+        vals = [...new Set(variantes.map(v => v[std]).filter(Boolean))];
+      }
+      if (vals.length > 0) {
+        dynKeys = [std, ...dynKeys]; // attrs standards en premier
+        attrVals[std] = vals;
+      }
+    });
+
     /* Icône par attribut */
     const attrIcon = k => {
       const kl = k.toLowerCase();
@@ -3135,9 +3160,44 @@ const Inventory = (() => {
   }
 
   /* ================================================================
+     SORTIE STOCK — appelable depuis d'autres modules (ex: sales.js)
+     ================================================================ */
+
+  /**
+   * Décrémente le stock d'un produit et enregistre le mouvement.
+   * Utilisé à la confirmation d'un devis pour sortir les articles vendus.
+   * @param {string} produitId  - ID du produit dans le Store
+   * @param {number} qte        - Quantité à sortir
+   * @param {string} motif      - Libellé du mouvement
+   * @param {string} reference  - Référence du document source (ex: DEV-2026-001)
+   * @returns {boolean} true si le stock a été mis à jour
+   */
+  function sortieStock(produitId, qte, motif, reference) {
+    const produit = Store.getOne('produits', produitId);
+    if (!produit) return false;
+    qte = Math.max(0, parseFloat(qte) || 0);
+    if (qte === 0) return false;
+
+    const newStock = Math.max(0, (produit.stock || 0) - qte);
+    Store.update('produits', produitId, { stock: newStock });
+
+    Store.create('mouvements', {
+      date:       new Date().toISOString().slice(0, 10),
+      produitId:  produit.id,
+      produitNom: produit.nom,
+      type:       'Sortie',
+      quantite:   qte,
+      motif:      motif || 'Vente',
+      reference:  reference || ''
+    });
+
+    return true;
+  }
+
+  /* ================================================================
      API PUBLIQUE
      ================================================================ */
-  return { init, showVariantePicker };
+  return { init, showVariantePicker, sortieStock };
 
 })();
 

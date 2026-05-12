@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Andromeda Campaign Builder — HCS</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>🚀</text></svg>">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
 <style>
 :root {
   --bg-primary: #0f0f1a;
@@ -892,6 +894,10 @@ function buildSidebar() {
   <div class="sidebar-action" id="nav-lps" onclick="showLPs()">
     <div class="sa-icon" style="background:linear-gradient(135deg,#43e97b,#38f9d7)">🌐</div>
     <div><div class="sa-label">LPs publiées</div><div class="item-tag">Pages en ligne</div></div>
+  </div>
+  <div class="sidebar-action" id="nav-loyalty" onclick="showLoyalty()">
+    <div class="sa-icon" style="background:linear-gradient(135deg,#f6d365,#fda085)">⭐</div>
+    <div><div class="sa-label">Fidélité</div><div class="item-tag">Points · Tiers clients</div></div>
   </div>`;
 }
 
@@ -983,13 +989,13 @@ function render(id) {
         <div class="ep-section">
           <div class="ep-label">Texte de la publicité</div>
           <div class="frow"><label class="flabel">Titre principal</label>
-            <input class="finput" value="${c.headline}" oninput="upd('hl-${id}',this.value)"></div>
+            <input class="finput" value="${c.headline}" oninput="CAMPS[${id}].headline=this.value; upd('hl-${id}',this.value); debounceSaveCamps(${id})"></div>
           <div class="frow"><label class="flabel">Sous-titre</label>
-            <input class="finput" value="${c.subline}" oninput="upd('sl-${id}',this.value)"></div>
+            <input class="finput" value="${c.subline}" oninput="CAMPS[${id}].subline=this.value; upd('sl-${id}',this.value); debounceSaveCamps(${id})"></div>
           <div class="frow"><label class="flabel">Badge promo</label>
-            <input class="finput" value="${c.badge}" oninput="upd('bd-${id}',this.value)"></div>
+            <input class="finput" value="${c.badge}" oninput="CAMPS[${id}].badge=this.value; upd('bd-${id}',this.value); debounceSaveCamps(${id})"></div>
           <div class="frow"><label class="flabel">Texte bouton CTA</label>
-            <input class="finput" value="${c.cta}" oninput="upd('ct-${id}',this.value)"></div>
+            <input class="finput" value="${c.cta}" oninput="CAMPS[${id}].cta=this.value; upd('ct-${id}',this.value); debounceSaveCamps(${id})"></div>
         </div>
 
         <div class="ep-section">
@@ -1023,11 +1029,28 @@ function render(id) {
         <div class="ep-section">
           <div class="ep-label">Produits (3)</div>
           ${c.products.map((p,i)=>`
-            <div class="prod-row">
-              <span>${p.e}</span>
-              <input class="finput" style="flex:1" value="${p.n}" placeholder="Nom" oninput="CAMPS[${id}].products[${i}].n=this.value; const _n=document.querySelector('#lprod-${id}-${i} .lp-prod-name'); if(_n)_n.textContent=this.value; const _sn=document.getElementById('prod-sel-name-${id}'); if(_sn&&document.getElementById('lprod-${id}-${i}')?.classList.contains('selected'))_sn.textContent=this.value;">
-              <input class="finput" style="width:95px" value="${p.p}" placeholder="Prix" oninput="CAMPS[${id}].products[${i}].p=this.value; const _p=document.querySelector('#lprod-${id}-${i} .lp-prod-price'); if(_p)_p.textContent=this.value; const _sp=document.getElementById('prod-sel-price-${id}'); if(_sp&&document.getElementById('lprod-${id}-${i}')?.classList.contains('selected'))_sp.textContent=this.value;">
-              <button onclick="addToCart(${id},${i})" style="background:linear-gradient(135deg,var(--accent),var(--accent-2));border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.7rem;font-weight:700;flex-shrink:0;white-space:nowrap" title="Ajouter au panier">🛒 +</button>
+            <div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+              <div class="prod-row" style="margin-bottom:6px">
+                <span>${p.e}</span>
+                <input class="finput" style="flex:1" value="${p.n}" placeholder="Nom" oninput="CAMPS[${id}].products[${i}].n=this.value; const _n=document.querySelector('#lprod-${id}-${i} .lp-prod-name'); if(_n)_n.textContent=this.value; const _sn=document.getElementById('prod-sel-name-${id}'); if(_sn&&document.getElementById('lprod-${id}-${i}')?.classList.contains('selected'))_sn.textContent=this.value;">
+                <input class="finput" style="width:90px" value="${p.p}" placeholder="Prix" oninput="CAMPS[${id}].products[${i}].p=this.value; const _p=document.querySelector('#lprod-${id}-${i} .lp-prod-price'); if(_p)_p.textContent=this.value; const _sp=document.getElementById('prod-sel-price-${id}'); if(_sp&&document.getElementById('lprod-${id}-${i}')?.classList.contains('selected'))_sp.textContent=this.value;">
+                <button onclick="addToCart(${id},${i})" style="background:linear-gradient(135deg,var(--accent),var(--accent-2));border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.7rem;font-weight:700;flex-shrink:0;white-space:nowrap" title="Ajouter au panier">🛒 +</button>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <input type="color" value="${p.couleurHex||'#ffffff'}" title="Couleur du produit"
+                  style="width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;padding:0"
+                  oninput="CAMPS[${id}].products[${i}].couleurHex=this.value">
+                <input class="finput" style="flex:1;font-size:0.72rem" value="${p.couleur||''}" placeholder="Couleur ex: Bleu nuit"
+                  oninput="CAMPS[${id}].products[${i}].couleur=this.value">
+                <select class="finput" style="flex:1;font-size:0.72rem" title="Logo DTF associé (étape 2 désactivée)"
+                  onchange="CAMPS[${id}].products[${i}].dtfLogoRef=this.value">
+                  <option value="" ${!p.dtfLogoRef?'selected':''}>🏷️ Logo DTF…</option>
+                  <option value="1" ${p.dtfLogoRef==='1'?'selected':''}>Logo DTF 1</option>
+                  <option value="2" ${p.dtfLogoRef==='2'?'selected':''}>Logo DTF 2</option>
+                  <option value="3" ${p.dtfLogoRef==='3'?'selected':''}>Logo DTF 3</option>
+                  <option value="none" ${p.dtfLogoRef==='none'?'selected':''}>Aucun (nu)</option>
+                </select>
+              </div>
             </div>
           `).join('')}
         </div>
@@ -1192,22 +1215,40 @@ function render(id) {
               ${c.products.map((p,i) => `
               <div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px">
                 <div style="font-size:0.72rem;font-weight:700;margin-bottom:8px">${p.e} ${p.n}</div>
-                <div style="display:flex;gap:8px">
+
+                <!-- Mockups par face -->
+                <div style="display:flex;gap:8px;margin-bottom:8px">
                   <label style="flex:1;cursor:pointer">
-                    <div style="font-size:0.6rem;color:var(--text-secondary);margin-bottom:4px">🔵 Avant</div>
+                    <div style="font-size:0.6rem;color:var(--text-secondary);margin-bottom:4px">🔵 Mockup Avant</div>
                     <div class="tsh-face-img-thumb" id="tsh-${id}-fi-front-${i}">
                       <span style="padding:4px;text-align:center">Utilise l'image LP</span>
                     </div>
                     <input type="file" accept="image/*" style="display:none" onchange="tshLoadFaceImg(event,${id},${i},'front')">
                   </label>
                   <label class="tsh-face-back-label" id="tsh-${id}-face-back-lbl-${i}" style="flex:1;cursor:pointer;opacity:0.4;pointer-events:none">
-                    <div style="font-size:0.6rem;color:var(--text-secondary);margin-bottom:4px">🔴 Dos</div>
+                    <div style="font-size:0.6rem;color:var(--text-secondary);margin-bottom:4px">🔴 Mockup Dos</div>
                     <div class="tsh-face-img-thumb" id="tsh-${id}-fi-back-${i}">
                       <span style="padding:4px;text-align:center">+ Ajouter image Dos</span>
                     </div>
                     <input type="file" accept="image/*" style="display:none" onchange="tshLoadFaceImg(event,${id},${i},'back')">
                   </label>
                 </div>
+
+                <!-- Logos DTF prédéfinis (étape 2 désactivée = produit déjà imprimé) -->
+                <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:8px;margin-top:2px">
+                  <div style="font-size:0.6rem;color:#f6d365;font-weight:700;margin-bottom:6px">🏷️ Logos DTF prédéfinis <span style="font-weight:400;color:#9090b0">(si étape 2 désactivée)</span></div>
+                  <div style="display:flex;gap:6px">
+                    ${[1,2,3].map(n => `
+                    <label style="flex:1;cursor:pointer;text-align:center">
+                      <div style="font-size:0.58rem;color:#9090b0;margin-bottom:3px">Logo ${n}</div>
+                      <div class="tsh-face-img-thumb" id="tsh-${id}-dtf-${i}-${n}" style="aspect-ratio:1;background:rgba(246,211,101,.06);border-color:rgba(246,211,101,.2)">
+                        <span style="padding:2px;font-size:0.6rem;color:#9090b0">+ DTF</span>
+                      </div>
+                      <input type="file" accept="image/*" style="display:none" onchange="tshLoadDtfLogo(event,${id},${i},${n})">
+                    </label>`).join('')}
+                  </div>
+                </div>
+
               </div>`).join('')}
             </div>
           </div>
@@ -1699,9 +1740,9 @@ function render(id) {
         <div class="ep-section">
           <div class="ep-label">Lien & URL</div>
           <div class="frow"><label class="flabel">Domaine</label>
-            <input class="finput" value="${c.domain}" oninput="upd('dm-${id}',this.value)"></div>
+            <input class="finput" value="${c.domain}" oninput="CAMPS[${id}].domain=this.value; upd('dm-${id}',this.value); debounceSaveCamps(${id})"></div>
           <div class="frow"><label class="flabel">Titre du lien</label>
-            <input class="finput" value="${c.linktitle}" oninput="upd('lt-${id}',this.value)"></div>
+            <input class="finput" value="${c.linktitle}" oninput="CAMPS[${id}].linktitle=this.value; upd('lt-${id}',this.value); debounceSaveCamps(${id})"></div>
           <div class="frow"><label class="flabel">URL de destination</label>
             <input class="finput" placeholder="https://hcs-tahiti.com/..." id="url-${id}"></div>
         </div>
@@ -2204,9 +2245,10 @@ function showPublishProgress(step, total, label) {
           <div id="pprog-bar" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#c4813a,#e09a4f,#43e97b);background-size:200% 100%;transition:width .45s cubic-bezier(.4,0,.2,1);width:0%"></div>
         </div>
         <div style="display:flex;justify-content:space-between;padding:0 2px">
-          <span id="pprog-s1" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">📄 HTML</span>
-          <span id="pprog-s2" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">☁️ Upload</span>
-          <span id="pprog-s3" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">🖼️ Vignette</span>
+          <span id="pprog-s1" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">🖼️ Images</span>
+          <span id="pprog-s2" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">📄 HTML</span>
+          <span id="pprog-s3" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">☁️ Upload</span>
+          <span id="pprog-s4" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">🎨 Vignette</span>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -2215,7 +2257,7 @@ function showPublishProgress(step, total, label) {
   document.getElementById('pprog-bar').style.width = pct + '%';
   document.getElementById('pprog-label').textContent = label;
   document.getElementById('pprog-step').textContent = `Étape ${step} / ${total}`;
-  [1,2,3].forEach(n => {
+  [1,2,3,4].forEach(n => {
     const el = document.getElementById('pprog-s'+n);
     if (!el) return;
     el.style.color = n <= step ? '#c4813a' : 'rgba(255,255,255,.25)';
@@ -2228,6 +2270,62 @@ function hidePublishProgress() {
   if (modal) { modal.style.opacity = '0'; modal.style.transition = 'opacity .25s'; setTimeout(() => modal.remove(), 260); }
 }
 
+async function _uploadImgToWorker(slug, dataUrl) {
+  if (!dataUrl || !dataUrl.startsWith('data:')) return null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const res = await fetch(`${WORKER_BASE}/admin/thumb`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': adminSecret },
+        body: JSON.stringify({ slug, dataUrl }),
+        signal: ctrl.signal,
+      });
+      return res.ok ? `${WORKER_BASE}/thumb/${slug}` : null;
+    } finally { clearTimeout(t); }
+  } catch(_) { return null; }
+}
+
+async function _uploadCampaignImages(id, lpSlug, onProgress) {
+  const c = CAMPS[id];
+  const urls = {};
+
+  if (id === 1 || id === 2) {
+    const total = c.products.length * 2;
+    let done = 0;
+    for (let pi = 0; pi < c.products.length; pi++) {
+      const front = tshGetFaceImg(id, pi, 'front') || '';
+      const back  = tshGetFaceImg(id, pi, 'back') || front;
+      const fUrl  = await _uploadImgToWorker(`${lpSlug}-${pi}-f`, front);
+      if (fUrl) urls[`${pi}-f`] = fUrl;
+      done++; onProgress && onProgress(done, total);
+      const bUrl = (back && back !== front)
+        ? await _uploadImgToWorker(`${lpSlug}-${pi}-b`, back)
+        : fUrl;
+      if (bUrl) urls[`${pi}-b`] = bUrl;
+      done++; onProgress && onProgress(done, total);
+    }
+  }
+
+  if (id === 3) {
+    const faceImgs = tshFaceImages[id] || {};
+    const piKeys  = Object.keys(faceImgs);
+    let done = 0, total = 0;
+    piKeys.forEach(pi => { total += Object.keys(faceImgs[pi] || {}).length; });
+    for (const pi of piKeys) {
+      if (!urls[pi]) urls[pi] = {};
+      for (const face of Object.keys(faceImgs[pi] || {})) {
+        const u = await _uploadImgToWorker(`${lpSlug}-${pi}-${face}`, faceImgs[pi][face]);
+        if (u) urls[pi][face] = u;
+        done++; onProgress && onProgress(done, total);
+      }
+    }
+  }
+
+  return urls;
+}
+
 async function publishLP(id) {
   if (!adminSecret) {
     showToast('🔐 Connecte-toi en admin pour publier (section Commandes)', true);
@@ -2235,14 +2333,24 @@ async function publishLP(id) {
   }
   const c = CAMPS[id];
 
-  /* Étape 1 — Génération HTML */
-  showPublishProgress(1, 3, '📄 Génération du HTML…');
+  const lpSlug = `${c.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${id}`;
+
+  /* Étape 1 — Upload images produits */
+  showPublishProgress(1, 4, '🖼️ Upload des images produits…');
+  window._img_url_map = await _uploadCampaignImages(id, lpSlug, (done, total) => {
+    const lbl = document.getElementById('pprog-label');
+    if (lbl) lbl.textContent = `🖼️ Image ${done}/${total}…`;
+  });
+
+  /* Étape 2 — Génération HTML */
+  showPublishProgress(2, 4, '📄 Génération du HTML…');
 
   let generatedHtml = null;
   const _orig = window._dl_override;
   window._dl_override = (name, content) => { generatedHtml = content; };
   exportLP(id);
   window._dl_override = _orig;
+  window._img_url_map = null;
 
   if (!generatedHtml) {
     hidePublishProgress();
@@ -2250,14 +2358,14 @@ async function publishLP(id) {
     return;
   }
 
-  /* Étape 2 — Upload Worker */
-  showPublishProgress(2, 3, '☁️ Upload vers Cloudflare…');
+  /* Étape 3 — Upload Worker */
+  showPublishProgress(3, 4, '☁️ Upload vers Cloudflare…');
 
-  const slug = `${c.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${id}`;
+  const slug = lpSlug;
 
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
+    const timer = setTimeout(() => ctrl.abort(), 90000); // 90s — HTML ~516 Ko sur connexion Polynésie
     let res;
     try {
       res = await fetch(`${WORKER_BASE}/lp/publish`, {
@@ -2276,8 +2384,8 @@ async function publishLP(id) {
     urls[id] = data.url;
     localStorage.setItem('hcs_published_urls', JSON.stringify(urls));
 
-    /* Étape 3 — Vignette */
-    showPublishProgress(3, 3, '🖼️ Génération de la vignette…');
+    /* Étape 4 — Vignette */
+    showPublishProgress(4, 4, '🎨 Génération de la vignette…');
 
     try {
       const cv = document.getElementById('cv-' + id);
@@ -2357,6 +2465,68 @@ function previewLP(id) {
 // ═══════════════════════════════════════════════════════
 // EXPORT LP — T-SHIRT / CASQUETTE (parcours client complet)
 // ═══════════════════════════════════════════════════════
+/* ─────────────────────────────────────────────────────────────
+   Helpers LP partagés — génèrent des blocs CSS/JS en string
+   pour éviter la duplication entre exportLPTshirt et exportLPGeneric
+   ───────────────────────────────────────────────────────────── */
+
+// CSS commun : boutons nav, états paiement, formulaire OSB Krypton
+function _lpPayCss(primary) {
+  return `.btn-next{flex:1;padding:12px;background:linear-gradient(135deg,${primary},#ff6584);color:white;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;transition:opacity .2s}
+.btn-next:hover{opacity:.9}
+.btn-prev{padding:12px 16px;background:#1e1e3a;border:1px solid #2a2a4a;color:#9090b0;border-radius:8px;font-size:.85rem;cursor:pointer}
+.btn-prev:hover{border-color:${primary};color:${primary}}
+.pz-loading{text-align:center;color:#9090b0;font-size:.85rem;padding:24px}
+.pz-error{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.3);border-radius:8px;padding:12px;color:#ff6b6b;font-size:.8rem;margin-top:10px;display:none}
+.pz-ok{background:rgba(67,233,123,.12);border:1px solid rgba(67,233,123,.3);border-radius:12px;padding:28px;text-align:center;color:#43e97b;display:none}
+.pz-ok h3{font-size:1.2rem;margin-bottom:8px}
+.pz-ok p{font-size:.82rem;color:#9090b0;line-height:1.6}
+.kr-embedded{background:#fff!important;border-radius:14px!important;padding:16px 14px!important;margin-top:4px!important;box-shadow:0 2px 16px rgba(0,0,0,.18)!important}
+.kr-embedded .kr-field{margin-bottom:12px!important}
+.kr-embedded .kr-label{color:#333!important;font-size:.75rem!important;font-weight:600!important;margin-bottom:4px!important;display:block!important}
+.kr-embedded .kr-field-element{background:#f8f9fa!important;border:1.5px solid #dee2e6!important;border-radius:8px!important;padding:10px 12px!important;color:#1a1a1a!important;font-size:.9rem!important;width:100%!important;box-sizing:border-box!important}
+.kr-embedded .kr-field-element:focus,.kr-embedded .kr-field-element.kr-focus{border-color:${primary}!important;box-shadow:0 0 0 3px ${primary}22!important;outline:none!important}
+.kr-embedded .kr-field-element.kr-error{border-color:#dc3545!important}
+.kr-embedded .kr-error-message{color:#dc3545!important;font-size:.72rem!important;margin-top:3px!important}
+.kr-embedded .kr-payment-button{background:linear-gradient(135deg,${primary},#ff6584)!important;border-radius:10px!important;font-weight:800!important;font-size:.9rem!important;padding:13px!important;width:100%!important;border:none!important;color:#fff!important;cursor:pointer!important;margin-top:4px!important;letter-spacing:.5px!important;box-shadow:0 4px 16px ${primary}55!important}
+.kr-embedded .kr-payment-button:hover{opacity:.92!important;transform:translateY(-1px)!important}
+.kr-embedded .kr-form-error{background:#fff5f5!important;border:1px solid #ffc9c9!important;border-radius:8px!important;padding:10px 12px!important;color:#c92a2a!important;font-size:.78rem!important;margin-top:8px!important}`;
+}
+
+// JS : fonction normalizePhone (normalise numéros Polynésie/international)
+function _normalizePhoneBlock() {
+  return `function normalizePhone(raw){if(!raw)return'';let p=raw.replace(/[-\\s.]/g,'');if(p.startsWith('+'))return p;if(p.startsWith('00'))return'+'+p.slice(2);if(/^\\d{8}$/.test(p))return'+689'+p;return'+689'+p;}`;
+}
+
+// Bande logos cartes acceptées — injectée en HTML dans les LPs
+function _paymentBadgesHtml() {
+  return `<div style="display:flex;gap:5px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap">
+  <span style="font-size:.62rem;color:#9090b0;margin-right:2px">Accepté&nbsp;:</span>
+  <!-- VISA -->
+  <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:24px;background:#1A1F71;border-radius:4px;font-size:9px;font-weight:900;color:#fff;letter-spacing:1.5px;font-family:Arial,sans-serif">VISA</span>
+  <!-- Mastercard -->
+  <span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:24px;border-radius:4px;background:#1a1a2e;overflow:hidden"><span style="position:absolute;left:5px;width:16px;height:16px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:5px;width:16px;height:16px;background:#F79E1B;border-radius:50%;opacity:.92"></span></span>
+  <!-- CB Carte Bleue -->
+  <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:24px;background:#005EB8;border-radius:4px;font-size:10px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span>
+  <!-- Socredo -->
+  <span style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:24px;background:#00693E;border-radius:4px;font-size:7.5px;font-weight:900;color:#fff;letter-spacing:.5px;font-family:Arial,sans-serif">SOCREDO</span>
+  <!-- Banque de Polynésie (SG) -->
+  <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:#E40613;border-radius:4px;font-size:7px;font-weight:900;color:#fff;letter-spacing:.3px;font-family:Arial,sans-serif;flex-direction:column;line-height:1.1"><span>SG</span><span style="font-size:5.5px;opacity:.85">PF</span></span>
+  <!-- Banque de Tahiti -->
+  <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:#0057A8;border-radius:4px;font-size:7px;font-weight:900;color:#fff;letter-spacing:.3px;font-family:Arial,sans-serif;flex-direction:column;line-height:1.1"><span>BT</span></span>
+</div>`;
+}
+
+// JS : chargement SDK Krypton OSB + KR.setFormConfig/Token
+// pkVar   = nom de la variable JS contenant la clé publique dans le LP
+// tokenVar = nom de la variable JS contenant le formToken dans le LP
+function _krSdkBlock(pkVar, tokenVar) {
+  return `if(!document.getElementById('pz-css1')){var _c1=document.createElement('link');_c1.id='pz-css1';_c1.rel='stylesheet';_c1.href='https://static.osb.pf/static/js/krypton-client/V4.0/stable/classic-reset.min.css';document.head.appendChild(_c1);var _c2=document.createElement('link');_c2.id='pz-css2';_c2.rel='stylesheet';_c2.href='https://static.osb.pf/static/js/krypton-client/V4.0/stable/classic.min.css';document.head.appendChild(_c2);}
+if(!window.KR){await new Promise(function(resolve,reject){if(document.getElementById('pz-sdk')){resolve();return;}var _s=document.createElement('script');_s.id='pz-sdk';_s.src='https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';_s.setAttribute('kr-public-key',${pkVar});_s.setAttribute('kr-language','fr-FR');_s.onload=resolve;_s.onerror=function(){reject(new Error('SDK OSB indisponible'));};document.head.appendChild(_s);});}
+await KR.setFormConfig({'kr-public-key':${pkVar},'kr-language':'fr-FR'});
+await KR.setFormToken(${tokenVar});`;
+}
+
 function exportLPTshirt(id) {
   const c      = CAMPS[id];
   const isCap  = c.id === 2;
@@ -2390,13 +2560,14 @@ function exportLPTshirt(id) {
   const lbl3     = pcfg.labels[3] || 'Taille & Commander';
   const emoji    = isCap ? '🧢' : '👕';
 
-  // Images par face — injectées dans des <img> cachées (évite un énorme JSON dans le <script>)
+  // URL Worker si publish (gain ~90%), sinon base64 pour download local
+  const _iu = window._img_url_map || {};
   const faceImgHtml = c.products.map((_, pi) => {
-    const front = tshGetFaceImg(id, pi, 'front') || '';
-    const back  = tshGetFaceImg(id, pi, 'back') || front;
+    const front = _iu[`${pi}-f`] || tshGetFaceImg(id, pi, 'front') || '';
+    const back  = _iu[`${pi}-b`] || tshGetFaceImg(id, pi, 'back') || front;
     return `<img id="fi-${pi}-f" src="${front}"><img id="fi-${pi}-b" src="${back}">`;
   }).join('');
-  const prodsJson  = JSON.stringify(c.products.map(p => ({ e:p.e, n:p.n, p:p.p, price:parseInt(p.p.replace(/[^\d]/g,''))||0 })));
+  const prodsJson  = JSON.stringify(c.products.map(p => ({ e:p.e, n:p.n, p:p.p, price:parseInt(p.p.replace(/[^\d]/g,''))||0, couleur:p.couleur||'', couleurHex:p.couleurHex||'', dtfLogoRef:p.dtfLogoRef||'' })));
   const sizesJson  = JSON.stringify(sizes);
   const lpSlug     = `${c.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${id}`;
 
@@ -2513,19 +2684,7 @@ footer{text-align:center;padding:28px;color:rgba(255,255,255,.4);font-size:.82re
 .recap-row{display:flex;justify-content:space-between;font-size:.78rem;padding:4px 0;border-bottom:1px solid #2a2a4a22}
 .recap-row:last-child{border:none;padding-top:8px;margin-top:4px;border-top:1px solid #2a2a4a}
 .recap-row span:first-child{color:#9090b0}
-.btn-next{flex:1;padding:12px;background:linear-gradient(135deg,${primary},#ff6584);color:white;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;transition:opacity .2s}
-.btn-next:hover{opacity:.9}
-.btn-prev{padding:12px 16px;background:#1e1e3a;border:1px solid #2a2a4a;color:#9090b0;border-radius:8px;font-size:.85rem;cursor:pointer}
-.btn-prev:hover{border-color:${primary};color:${primary}}
-.pz-loading{text-align:center;color:#9090b0;font-size:.85rem;padding:24px}
-.pz-error{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.3);border-radius:8px;padding:12px;color:#ff6b6b;font-size:.8rem;margin-top:10px;display:none}
-.pz-ok{background:rgba(67,233,123,.12);border:1px solid rgba(67,233,123,.3);border-radius:12px;padding:28px;text-align:center;color:#43e97b;display:none}
-.kr-embedded{background:#fff!important;border-radius:14px!important;padding:16px 14px!important;margin-top:4px!important;box-shadow:0 2px 16px rgba(0,0,0,.18)!important}
-.kr-embedded .kr-field{margin-bottom:12px!important}
-.kr-embedded .kr-label{color:#333!important;font-size:.75rem!important;font-weight:600!important;margin-bottom:4px!important;display:block!important}
-.kr-embedded .kr-field-element{background:#f8f9fa!important;border:1.5px solid #dee2e6!important;border-radius:8px!important;padding:10px 12px!important;color:#1a1a1a!important;font-size:.9rem!important;width:100%!important;box-sizing:border-box!important}
-.kr-embedded .kr-field-element:focus,.kr-embedded .kr-field-element.kr-focus{border-color:${primary}!important;outline:none!important}
-.kr-embedded .kr-payment-button{background:linear-gradient(135deg,${primary},#ff6584)!important;border-radius:10px!important;font-weight:800!important;font-size:.9rem!important;padding:13px!important;width:100%!important;border:none!important;color:#fff!important;cursor:pointer!important;margin-top:4px!important}
+${_lpPayCss(primary)}
 </style></head>
 <body>
 
@@ -2543,7 +2702,7 @@ footer{text-align:center;padding:28px;color:rgba(255,255,255,.4);font-size:.82re
 <div class="section" id="produits">
   <div class="section-title">${lbl1}</div>
   <div class="prods" id="prods-grid">
-    ${c.products.map((p,i)=>{const fi=tshGetFaceImg(id,i,'front');const imgH=fi?`<img src="${fi}">`:`<span>${p.e}</span>`;return`<div class="prod" onclick="openFlow(${i})"><div class="prod-img">${imgH}</div><div class="prod-info"><div class="prod-name">${p.n}</div><div class="prod-price">${p.p}</div></div></div>`;}).join('')}
+    ${c.products.map((p,i)=>{const fi=tshGetFaceImg(id,i,'front');const imgH=fi?`<img src="${fi}">`:`<span>${p.e}</span>`;const couleurBadge=p.couleur?`<div style="display:inline-flex;align-items:center;gap:4px;font-size:.65rem;color:#9090b0;margin-top:3px">${p.couleurHex?`<span style="width:10px;height:10px;border-radius:50%;background:${p.couleurHex};border:1px solid rgba(255,255,255,.2);flex-shrink:0"></span>`:''}<span>${p.couleur}</span></div>`:'';return`<div class="prod" onclick="openFlow(${i})"><div class="prod-img">${imgH}</div><div class="prod-info"><div class="prod-name">${p.n}</div>${couleurBadge}<div class="prod-price">${p.p}</div></div></div>`;}).join('')}
   </div>
   <button class="btn-order-main" onclick="openFlow(0)">${emoji} Commander — Personnaliser mon logo</button>
 </div>
@@ -2598,6 +2757,7 @@ const WORKER_URL   = '${workerUrl}';
 const WORKER_SECRET= '${workerSecret}';
 const WORKER_MODE  = '${workerMode}';
 const ACCENT       = '${primary}';
+const SHIP_RATES   = {tahiti:1800,moorea:1500,huahine:2500,'bora-bora':2500,raiatea:2500,tahaa:2500,maupiti:3500,rangiroa:3000,makemo:4000,tubuai:4000,'hiva-oa':5000,'nuku-hiva':5000};
 const CAMP_NAME    = '${c.name.replace(/'/g,"\\'")}';
 const EMOJI        = '${emoji}';
 const PICWISH_URL  = 'https://hcs-proxy.highcoffeeshirt.workers.dev/api/picwish';
@@ -2908,14 +3068,7 @@ function ckRender() {
   else if (ckStep===2) ckDelivery1();
   else ckPayment();
 }
-function normalizePhone(raw) {
-  if (!raw) return '';
-  let p = raw.replace(/[-\\s.]/g, '');
-  if (p.startsWith('+')) return p;
-  if (p.startsWith('00')) return '+' + p.slice(2);
-  if (/^\\d{8}$/.test(p)) return '+689' + p;
-  return '+689' + p;
-}
+${_normalizePhoneBlock()}
 function ckContact1() {
   const s = ckContact;
   document.getElementById('ck-body').innerHTML = \`
@@ -2940,12 +3093,28 @@ function ckDelivery1() {
       <div class="dlv-opt \${d.type==='delivery'?'sel':''}" id="opt-d" onclick="swDlv('delivery')"><div style="font-size:24px;margin-bottom:6px">🚚</div><div style="font-size:.82rem;font-weight:700">Livraison</div><div style="font-size:.65rem;color:#9090b0">3–5 jours ouvrés</div></div>
     </div>
     <div id="f-pickup" style="\${d.type==='pickup'?'':'display:none'}">
-      <div class="ck-field"><label>Date de retrait</label><input class="ck-input" id="ck-date" type="date" value="\${d.pickupDate||''}" min="\${new Date().toISOString().slice(0,10)}"></div>
+      <div class="ck-field"><label>Date de retrait souhaitée (délai 10 j min — transferts DTF)</label><input class="ck-input" id="ck-date" type="date" value="\${d.pickupDate||''}" min="\${new Date(Date.now()+864e6*10).toISOString().slice(0,10)}"></div>
       <div class="ck-field"><label>Créneau</label><select class="ck-input" id="ck-slot"><option value="08-12" \${d.slot==='08-12'?'selected':''}>08h00–12h00</option><option value="13-17" \${d.slot==='13-17'?'selected':''}>13h00–17h00</option></select></div>
     </div>
     <div id="f-delivery" style="\${d.type==='delivery'?'':'display:none'}">
       <div class="ck-field"><label>Adresse *</label><input class="ck-input" id="ck-addr" placeholder="Rue, quartier, commune" value="\${d.address||''}"></div>
-      <div class="ck-field"><label>Île / Commune</label><select class="ck-input" id="ck-island"><option value="tahiti" \${d.island==='tahiti'?'selected':''}>Tahiti</option><option value="moorea" \${d.island==='moorea'?'selected':''}>Moorea</option><option value="autre">Autre île</option></select></div>
+      <div class="ck-field"><label>Île de destination</label>
+        <select class="ck-input" id="ck-island" onchange="updShipFee()">
+          <option value="tahiti" \${d.island==='tahiti'?'selected':''}>Tahiti — 1 800 XPF (Fret Faaa)</option>
+          <option value="moorea" \${d.island==='moorea'?'selected':''}>Moorea — 1 500 XPF</option>
+          <option value="huahine" \${d.island==='huahine'?'selected':''}>Huahine — 2 500 XPF</option>
+          <option value="bora-bora" \${d.island==='bora-bora'?'selected':''}>Bora Bora — 2 500 XPF</option>
+          <option value="raiatea" \${d.island==='raiatea'?'selected':''}>Raiatea — 2 500 XPF</option>
+          <option value="tahaa" \${d.island==='tahaa'?'selected':''}>Tahaa — 2 500 XPF</option>
+          <option value="maupiti" \${d.island==='maupiti'?'selected':''}>Maupiti — 3 500 XPF</option>
+          <option value="rangiroa" \${d.island==='rangiroa'?'selected':''}>Rangiroa — 3 000 XPF</option>
+          <option value="makemo" \${d.island==='makemo'?'selected':''}>Makemo — 4 000 XPF</option>
+          <option value="tubuai" \${d.island==='tubuai'?'selected':''}>Tubuai — 4 000 XPF</option>
+          <option value="hiva-oa" \${d.island==='hiva-oa'?'selected':''}>Hiva Oa — 5 000 XPF</option>
+          <option value="nuku-hiva" \${d.island==='nuku-hiva'?'selected':''}>Nuku Hiva — 5 000 XPF</option>
+        </select>
+        <div id="ship-fee-preview" style="font-size:.73rem;color:#9090b0;margin-top:4px;text-align:right">Frais de port : 1 800 XPF</div>
+      </div>
     </div>\`;
   document.getElementById('ck-foot').innerHTML = \`<button class="btn-prev" onclick="ckStep=1;ckRender()">← Retour</button><button class="btn-next" onclick="ckSaveDelivery()">Continuer — Paiement →</button>\`;
 }
@@ -2956,15 +3125,17 @@ function swDlv(t) {
   document.getElementById('f-pickup').style.display=t==='pickup'?'':'none';
   document.getElementById('f-delivery').style.display=t==='delivery'?'':'none';
 }
+function updShipFee(){var v=document.getElementById('ck-island')?.value||'tahiti';var el=document.getElementById('ship-fee-preview');if(el)el.textContent='Frais de port : '+(SHIP_RATES[v]||1800).toLocaleString('fr-FR')+' XPF';}
 function ckSaveDelivery() {
   const isPick = ckDelivery.type==='pickup';
-  if(!isPick){const addr=document.getElementById('ck-addr')?.value.trim();if(!addr){alert('Saisissez votre adresse.');return;}ckDelivery={type:'delivery',address:addr,island:document.getElementById('ck-island')?.value};}
+  if(!isPick){const addr=document.getElementById('ck-addr')?.value.trim();if(!addr){alert('Saisissez votre adresse.');return;}const isl=document.getElementById('ck-island')?.value||'tahiti';ckDelivery={type:'delivery',address:addr,island:isl,shippingFee:SHIP_RATES[isl]||1800};}
   else{ckDelivery={type:'pickup',pickupDate:document.getElementById('ck-date')?.value,slot:document.getElementById('ck-slot')?.value};}
   ckStep=3; ckRender();
 }
 async function ckPayment() {
   const p = PRODUCTS[flow.prodIdx];
-  const total = p.price * flow.qty;
+  const shipping = ckDelivery.type==='delivery' ? (ckDelivery.shippingFee||1800) : 0;
+  const total = p.price * flow.qty + shipping;
   const orderId = 'HCS-' + Date.now();
   document.getElementById('ck-body').innerHTML = \`
     <div class="recap-box">
@@ -2974,12 +3145,13 @@ async function ckPayment() {
       <div class="recap-row"><span>Face</span><span>\${flow.face==='back'?'Dos':'Avant'}</span></div>
       <div class="recap-row"><span>Quantité</span><span>\${flow.qty}</span></div>
       <div class="recap-row"><span>Client</span><span>\${ckContact.name}</span></div>
-      <div class="recap-row"><span>Livraison</span><span>\${ckDelivery.type==='pickup'?'🏪 Retrait':'🚚 Domicile'}</span></div>
+      <div class="recap-row"><span>Livraison</span><span>\${ckDelivery.type==='pickup'?'🏪 Retrait boutique':'🚚 '+( ckDelivery.island||'Tahiti')}</span></div>
       \${ckDelivery.pickupDate?'<div class="recap-row"><span>Date retrait</span><span>'+ckDelivery.pickupDate+'</span></div>':''}
       \${ckDelivery.address?'<div class="recap-row"><span>Adresse</span><span>'+ckDelivery.address+'</span></div>':''}
-      <div class="recap-row"><span style="font-weight:700">Total</span><span style="font-weight:900;color:\${ACCENT};font-size:1.1rem">\${total.toLocaleString('fr-FR')} XPF</span></div>
+      \${shipping?'<div class="recap-row"><span>Frais de port</span><span>'+shipping.toLocaleString('fr-FR')+' XPF</span></div>':'<div class="recap-row"><span>Livraison</span><span>✅ Retrait gratuit</span></div>'}
+      <div class="recap-row" style="border-top:1px solid rgba(255,255,255,.1);padding-top:8px;margin-top:4px"><span style="font-weight:700">Total</span><span style="font-weight:900;color:\${ACCENT};font-size:1.1rem">\${total.toLocaleString('fr-FR')} XPF</span></div>
     </div>
-    \${location.protocol==='file:'?\`<div style="background:rgba(246,211,101,.12);border:2px solid #f6d365;border-radius:12px;padding:20px;text-align:center"><div style="font-size:1.8rem;margin-bottom:8px">⚠️</div><div style="font-weight:800;color:#f6d365;margin-bottom:8px">Fichier ouvert en local</div><div style="font-size:.8rem;color:rgba(255,255,255,.8);line-height:1.8">Le paiement OSB nécessite une URL https://.<br>Publie cette LP via le bouton <strong style="color:#43e97b">🌐 Publier</strong>.</div></div>\`:\`<div style="display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap"><span style="font-size:.68rem;color:#9090b0;margin-right:3px">Nous acceptons</span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#1A1F71;border-radius:3px;font-size:8px;font-weight:900;color:#fff;letter-spacing:1px;font-family:Arial,sans-serif">VISA</span><span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;border-radius:3px;background:#1a1a1a;overflow:hidden"><span style="position:absolute;left:4px;width:18px;height:18px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:4px;width:18px;height:18px;background:#F79E1B;border-radius:50%;opacity:.9"></span></span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#005EB8;border-radius:3px;font-size:11px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span></div>
+    \${location.protocol==='file:'?\`<div style="background:rgba(246,211,101,.12);border:2px solid #f6d365;border-radius:12px;padding:20px;text-align:center"><div style="font-size:1.8rem;margin-bottom:8px">⚠️</div><div style="font-weight:800;color:#f6d365;margin-bottom:8px">Fichier ouvert en local</div><div style="font-size:.8rem;color:rgba(255,255,255,.8);line-height:1.8">Le paiement OSB nécessite une URL https://.<br>Publie cette LP via le bouton <strong style="color:#43e97b">🌐 Publier</strong>.</div></div>\`:\`${_paymentBadgesHtml()}
 <div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
     <div class="kr-embedded" id="pz-kr-form" style="display:none"></div>
     <div class="pz-error" id="pz-error"></div>
@@ -2992,18 +3164,15 @@ async function ckPayment() {
     const res = await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Worker-Secret':WORKER_SECRET},body:JSON.stringify({amount:total,currency:'XPF',orderId,mode:WORKER_MODE,customerEmail:ckContact.email})});
     if(!res.ok){const e=await res.json();throw new Error(e.error||'Erreur serveur');}
     const {formToken,publicKey} = await res.json();
-    if(!document.getElementById('pz-css1')){const c1=document.createElement('link');c1.id='pz-css1';c1.rel='stylesheet';c1.href='https://static.osb.pf/static/js/krypton-client/V4.0/stable/classic-reset.min.css';document.head.appendChild(c1);const c2=document.createElement('link');c2.id='pz-css2';c2.rel='stylesheet';c2.href='https://static.osb.pf/static/js/krypton-client/V4.0/stable/classic.min.css';document.head.appendChild(c2);}
     document.getElementById('pz-loading').style.display='none';
     document.getElementById('pz-kr-form').style.display='block';
-    if(!window.KR){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.id='pz-sdk';s.src='https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';s.setAttribute('kr-public-key',publicKey);s.setAttribute('kr-language','fr-FR');s.onload=resolve;s.onerror=()=>reject(new Error('SDK OSB indisponible'));document.head.appendChild(s);});}
-    await KR.setFormConfig({'kr-public-key':publicKey,'kr-language':'fr-FR'});
-    await KR.setFormToken(formToken);
+    ${_krSdkBlock('publicKey', 'formToken')}
     function showSuccess(){
       document.getElementById('pz-kr-form').style.display='none';
       const ok=document.getElementById('pz-ok'); if(ok){ok.removeAttribute('style');ok.style.cssText='display:block!important';}
       const bk=document.getElementById('pz-back'); if(bk) bk.style.display='none';
       fetch(WORKER_URL.replace('/payzen-token','/order/save'),{
-        method:'POST',headers:{'Content-Type':'application/json','X-Worker-Secret':WORKER_SECRET},
+        method:'POST',keepalive:true,headers:{'Content-Type':'application/json','X-Worker-Secret':WORKER_SECRET},
         body:JSON.stringify({
           orderId, status:'paid', amount:total, currency:'XPF',
           campaignName:CAMP_NAME, product:p.n,
@@ -3011,9 +3180,10 @@ async function ckPayment() {
           size:flow.size, qty:flow.qty,
           logoName:flow.logoName,
           logoPlacement:'x='+Math.round(flow.logoPos.xPct)+'%,y='+Math.round(flow.logoPos.yPct)+'%,w='+Math.round(flow.logoPos.wPct)+'%',
+          couleur:p.couleur||'',
           client:{name:ckContact.name,email:ckContact.email,phone:ckContact.phone||''},
-          delivery:{type:ckDelivery.type,address:ckDelivery.address||'',pickupDate:ckDelivery.pickupDate||'',deliveryDelay:3},
-          note: [ckContact.note||'', 'Taille:'+flow.size, 'Logo:'+flow.logoName, 'Face:'+flow.face, 'Placement:x='+Math.round(flow.logoPos.xPct)+'%,y='+Math.round(flow.logoPos.yPct)+'%,w='+Math.round(flow.logoPos.wPct)+'%'].filter(Boolean).join(' | ')
+          delivery:{type:ckDelivery.type,address:ckDelivery.address||'',island:ckDelivery.island||'',shippingFee:ckDelivery.shippingFee||0,pickupDate:ckDelivery.pickupDate||'',slot:ckDelivery.slot||'',deliveryDelay:3},
+          note: [ckContact.note||'', 'Taille:'+flow.size, p.couleur?'Couleur:'+p.couleur:'', 'Logo:'+flow.logoName, 'Face:'+flow.face, 'Placement:x='+Math.round(flow.logoPos.xPct)+'%,y='+Math.round(flow.logoPos.yPct)+'%,w='+Math.round(flow.logoPos.wPct)+'%'].filter(Boolean).join(' | ')
         })
       }).catch(e=>console.warn('Ordre non sauvegardé:',e));
     }
@@ -3420,8 +3590,8 @@ function renderStep3() {
       </div>
     </div>
     <div id="fields-pickup" style="\${d.type==='pickup'?'':'display:none'}">
-      <div class="ck-field"><label>Date de retrait souhaitée</label>
-        <input class="ck-input" id="ck-date" type="date" value="\${d.pickupDate||''}" min="\${new Date().toISOString().slice(0,10)}"></div>
+      <div class="ck-field"><label>Date de retrait souhaitée (délai 10 j min — transferts DTF)</label>
+        <input class="ck-input" id="ck-date" type="date" value="\${d.pickupDate||''}" min="\${new Date(Date.now()+864e6*10).toISOString().slice(0,10)}"></div>
       <div class="ck-field"><label>Créneau</label>
         <select class="ck-input" id="ck-slot">
           <option value="08-12" \${d.slot==='08-12'?'selected':''}>08h00 – 12h00</option>
@@ -3431,18 +3601,30 @@ function renderStep3() {
     <div id="fields-delivery" style="\${d.type==='delivery'?'':'display:none'}">
       <div class="ck-field"><label>Adresse *</label>
         <input class="ck-input" id="ck-addr" placeholder="Rue, quartier, commune" value="\${d.address||''}"></div>
-      <div class="ck-field"><label>Île / Commune</label>
-        <select class="ck-input" id="ck-island">
-          <option value="tahiti" \${d.island==='tahiti'?'selected':''}>Tahiti</option>
-          <option value="moorea" \${d.island==='moorea'?'selected':''}>Moorea</option>
-          <option value="autre"  \${d.island==='autre'?'selected':''}>Autre île</option>
-        </select></div>
+      <div class="ck-field"><label>Île de destination</label>
+        <select class="ck-input" id="ck-island" onchange="updShipFee()">
+          <option value="tahiti" \${d.island==='tahiti'?'selected':''}>Tahiti — 1 800 XPF (Fret Faaa)</option>
+          <option value="moorea" \${d.island==='moorea'?'selected':''}>Moorea — 1 500 XPF</option>
+          <option value="huahine" \${d.island==='huahine'?'selected':''}>Huahine — 2 500 XPF</option>
+          <option value="bora-bora" \${d.island==='bora-bora'?'selected':''}>Bora Bora — 2 500 XPF</option>
+          <option value="raiatea" \${d.island==='raiatea'?'selected':''}>Raiatea — 2 500 XPF</option>
+          <option value="tahaa" \${d.island==='tahaa'?'selected':''}>Tahaa — 2 500 XPF</option>
+          <option value="maupiti" \${d.island==='maupiti'?'selected':''}>Maupiti — 3 500 XPF</option>
+          <option value="rangiroa" \${d.island==='rangiroa'?'selected':''}>Rangiroa — 3 000 XPF</option>
+          <option value="makemo" \${d.island==='makemo'?'selected':''}>Makemo — 4 000 XPF</option>
+          <option value="tubuai" \${d.island==='tubuai'?'selected':''}>Tubuai — 4 000 XPF</option>
+          <option value="hiva-oa" \${d.island==='hiva-oa'?'selected':''}>Hiva Oa — 5 000 XPF</option>
+          <option value="nuku-hiva" \${d.island==='nuku-hiva'?'selected':''}>Nuku Hiva — 5 000 XPF</option>
+        </select>
+        <div id="ship-fee-preview" style="font-size:.73rem;color:#9090b0;margin-top:4px;text-align:right">Frais de port : 1 800 XPF</div>
+      </div>
     </div>\`;
   document.getElementById('modal-foot').innerHTML = \`
     <button class="btn-prev" onclick="ckStep=2;renderCkStep()">← Retour</button>
     <button class="btn-next" onclick="saveDelivery()">Continuer — Paiement →</button>\`;
 }
 
+function updShipFee(){var v=document.getElementById('ck-island')?.value||'tahiti';var el=document.getElementById('ship-fee-preview');if(el)el.textContent='Frais de port : '+(SHIP_RATES[v]||1800).toLocaleString('fr-FR')+' XPF';}
 function switchDlv(type) {
   document.getElementById('opt-pickup').classList.toggle('sel', type==='pickup');
   document.getElementById('opt-delivery').classList.toggle('sel', type==='delivery');
@@ -3455,7 +3637,8 @@ function saveDelivery() {
   if (!isPick) {
     const addr = document.getElementById('ck-addr')?.value.trim();
     if (!addr) { alert('Saisissez votre adresse.'); return; }
-    ckDelivery = { type:'delivery', address:addr, island:document.getElementById('ck-island')?.value };
+    const isl = document.getElementById('ck-island')?.value || 'tahiti';
+    ckDelivery = { type:'delivery', address:addr, island:isl, shippingFee:SHIP_RATES[isl]||1800 };
   } else {
     ckDelivery = { type:'pickup', pickupDate:document.getElementById('ck-date')?.value, slot:document.getElementById('ck-slot')?.value };
   }
@@ -3464,10 +3647,11 @@ function saveDelivery() {
 
 // ── Étape 4 : Paiement ──────────────────────────────────
 async function renderStep4() {
-  const p       = PRODUCTS[selProdIdx];
-  const qty     = window._qty || 1;
-  const total   = p.price * qty;
-  const orderId = 'HCS-' + Date.now();
+  const p        = PRODUCTS[selProdIdx];
+  const qty      = window._qty || 1;
+  const shipping = ckDelivery.type==='delivery' ? (ckDelivery.shippingFee||1800) : 0;
+  const total    = p.price * qty + shipping;
+  const orderId  = 'HCS-' + Date.now();
 
   document.getElementById('modal-body').innerHTML = \`
     <div class="recap-box">
@@ -3475,10 +3659,12 @@ async function renderStep4() {
       <div class="recap-row"><span>Quantité</span><span>\${qty}</span></div>
       <div class="recap-row"><span>Client</span><span>\${ckContact.name}</span></div>
       <div class="recap-row"><span>Email</span><span>\${ckContact.email}</span></div>
-      <div class="recap-row"><span>Livraison</span><span>\${ckDelivery.type==='pickup'?'🏪 Retrait boutique':'🚚 Domicile'}</span></div>
-      \${ckDelivery.pickupDate ? \`<div class="recap-row"><span>Date retrait</span><span>\${ckDelivery.pickupDate}</span></div>\` : ''}
+      <div class="recap-row"><span>Tél.</span><span>\${ckContact.phone||'—'}</span></div>
+      <div class="recap-row"><span>Livraison</span><span>\${ckDelivery.type==='pickup'?'🏪 Retrait boutique':'🚚 '+( ckDelivery.island||'Tahiti')}</span></div>
+      \${ckDelivery.pickupDate ? \`<div class="recap-row"><span>Date retrait</span><span>\${ckDelivery.pickupDate} · \${ckDelivery.slot||''}</span></div>\` : ''}
       \${ckDelivery.address   ? \`<div class="recap-row"><span>Adresse</span><span>\${ckDelivery.address}</span></div>\` : ''}
-      <div class="recap-row"><span style="font-weight:700">Total</span><span style="font-weight:900;color:\${ACCENT};font-size:1.1rem">\${total.toLocaleString('fr-FR')} XPF</span></div>
+      \${shipping ? \`<div class="recap-row"><span>Frais de port</span><span>\${shipping.toLocaleString('fr-FR')} XPF</span></div>\` : '<div class="recap-row"><span>Livraison</span><span>✅ Retrait gratuit</span></div>'}
+      <div class="recap-row" style="border-top:1px solid rgba(255,255,255,.1);padding-top:8px;margin-top:4px"><span style="font-weight:700">Total</span><span style="font-weight:900;color:\${ACCENT};font-size:1.1rem">\${total.toLocaleString('fr-FR')} XPF</span></div>
     </div>
     \${location.protocol==='file:' ? \`
     <div style="background:rgba(246,211,101,.12);border:2px solid #f6d365;border-radius:12px;padding:20px 16px;text-align:center;margin-top:8px">
@@ -3487,7 +3673,7 @@ async function renderStep4() {
       <div style="font-size:.8rem;color:rgba(255,255,255,.85);line-height:1.8">Le formulaire de paiement OSB nécessite<br>une URL <strong style="color:#fff">https://</strong> ou <strong style="color:#fff">http://</strong>.<br><br>
       Publie cette LP via le bouton<br><strong style="color:#43e97b">🌐 Publier</strong> dans Andromeda.</div>
     </div>\` : \`
-    <div style="display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap"><span style="font-size:.68rem;color:#9090b0;margin-right:3px">Nous acceptons</span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#1A1F71;border-radius:3px;font-size:8px;font-weight:900;color:#fff;letter-spacing:1px;font-family:Arial,sans-serif">VISA</span><span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;border-radius:3px;background:#1a1a1a;overflow:hidden"><span style="position:absolute;left:4px;width:18px;height:18px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:4px;width:18px;height:18px;background:#F79E1B;border-radius:50%;opacity:.9"></span></span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#005EB8;border-radius:3px;font-size:11px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span></div>
+    ${_paymentBadgesHtml()}
 <div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
     <div class="kr-embedded" id="pz-kr-form" style="display:none"></div>
     <div class="pz-error" id="pz-error"></div>
@@ -3550,10 +3736,12 @@ async function renderStep4() {
           orderId, status:'paid', amount:total, currency:'XPF',
           campaignName:'${c.name}', product:p.n,
           client:{ name:ckContact.name, email:ckContact.email, phone:ckContact.phone||'' },
-          delivery:{ type:ckDelivery.type, address:ckDelivery.address||'', pickupDate:ckDelivery.pickupDate||'', deliveryDelay:3 },
+          delivery:{ type:ckDelivery.type, address:ckDelivery.address||'', island:ckDelivery.island||'', shippingFee:ckDelivery.shippingFee||0, pickupDate:ckDelivery.pickupDate||'', slot:ckDelivery.slot||'', deliveryDelay:3 },
           note:ckContact.note||''
         })
       }).catch(e => console.warn('Ordre non sauvegardé:',e));
+      /* Enrichir la confirmation avec fidélité + lien compte client */
+      _enrichConfirmation(orderId, total, ckContact, ckDelivery, p?.n || '');
     }
 
     // Méthode 1 : callback SDK
@@ -3622,7 +3810,20 @@ function exportLPGeneric(id) {
     : '41545085:testpublickey_HJw0fXMbbvOAzJuN1BXImXIu5U16qkSHv2eQVjSu0YftA';
   const prodsJson    = JSON.stringify(c.products);
   const cfgJson      = JSON.stringify(getParcoursCfg(id));
-  const faceImgsJson = id === 3 ? JSON.stringify(tshFaceImages[id] || {}) : '{}';
+  const faceImgsJson = (() => {
+    if (id !== 3) return '{}';
+    const raw = tshFaceImages[id] || {};
+    const iu  = window._img_url_map || {};
+    if (!Object.keys(iu).length) return JSON.stringify(raw);
+    const merged = {};
+    Object.keys(raw).forEach(pi => {
+      merged[pi] = {};
+      Object.keys(raw[pi] || {}).forEach(face => {
+        merged[pi][face] = iu[pi]?.[face] || raw[pi][face];
+      });
+    });
+    return JSON.stringify(merged);
+  })();
   const tshSizesJson = id === 3 ? JSON.stringify(tshGetParcours(id).sizes) : '[]';
   const primary      = GEN_COLORS[id] || '#6c63ff';
   const lpSlug       = `${c.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${id}`;
@@ -3797,7 +3998,7 @@ var _s = { prodIdx:0, step:1, color:null, size:null, qty:1, format:null,
   fileB64:null, fileName:null, date:null, sessFmt:null, module:null,
   plan:null, duree:'mensuel', service:null, description:'',
   name:'', email:'', phone:'', note:'' };
-
+${_normalizePhoneBlock()}
 (function initProds() {
   var grid = document.getElementById('prod-grid');
   grid.innerHTML = PRODS.map(function(p,i) {
@@ -4009,18 +4210,7 @@ async function gfInitKrypton(amount) {
     if (!data.formToken) throw new Error(data.errorMessage||'Token introuvable');
     document.getElementById('gf-pz-loading').style.display='none';
     document.getElementById('gf-pz-kr-form').style.display='block';
-    if (!window.KR) {
-      await new Promise(function(resolve,reject){
-        if (document.getElementById('pz-sdk')){resolve();return;}
-        var s=document.createElement('script'); s.id='pz-sdk';
-        s.src='https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';
-        s.setAttribute('kr-public-key',PUBLIC_KEY); s.setAttribute('kr-language','fr-FR');
-        s.onload=resolve; s.onerror=function(){reject(new Error('SDK OSB indisponible'));};
-        document.head.appendChild(s);
-      });
-    }
-    await KR.setFormConfig({'kr-public-key':PUBLIC_KEY,'kr-language':'fr-FR'});
-    await KR.setFormToken(data.formToken);
+    ${_krSdkBlock('PUBLIC_KEY', 'data.formToken')}
     KR.onSubmit(function(r){
       if (r.clientAnswer&&(r.clientAnswer.orderStatus==='PAID'||r.clientAnswer.orderStatus==='AUTHORISED')) {
         var orderId='ORD-'+Date.now();
@@ -4277,26 +4467,7 @@ footer{background:#0f0f1a;text-align:center;padding:28px;color:rgba(255,255,255,
 .recap-row:last-child{border:none;padding-top:8px;margin-top:4px;border-top:1px solid #2a2a4a}
 .recap-row span:first-child{color:#9090b0}
 .recap-row span:last-child{font-weight:600}
-.btn-next{flex:1;padding:12px;background:linear-gradient(135deg,${primary},#ff6584);color:white;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;transition:opacity .2s}
-.btn-next:hover{opacity:.9}
-.btn-prev{padding:12px 16px;background:#1e1e3a;border:1px solid #2a2a4a;color:#9090b0;border-radius:8px;font-size:.85rem;cursor:pointer}
-.btn-prev:hover{border-color:${primary};color:${primary}}
-.pz-loading{text-align:center;color:#9090b0;font-size:.85rem;padding:24px}
-.pz-error{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.3);border-radius:8px;padding:12px;color:#ff6b6b;font-size:.8rem;margin-top:10px;display:none}
-.pz-ok{background:rgba(67,233,123,.12);border:1px solid rgba(67,233,123,.3);border-radius:12px;padding:28px;text-align:center;color:#43e97b;display:none}
-.pz-ok h3{font-size:1.2rem;margin-bottom:8px}
-.pz-ok p{font-size:.82rem;color:#9090b0;line-height:1.6}
-/* ── Formulaire paiement OSB ── */
-.kr-embedded{background:#fff!important;border-radius:14px!important;padding:16px 14px!important;margin-top:4px!important;box-shadow:0 2px 16px rgba(0,0,0,.18)!important}
-.kr-embedded .kr-field{margin-bottom:12px!important}
-.kr-embedded .kr-label{color:#333!important;font-size:.75rem!important;font-weight:600!important;margin-bottom:4px!important;display:block!important}
-.kr-embedded .kr-field-element{background:#f8f9fa!important;border:1.5px solid #dee2e6!important;border-radius:8px!important;padding:10px 12px!important;color:#1a1a1a!important;font-size:.9rem!important;width:100%!important;box-sizing:border-box!important}
-.kr-embedded .kr-field-element:focus,.kr-embedded .kr-field-element.kr-focus{border-color:${primary}!important;box-shadow:0 0 0 3px ${primary}22!important;outline:none!important}
-.kr-embedded .kr-field-element.kr-error{border-color:#dc3545!important}
-.kr-embedded .kr-error-message{color:#dc3545!important;font-size:.72rem!important;margin-top:3px!important}
-.kr-embedded .kr-payment-button{background:linear-gradient(135deg,${primary},#ff6584)!important;border-radius:10px!important;font-weight:800!important;font-size:.9rem!important;padding:13px!important;width:100%!important;border:none!important;color:#fff!important;cursor:pointer!important;margin-top:4px!important;letter-spacing:.5px!important;box-shadow:0 4px 16px ${primary}55!important}
-.kr-embedded .kr-payment-button:hover{opacity:.92!important;transform:translateY(-1px)!important}
-.kr-embedded .kr-form-error{background:#fff5f5!important;border:1px solid #ffc9c9!important;border-radius:8px!important;padding:10px 12px!important;color:#c92a2a!important;font-size:.78rem!important;margin-top:8px!important}
+${_lpPayCss(primary)}
 </style></head>
 <body>
 
@@ -4394,6 +4565,7 @@ const WORKER_URL    = '${workerUrl}';
 const WORKER_SECRET = '${workerSecret}';
 const WORKER_MODE   = '${workerMode}';
 const ACCENT        = '${primary}';
+const SHIP_RATES    = {tahiti:1800,moorea:1500,huahine:2500,'bora-bora':2500,raiatea:2500,tahaa:2500,maupiti:3500,rangiroa:3000,makemo:4000,tubuai:4000,'hiva-oa':5000,'nuku-hiva':5000};
 
 let selProdIdx = null;
 let ckStep     = 1;
@@ -4514,8 +4686,8 @@ function renderStep3() {
       </div>
     </div>
     <div id="fields-pickup" style="\${d.type==='pickup'?'':'display:none'}">
-      <div class="ck-field"><label>Date de retrait souhaitée</label>
-        <input class="ck-input" id="ck-date" type="date" value="\${d.pickupDate||''}" min="\${new Date().toISOString().slice(0,10)}"></div>
+      <div class="ck-field"><label>Date de retrait souhaitée (délai 10 j min — transferts DTF)</label>
+        <input class="ck-input" id="ck-date" type="date" value="\${d.pickupDate||''}" min="\${new Date(Date.now()+864e6*10).toISOString().slice(0,10)}"></div>
       <div class="ck-field"><label>Créneau</label>
         <select class="ck-input" id="ck-slot">
           <option value="08-12" \${d.slot==='08-12'?'selected':''}>08h00 – 12h00</option>
@@ -4525,18 +4697,30 @@ function renderStep3() {
     <div id="fields-delivery" style="\${d.type==='delivery'?'':'display:none'}">
       <div class="ck-field"><label>Adresse *</label>
         <input class="ck-input" id="ck-addr" placeholder="Rue, quartier, commune" value="\${d.address||''}"></div>
-      <div class="ck-field"><label>Île / Commune</label>
-        <select class="ck-input" id="ck-island">
-          <option value="tahiti" \${d.island==='tahiti'?'selected':''}>Tahiti</option>
-          <option value="moorea" \${d.island==='moorea'?'selected':''}>Moorea</option>
-          <option value="autre"  \${d.island==='autre'?'selected':''}>Autre île</option>
-        </select></div>
+      <div class="ck-field"><label>Île de destination</label>
+        <select class="ck-input" id="ck-island" onchange="updShipFee()">
+          <option value="tahiti" \${d.island==='tahiti'?'selected':''}>Tahiti — 1 800 XPF (Fret Faaa)</option>
+          <option value="moorea" \${d.island==='moorea'?'selected':''}>Moorea — 1 500 XPF</option>
+          <option value="huahine" \${d.island==='huahine'?'selected':''}>Huahine — 2 500 XPF</option>
+          <option value="bora-bora" \${d.island==='bora-bora'?'selected':''}>Bora Bora — 2 500 XPF</option>
+          <option value="raiatea" \${d.island==='raiatea'?'selected':''}>Raiatea — 2 500 XPF</option>
+          <option value="tahaa" \${d.island==='tahaa'?'selected':''}>Tahaa — 2 500 XPF</option>
+          <option value="maupiti" \${d.island==='maupiti'?'selected':''}>Maupiti — 3 500 XPF</option>
+          <option value="rangiroa" \${d.island==='rangiroa'?'selected':''}>Rangiroa — 3 000 XPF</option>
+          <option value="makemo" \${d.island==='makemo'?'selected':''}>Makemo — 4 000 XPF</option>
+          <option value="tubuai" \${d.island==='tubuai'?'selected':''}>Tubuai — 4 000 XPF</option>
+          <option value="hiva-oa" \${d.island==='hiva-oa'?'selected':''}>Hiva Oa — 5 000 XPF</option>
+          <option value="nuku-hiva" \${d.island==='nuku-hiva'?'selected':''}>Nuku Hiva — 5 000 XPF</option>
+        </select>
+        <div id="ship-fee-preview" style="font-size:.73rem;color:#9090b0;margin-top:4px;text-align:right">Frais de port : 1 800 XPF</div>
+      </div>
     </div>\`;
   document.getElementById('modal-foot').innerHTML = \`
     <button class="btn-prev" onclick="ckStep=2;renderCkStep()">← Retour</button>
     <button class="btn-next" onclick="saveDelivery()">Continuer — Paiement →</button>\`;
 }
 
+function updShipFee(){var v=document.getElementById('ck-island')?.value||'tahiti';var el=document.getElementById('ship-fee-preview');if(el)el.textContent='Frais de port : '+(SHIP_RATES[v]||1800).toLocaleString('fr-FR')+' XPF';}
 function switchDlv(type) {
   document.getElementById('opt-pickup').classList.toggle('sel', type==='pickup');
   document.getElementById('opt-delivery').classList.toggle('sel', type==='delivery');
@@ -4549,7 +4733,8 @@ function saveDelivery() {
   if (!isPick) {
     const addr = document.getElementById('ck-addr')?.value.trim();
     if (!addr) { alert('Saisissez votre adresse.'); return; }
-    ckDelivery = { type:'delivery', address:addr, island:document.getElementById('ck-island')?.value };
+    const isl = document.getElementById('ck-island')?.value || 'tahiti';
+    ckDelivery = { type:'delivery', address:addr, island:isl, shippingFee:SHIP_RATES[isl]||1800 };
   } else {
     ckDelivery = { type:'pickup', pickupDate:document.getElementById('ck-date')?.value, slot:document.getElementById('ck-slot')?.value };
   }
@@ -4557,10 +4742,11 @@ function saveDelivery() {
 }
 
 async function renderStep4() {
-  const p       = PRODUCTS[selProdIdx];
-  const qty     = window._qty || 1;
-  const total   = p.price * qty;
-  const orderId = 'HCS-' + Date.now();
+  const p        = PRODUCTS[selProdIdx];
+  const qty      = window._qty || 1;
+  const shipping = ckDelivery.type==='delivery' ? (ckDelivery.shippingFee||1800) : 0;
+  const total    = p.price * qty + shipping;
+  const orderId  = 'HCS-' + Date.now();
 
   document.getElementById('modal-body').innerHTML = \`
     <div class="recap-box">
@@ -4568,10 +4754,12 @@ async function renderStep4() {
       <div class="recap-row"><span>Quantité</span><span>\${qty}</span></div>
       <div class="recap-row"><span>Client</span><span>\${ckContact.name}</span></div>
       <div class="recap-row"><span>Email</span><span>\${ckContact.email}</span></div>
-      <div class="recap-row"><span>Livraison</span><span>\${ckDelivery.type==='pickup'?'🏪 Retrait boutique':'🚚 Domicile'}</span></div>
-      \${ckDelivery.pickupDate ? \`<div class="recap-row"><span>Date retrait</span><span>\${ckDelivery.pickupDate}</span></div>\` : ''}
+      <div class="recap-row"><span>Tél.</span><span>\${ckContact.phone||'—'}</span></div>
+      <div class="recap-row"><span>Livraison</span><span>\${ckDelivery.type==='pickup'?'🏪 Retrait boutique':'🚚 '+( ckDelivery.island||'Tahiti')}</span></div>
+      \${ckDelivery.pickupDate ? \`<div class="recap-row"><span>Date retrait</span><span>\${ckDelivery.pickupDate} · \${ckDelivery.slot||''}</span></div>\` : ''}
       \${ckDelivery.address   ? \`<div class="recap-row"><span>Adresse</span><span>\${ckDelivery.address}</span></div>\` : ''}
-      <div class="recap-row"><span style="font-weight:700">Total</span><span style="font-weight:900;color:\${ACCENT};font-size:1.1rem">\${total.toLocaleString('fr-FR')} XPF</span></div>
+      \${shipping ? \`<div class="recap-row"><span>Frais de port</span><span>\${shipping.toLocaleString('fr-FR')} XPF</span></div>\` : '<div class="recap-row"><span>Livraison</span><span>✅ Retrait gratuit</span></div>'}
+      <div class="recap-row" style="border-top:1px solid rgba(255,255,255,.1);padding-top:8px;margin-top:4px"><span style="font-weight:700">Total</span><span style="font-weight:900;color:\${ACCENT};font-size:1.1rem">\${total.toLocaleString('fr-FR')} XPF</span></div>
     </div>
     \${location.protocol==='file:' ? \`
     <div style="background:rgba(246,211,101,.12);border:2px solid #f6d365;border-radius:12px;padding:20px 16px;text-align:center;margin-top:8px">
@@ -4580,7 +4768,7 @@ async function renderStep4() {
       <div style="font-size:.8rem;color:rgba(255,255,255,.85);line-height:1.8">Le formulaire de paiement OSB nécessite<br>une URL <strong style="color:#fff">https://</strong> ou <strong style="color:#fff">http://</strong>.<br><br>
       Publie cette LP via le bouton<br><strong style="color:#43e97b">🌐 Publier</strong> dans Andromeda.</div>
     </div>\` : \`
-    <div style="display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap"><span style="font-size:.68rem;color:#9090b0;margin-right:3px">Nous acceptons</span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#1A1F71;border-radius:3px;font-size:8px;font-weight:900;color:#fff;letter-spacing:1px;font-family:Arial,sans-serif">VISA</span><span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;border-radius:3px;background:#1a1a1a;overflow:hidden"><span style="position:absolute;left:4px;width:18px;height:18px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:4px;width:18px;height:18px;background:#F79E1B;border-radius:50%;opacity:.9"></span></span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#005EB8;border-radius:3px;font-size:11px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span></div>
+    ${_paymentBadgesHtml()}
 <div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
     <div class="kr-embedded" id="pz-kr-form" style="display:none"></div>
     <div class="pz-error" id="pz-error"></div>
@@ -4643,10 +4831,12 @@ async function renderStep4() {
           orderId, status:'paid', amount:total, currency:'XPF',
           campaignName:'${c.name}', product:p.n,
           client:{ name:ckContact.name, email:ckContact.email, phone:ckContact.phone||'' },
-          delivery:{ type:ckDelivery.type, address:ckDelivery.address||'', pickupDate:ckDelivery.pickupDate||'', deliveryDelay:3 },
+          delivery:{ type:ckDelivery.type, address:ckDelivery.address||'', island:ckDelivery.island||'', shippingFee:ckDelivery.shippingFee||0, pickupDate:ckDelivery.pickupDate||'', slot:ckDelivery.slot||'', deliveryDelay:3 },
           note:ckContact.note||''
         })
       }).catch(e => console.warn('Ordre non sauvegardé:',e));
+      /* Enrichir la confirmation avec fidélité + lien compte client */
+      _enrichConfirmation(orderId, total, ckContact, ckDelivery, p?.n || '');
     }
 
     // Méthode 1 : callback SDK
@@ -4863,6 +5053,7 @@ function addToCart(campId, prodIdx) {
 
 function removeFromCart(idx) { CART.splice(idx,1); updateBadge(); renderStep(); }
 function changeQty(idx, delta) { CART[idx].qty = Math.max(1, CART[idx].qty+delta); updateBadge(); renderStep(); }
+const SHIP_RATES_BUILDER = {tahiti:1800,moorea:1500,huahine:2500,'bora-bora':2500,raiatea:2500,tahaa:2500,maupiti:3500,rangiroa:3000,makemo:4000,tubuai:4000,'hiva-oa':5000,'nuku-hiva':5000};
 function cartTotal() { return CART.reduce((s,x)=>s+x.price*x.qty,0); }
 
 function updateBadge() {
@@ -4992,8 +5183,8 @@ function renderStep3() {
       </div>
     </div>
     <div id="dlv-pickup-fields" style="${saved.type==='pickup'?'':'display:none'}">
-      <div class="ck-field"><label>Date de retrait souhaitée</label>
-        <input class="ck-finput" id="ck-pickup-date" type="date" value="${saved.pickupDate||''}" min="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="ck-field"><label>Date de retrait souhaitée (délai 10 j min — transferts DTF)</label>
+        <input class="ck-finput" id="ck-pickup-date" type="date" value="${saved.pickupDate||''}" min="${new Date(Date.now()+864e6*10).toISOString().slice(0,10)}"></div>
       <div class="ck-field"><label>Créneau</label>
         <select class="ck-finput" id="ck-pickup-slot">
           <option ${saved.slot==='08-12'?'selected':''} value="08-12">08h00 – 12h00</option>
@@ -5003,12 +5194,23 @@ function renderStep3() {
     <div id="dlv-delivery-fields" style="${saved.type==='delivery'?'':'display:none'}">
       <div class="ck-field"><label>Adresse de livraison *</label>
         <input class="ck-finput" id="ck-address" placeholder="Rue, quartier, commune" value="${saved.address||''}"></div>
-      <div class="ck-field"><label>Île / Commune</label>
-        <select class="ck-finput" id="ck-island">
-          <option ${saved.island==='tahiti'?'selected':''} value="tahiti">Tahiti</option>
-          <option ${saved.island==='moorea'?'selected':''} value="moorea">Moorea</option>
-          <option ${saved.island==='autre'?'selected':''} value="autre">Autre île</option>
-        </select></div>
+      <div class="ck-field"><label>Île de destination</label>
+        <select class="ck-finput" id="ck-island" onchange="builderUpdShipFee()">
+          <option ${saved.island==='tahiti'?'selected':''} value="tahiti">Tahiti — 1 800 XPF (Fret Faaa)</option>
+          <option ${saved.island==='moorea'?'selected':''} value="moorea">Moorea — 1 500 XPF</option>
+          <option ${saved.island==='huahine'?'selected':''} value="huahine">Huahine — 2 500 XPF</option>
+          <option ${saved.island==='bora-bora'?'selected':''} value="bora-bora">Bora Bora — 2 500 XPF</option>
+          <option ${saved.island==='raiatea'?'selected':''} value="raiatea">Raiatea — 2 500 XPF</option>
+          <option ${saved.island==='tahaa'?'selected':''} value="tahaa">Tahaa — 2 500 XPF</option>
+          <option ${saved.island==='maupiti'?'selected':''} value="maupiti">Maupiti — 3 500 XPF</option>
+          <option ${saved.island==='rangiroa'?'selected':''} value="rangiroa">Rangiroa — 3 000 XPF</option>
+          <option ${saved.island==='makemo'?'selected':''} value="makemo">Makemo — 4 000 XPF</option>
+          <option ${saved.island==='tubuai'?'selected':''} value="tubuai">Tubuai — 4 000 XPF</option>
+          <option ${saved.island==='hiva-oa'?'selected':''} value="hiva-oa">Hiva Oa — 5 000 XPF</option>
+          <option ${saved.island==='nuku-hiva'?'selected':''} value="nuku-hiva">Nuku Hiva — 5 000 XPF</option>
+        </select>
+        <div id="builder-ship-fee-preview" style="font-size:.73rem;color:#9090b0;margin-top:4px;text-align:right">Frais de port : ${(SHIP_RATES_BUILDER[saved.island]||1800).toLocaleString('fr-FR')} XPF</div>
+      </div>
     </div>`;
 
   foot.innerHTML = `
@@ -5022,13 +5224,15 @@ function selectDlv(type) {
   document.getElementById('dlv-pickup-fields').style.display = type==='pickup'?'':'none';
   document.getElementById('dlv-delivery-fields').style.display = type==='delivery'?'':'none';
 }
+function builderUpdShipFee(){var v=document.getElementById('ck-island')?.value||'tahiti';var el=document.getElementById('builder-ship-fee-preview');if(el)el.textContent='Frais de port : '+(SHIP_RATES_BUILDER[v]||1800).toLocaleString('fr-FR')+' XPF';}
 
 function saveDelivery() {
   const type = document.getElementById('dlv-delivery').classList.contains('selected') ? 'delivery' : 'pickup';
   if (type==='delivery') {
     const addr = document.getElementById('ck-address')?.value.trim();
     if (!addr) { alert('Saisissez votre adresse de livraison.'); return; }
-    window._ckDelivery = { type, address:addr, island:document.getElementById('ck-island')?.value };
+    const isl = document.getElementById('ck-island')?.value || 'tahiti';
+    window._ckDelivery = { type, address:addr, island:isl, shippingFee:SHIP_RATES_BUILDER[isl]||1800 };
   } else {
     window._ckDelivery = {
       type, pickupDate:document.getElementById('ck-pickup-date')?.value,
@@ -5042,7 +5246,8 @@ function saveDelivery() {
 async function renderStep4() {
   const contact  = window._ckContact  || {};
   const delivery = window._ckDelivery || {};
-  const total    = cartTotal();
+  const shipping = delivery.type==='delivery' ? (delivery.shippingFee||1800) : 0;
+  const total    = cartTotal() + shipping;
   const items    = CART.map(x=>`${x.qty}× ${x.name}`).join(', ');
   const orderId  = 'HCS-' + Date.now();
 
@@ -5054,15 +5259,16 @@ async function renderStep4() {
       <div class="order-recap-row"><span>Client</span><span>${contact.name||'—'}</span></div>
       <div class="order-recap-row"><span>Email</span><span>${contact.email||'—'}</span></div>
       ${contact.phone?`<div class="order-recap-row"><span>Tél.</span><span>${contact.phone}</span></div>`:''}
-      <div class="order-recap-row"><span>Livraison</span><span>${delivery.type==='pickup'?'🏪 Retrait boutique':'🚚 Domicile'}</span></div>
+      <div class="order-recap-row"><span>Livraison</span><span>${delivery.type==='pickup'?'🏪 Retrait boutique':'🚚 '+(delivery.island||'Tahiti')}</span></div>
       ${delivery.pickupDate?`<div class="order-recap-row"><span>Date retrait</span><span>${delivery.pickupDate} · ${delivery.slot||''}</span></div>`:''}
       ${delivery.address?`<div class="order-recap-row"><span>Adresse</span><span>${delivery.address}</span></div>`:''}
+      ${shipping?`<div class="order-recap-row"><span>Frais de port</span><span>${shipping.toLocaleString('fr-FR')} XPF</span></div>`:'<div class="order-recap-row"><span>Livraison</span><span>✅ Retrait gratuit</span></div>'}
       <div class="order-recap-row" style="padding-top:8px;margin-top:4px;border-top:1px solid var(--border)">
         <span style="font-weight:700">Total</span>
         <span style="font-weight:900;color:var(--accent-3)">${total.toLocaleString('fr-FR')} XPF</span>
       </div>
     </div>
-    <div style="display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap"><span style="font-size:.68rem;color:#9090b0;margin-right:3px">Nous acceptons</span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#1A1F71;border-radius:3px;font-size:8px;font-weight:900;color:#fff;letter-spacing:1px;font-family:Arial,sans-serif">VISA</span><span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;border-radius:3px;background:#1a1a1a;overflow:hidden"><span style="position:absolute;left:4px;width:18px;height:18px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:4px;width:18px;height:18px;background:#F79E1B;border-radius:50%;opacity:.9"></span></span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#005EB8;border-radius:3px;font-size:11px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span></div>
+    ${_paymentBadgesHtml()}
 <div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
     <div class="kr-embedded" id="pz-kr-form" style="display:none"></div>
     <div class="pz-error" id="pz-error"></div>
@@ -5130,7 +5336,7 @@ async function renderStep4() {
               orderId, status:'paid', amount:total, currency:'XPF',
               campaignName:CART.map(x=>x.camp).join(', '), product:items,
               client:{ name:contact.name, email:contact.email, phone:contact.phone||'' },
-              delivery:{ type:delivery.type, address:delivery.address||'', pickupDate:delivery.pickupDate||'', deliveryDelay:3 },
+              delivery:{ type:delivery.type, address:delivery.address||'', island:delivery.island||'', shippingFee:delivery.shippingFee||0, pickupDate:delivery.pickupDate||'', slot:delivery.slot||'', deliveryDelay:3 },
               note:contact.note||''
             })
           });
@@ -5170,8 +5376,10 @@ function showOrders() {
       <div class="orders-login">
         <h3>🔐 Espace Admin</h3>
         <p>Entrez votre secret administrateur pour accéder aux commandes.</p>
-        <input class="finput" id="admin-secret-input" type="password" placeholder="Secret admin" style="margin-bottom:10px">
-        <button class="btn btn-primary" style="width:100%" onclick="loginAdmin()">Se connecter</button>
+        <form onsubmit="loginAdmin();return false;" autocomplete="off">
+          <input class="finput" id="admin-secret-input" type="password" placeholder="Secret admin" style="margin-bottom:10px" autocomplete="current-password">
+          <button type="submit" class="btn btn-primary" style="width:100%">Se connecter</button>
+        </form>
         <div id="admin-login-err" style="color:#ff6b6b;font-size:0.75rem;margin-top:8px;display:none"></div>
       </div>`;
     return;
@@ -5244,15 +5452,28 @@ function renderOrdersView(orders, archived=false) {
         ? `<div style="text-align:center;color:var(--text-secondary);padding:60px;font-size:0.85rem">Aucune commande${ordersFilter!=='all'?' pour ce filtre':''}.</div>`
         : `<table class="order-table">
           <thead><tr>
-            <th>Référence</th><th>Date</th><th>Campagne</th><th>Produit</th><th>Montant</th><th>Statut</th><th>Actions</th>
+            <th>Référence</th><th>Date</th><th>Client</th><th>Campagne</th><th>Produit</th><th>Livraison</th><th>Montant</th><th>Statut</th><th>Actions</th>
           </tr></thead>
           <tbody>
             ${visible.map(o=>`
               <tr>
                 <td><code style="font-size:0.68rem;color:var(--accent)">${o.orderId}</code></td>
-                <td style="color:var(--text-secondary)">${new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+                <td style="color:var(--text-secondary);white-space:nowrap">${new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+                <td style="min-width:140px">
+                  <div style="font-weight:600;font-size:.8rem">${(o.client?.name||o.customerName||'—')}</div>
+                  <div style="font-size:.7rem;color:var(--text-secondary)">${o.client?.email||o.customerEmail||''}</div>
+                  ${o.client?.phone?`<div style="font-size:.7rem;color:var(--text-secondary)">${o.client.phone}</div>`:''}
+                  ${o.delivery?.address?`<div style="font-size:.68rem;color:var(--text-secondary);font-style:italic">${o.delivery.address}</div>`:''}
+                </td>
                 <td>${o.campaignName||'—'}</td>
-                <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.product||''}">${o.product||'—'}</td>
+                <td style="max-width:130px">
+                  <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.product||''}">${o.product||'—'}</div>
+                  ${(()=>{const m=(o.note||'').match(/Taille:([^\s|]+)/);const t=m?m[1]:'';const q=(o.note||'').match(/Qt[ée]:(\d+)/)||[];return t?`<div style="font-size:.65rem;color:var(--accent-3);font-weight:700">Taille ${t}${q[1]&&q[1]>1?' × '+q[1]:''}` + ((o.note||'').match(/Couleur:([^|]+)/)?`<span style="color:#9090b0"> · ${(o.note.match(/Couleur:([^|]+)/)[1]||'').trim()}</span>`:'') + '</div>':'';})()}
+                </td>
+                <td style="font-size:.78rem;min-width:130px">${o.delivery?.type==='pickup'
+                  ? `<div>🏪 Retrait</div>${o.delivery.pickupDate?`<div style="color:var(--accent);font-size:.68rem">${o.delivery.pickupDate}</div>`:''}${o.delivery.slot?`<div style="font-size:.65rem;color:#9090b0">${o.delivery.slot==='08-12'?'08h–12h':o.delivery.slot==='13-17'?'13h–17h':o.delivery.slot}</div>`:''}`
+                  : `<div>🚚 ${({'tahiti':'Tahiti','moorea':'Moorea','huahine':'Huahine','bora-bora':'Bora Bora','raiatea':'Raiatea','tahaa':'Tahaa','maupiti':'Maupiti','rangiroa':'Rangiroa','makemo':'Makemo','tubuai':'Tubuai','hiva-oa':'Hiva Oa','nuku-hiva':'Nuku Hiva'}[o.delivery?.island]||o.delivery?.island||'Tahiti')}</div>${o.delivery?.address?`<div style="font-size:.65rem;color:#9090b0;word-break:break-word;max-width:130px">${o.delivery.address}</div>`:''}${o.delivery?.shippingFee?`<div style="font-size:.65rem;color:var(--accent-3)">${o.delivery.shippingFee.toLocaleString('fr-FR')} XPF</div>`:''}`
+                }</td>
                 <td style="font-weight:700;color:var(--accent-3)">${(o.amount||0).toLocaleString('fr-FR')} ${o.currency||'XPF'}</td>
                 <td><span class="status-badge s-${o.status||'pending'}">${statusIcons[o.status]||''} ${o.status||'pending'}</span></td>
                 <td>
@@ -5358,6 +5579,7 @@ function renderLPs(pages) {
           <button onclick="navigator.clipboard.writeText('${p.url}');showToast('✅ Copié !')" style="flex:1;padding:6px;background:#1e1e3a;border:1px solid #2a2a4a;color:#ccc;border-radius:6px;font-size:0.7rem;cursor:pointer">📋 Copier</button>
           <button onclick="deleteLP('${p.slug}')" style="padding:6px 10px;background:rgba(255,107,107,.15);border:1px solid #ff6b6b;color:#ff6b6b;border-radius:6px;font-size:0.7rem;cursor:pointer">🗑️</button>
         </div>
+        <button onclick="showLoyalty()" style="width:100%;padding:5px;background:rgba(246,211,101,.1);border:1px solid #f6d36566;color:#f6d365;border-radius:6px;font-size:0.68rem;cursor:pointer;margin-top:2px">⭐ Programme Fidélité</button>
       </div>
     </div>`;
   }).join('');
@@ -5444,6 +5666,256 @@ async function trackOrder() {
       <div class="track-row"><span class="track-label">Statut</span><span class="track-val"><span class="status-badge s-${o.status}">${statusIcons[o.status]||''} ${statusLabels[o.status]||o.status}</span></span></div>
       <div class="track-row"><span class="track-label">Livraison</span><span class="track-val">${o.delivery?.type==='pickup'?'Retrait en boutique':'Livraison'}${o.delivery?.pickupDate?' · '+o.delivery.pickupDate:''}</span></div>`;
   } catch(e) { resultEl.innerHTML=`<div style="color:#ff6b6b;padding:14px;text-align:center;font-size:0.8rem">Erreur : ${e.message}</div>`; }
+}
+
+// ═══════════════════════════════════════════════════════
+// PROGRAMME FIDÉLITÉ
+// ═══════════════════════════════════════════════════════
+const LOYALTY_TIERS_UI = [
+  { name:'Ambassadeur', minXpf:300000, color:'#f6d365', bg:'rgba(246,211,101,.15)' },
+  { name:'Pro',         minXpf:150000, color:'#a78bfa', bg:'rgba(167,139,250,.15)' },
+  { name:'Regular',     minXpf: 50000, color:'#4facfe', bg:'rgba(79,172,254,.15)' },
+  { name:'Rookie',      minXpf:     0, color:'#9090b0', bg:'rgba(144,144,176,.12)' },
+];
+function loyaltyTierBadge(tier) {
+  const t = LOYALTY_TIERS_UI.find(x => x.name === tier) || LOYALTY_TIERS_UI[3];
+  return `<span style="background:${t.bg};color:${t.color};border-radius:20px;padding:2px 8px;font-size:0.68rem;font-weight:700">${tier}</span>`;
+}
+function loyaltyNextTier(totalXpf) {
+  const next = [...LOYALTY_TIERS_UI].reverse().find(t => t.minXpf > totalXpf);
+  if (!next) return '';
+  const diff = next.minXpf - totalXpf;
+  return `<span style="color:#9090b0;font-size:0.62rem"> · encore ${diff.toLocaleString('fr-FR')} XPF pour ${next.name}</span>`;
+}
+
+async function showLoyalty() {
+  setNavActive('nav-loyalty');
+  if (!adminSecret) { showOrders(); return; }
+  const ws = document.getElementById('workspace');
+  ws.innerHTML = `<div class="orders-view"><div class="orders-head"><div><div class="orders-title">⭐ Programme Fidélité</div><div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">Points clients · Tiers HCS</div></div><button class="btn btn-outline" style="font-size:0.72rem" onclick="showLoyalty()">🔄 Rafraîchir</button></div><div style="text-align:center;color:var(--text-secondary);padding:40px;font-size:0.85rem">Chargement…</div></div>`;
+  try {
+    const res = await fetch(`${WORKER_BASE}/admin/loyalty`, { headers:{'X-Admin-Secret':adminSecret} });
+    if (!res.ok) { if(res.status===401){adminSecret='';sessionStorage.removeItem('hcs_admin_secret');showOrders();}return; }
+    const { clients } = await res.json();
+
+    if (!clients.length) {
+      ws.innerHTML = `<div class="orders-view"><div class="orders-head"><div><div class="orders-title">⭐ Programme Fidélité</div></div></div><div style="text-align:center;color:var(--text-secondary);padding:60px">Aucun client fidélité pour l'instant. Les points sont attribués automatiquement à chaque commande.</div></div>`;
+      return;
+    }
+
+    const rows = clients.map(c => `
+      <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+        <td style="padding:10px 12px">
+          <div style="font-weight:600;font-size:0.85rem">${c.name||'—'}</div>
+          <div style="font-size:0.65rem;color:var(--text-secondary)">${c.email}</div>
+        </td>
+        <td style="padding:10px 12px;text-align:center">${loyaltyTierBadge(c.tier||'Rookie')}</td>
+        <td style="padding:10px 12px;text-align:right;font-weight:700;color:#f6d365;font-size:1rem">${(c.points||0).toLocaleString('fr-FR')}</td>
+        <td style="padding:10px 12px;text-align:right;font-size:0.78rem;color:var(--text-secondary)">${(c.totalXpf||0).toLocaleString('fr-FR')} XPF${loyaltyNextTier(c.totalXpf||0)}</td>
+        <td style="padding:10px 12px;font-size:0.65rem;color:var(--text-secondary)">${c.history?.[0]?.date ? new Date(c.history[0].date).toLocaleDateString('fr-FR') : '—'}</td>
+        <td style="padding:10px 12px">
+          <button onclick="loyaltyAdjust('${c.email}')" style="padding:4px 8px;background:rgba(79,172,254,.12);border:1px solid #4facfe44;color:#4facfe;border-radius:6px;font-size:0.65rem;cursor:pointer">Ajuster</button>
+          <button onclick="loyaltyDetail('${c.email}')" style="padding:4px 8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#ccc;border-radius:6px;font-size:0.65rem;cursor:pointer;margin-left:4px">Historique</button>
+        </td>
+      </tr>`).join('');
+
+    ws.innerHTML = `<div class="orders-view">
+      <div class="orders-head">
+        <div>
+          <div class="orders-title">⭐ Programme Fidélité</div>
+          <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">${clients.length} client${clients.length>1?'s':''} · Points cumulés</div>
+        </div>
+        <button class="btn btn-outline" style="font-size:0.72rem" onclick="showLoyalty()">🔄 Rafraîchir</button>
+      </div>
+      <div style="background:linear-gradient(135deg,rgba(246,211,101,.08),rgba(253,160,133,.08));border:1px solid rgba(246,211,101,.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:0.78rem;color:#c8b89a">
+        <strong style="color:#f6d365">Barème des points</strong> : Rookie 1pt/100 XPF · Regular (50k+) 1,2pt · Pro (150k+) 1,5pt · Ambassadeur (300k+) 2pt
+      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        <thead><tr style="background:rgba(255,255,255,.04);font-size:0.72rem;color:var(--text-secondary)">
+          <th style="padding:8px 12px;text-align:left;font-weight:600">Client</th>
+          <th style="padding:8px 12px;text-align:center;font-weight:600">Tier</th>
+          <th style="padding:8px 12px;text-align:right;font-weight:600">Points</th>
+          <th style="padding:8px 12px;text-align:right;font-weight:600">CA total</th>
+          <th style="padding:8px 12px;text-align:left;font-weight:600">Dernière commande</th>
+          <th style="padding:8px 12px;font-weight:600">Actions</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  } catch(e) { showToast('❌ ' + e.message, true); }
+}
+
+async function loyaltyDetail(email) {
+  try {
+    const res = await fetch(`${WORKER_BASE}/loyalty/${encodeURIComponent(email)}`);
+    const c = await res.json();
+    const hist = (c.history||[]).slice(0,10).map(h => `
+      <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+        <td style="padding:6px 10px;font-size:0.72rem">${h.date?new Date(h.date).toLocaleDateString('fr-FR'):'—'}</td>
+        <td style="padding:6px 10px;font-size:0.72rem;color:var(--text-secondary)">${h.orderId}</td>
+        <td style="padding:6px 10px;text-align:right;font-size:0.72rem">${(h.amount||0).toLocaleString('fr-FR')} XPF</td>
+        <td style="padding:6px 10px;text-align:right;font-weight:700;color:#f6d365;font-size:0.78rem">+${h.pointsEarned||0} pts</td>
+      </tr>`).join('');
+    const modal = document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#1a1a2e;border-radius:14px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <div style="font-weight:700;font-size:1rem">${c.name||c.email}</div>
+          <div style="font-size:0.7rem;color:var(--text-secondary)">${c.email}</div>
+        </div>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:#9090b0;font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        ${loyaltyTierBadge(c.tier||'Rookie')}
+        <span style="color:#f6d365;font-weight:700">${(c.points||0).toLocaleString('fr-FR')} pts</span>
+        <span style="color:var(--text-secondary);font-size:0.78rem">${(c.totalXpf||0).toLocaleString('fr-FR')} XPF CA</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="font-size:0.68rem;color:var(--text-secondary)">
+          <th style="padding:6px 10px;text-align:left">Date</th>
+          <th style="padding:6px 10px;text-align:left">Commande</th>
+          <th style="padding:6px 10px;text-align:right">Montant</th>
+          <th style="padding:6px 10px;text-align:right">Points</th>
+        </tr></thead>
+        <tbody>${hist}</tbody>
+      </table>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.onclick = e => { if(e.target===modal) modal.remove(); };
+  } catch(e) { showToast('❌ ' + e.message, true); }
+}
+
+async function loyaltyAdjust(email) {
+  const delta = prompt(`Ajustement manuel de points pour ${email}\n\nEntrez le nombre de points à ajouter (positif) ou retirer (négatif) :`);
+  if (!delta || isNaN(Number(delta))) return;
+  const reason = prompt('Raison (optionnel) :') || '';
+  try {
+    const res = await fetch(`${WORKER_BASE}/admin/loyalty`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json','X-Admin-Secret':adminSecret},
+      body: JSON.stringify({ email, delta: Number(delta), reason })
+    });
+    const d = await res.json();
+    if (d.success) { showToast(`✅ Solde mis à jour : ${d.points} pts`); showLoyalty(); }
+    else showToast('❌ ' + (d.error||'Erreur'), true);
+  } catch(e) { showToast('❌ ' + e.message, true); }
+}
+
+// ═══════════════════════════════════════════════════════
+// CONFIRMATION ENRICHIE + LIEN COMPTE CLIENT
+// ═══════════════════════════════════════════════════════
+const ERP_API = 'https://highcoffeeshirts.com/erp/api';
+const CLIENT_PORTAL = 'https://highcoffeeshirts.com/erp/apps/compte-client.html';
+const TIER_RATES = { Rookie:1.0, Regular:1.2, Pro:1.5, Ambassadeur:2.0 };
+const TIER_THRESHOLDS = [
+  { name:'Ambassadeur', min:300000 },
+  { name:'Pro',         min:150000 },
+  { name:'Regular',     min: 50000 },
+  { name:'Rookie',      min:      0 },
+];
+
+/**
+ * Appelé après paiement confirmé.
+ * Récupère les données fidélité, génère le lien magique, enrichit le bloc confirmation.
+ */
+async function _enrichConfirmation(orderId, total, contact, delivery, productName) {
+  /* Données fidélité actuelles */
+  let loyData = null;
+  try {
+    const r = await fetch(`${WORKER_BASE}/loyalty/${encodeURIComponent(contact.email)}`);
+    if (r.ok) loyData = await r.json();
+  } catch(_) {}
+
+  const tier     = loyData?.tier || 'Rookie';
+  const taux     = TIER_RATES[tier] || 1.0;
+  const ptsGagne = Math.floor(total * taux / 100);
+  const totalPts = (parseInt(loyData?.points)   || 0) + ptsGagne;
+  const totalXpf = (parseInt(loyData?.totalXpf) || 0) + total;
+  const nextT    = TIER_THRESHOLDS.find(t => t.min > totalXpf);
+  const nextMsg  = nextT
+    ? `encore <strong>${(nextT.min - totalXpf).toLocaleString('fr-FR')} XPF</strong> pour atteindre le niveau <strong>${nextT.name}</strong>`
+    : '🏆 Vous êtes <strong>Ambassadeur HCS</strong> !';
+
+  /* Générer lien magique via API PHP */
+  let magicUrl = CLIENT_PORTAL;
+  try {
+    const r2 = await fetch(`${ERP_API}/compte_client`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'request_link', email: contact.email })
+    });
+    const d2 = await r2.json();
+    if (d2.token) magicUrl = `${CLIENT_PORTAL}?token=${d2.token}`;
+  } catch(_) {}
+
+  /* Date de récupération */
+  const livraisonTxt = delivery?.pickupDate
+    ? `📅 Retrait le <strong>${delivery.pickupDate}</strong>${delivery.slot ? ' · ' + delivery.slot : ''}`
+    : delivery?.type === 'pickup' ? '📍 Retrait en boutique' : `🚚 Livraison ${delivery?.island || 'Tahiti'}`;
+
+  /* Enrichir le div pz-ok */
+  const okEl = document.getElementById('pz-ok');
+  if (!okEl) return;
+
+  /* Barème */
+  const bareme = [
+    { name:'Rookie',      min:'0',       taux:'1 pt',   color:'#9090b0' },
+    { name:'Regular',     min:'50 000+', taux:'1,2 pt', color:'#4facfe' },
+    { name:'Pro',         min:'150k+',   taux:'1,5 pt', color:'#a78bfa' },
+    { name:'Ambassadeur', min:'300k+',   taux:'2 pt',   color:'#f6d365' },
+  ].map(t => `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+    <td style="padding:5px 8px;color:${t.color};font-weight:600">${t.name === tier ? '✓ ' : ''}${t.name}</td>
+    <td style="padding:5px 8px;color:rgba(255,255,255,.5);font-size:.7rem">dès ${t.min} XPF</td>
+    <td style="padding:5px 8px;color:${t.color};font-weight:700;text-align:right">${t.taux}/100 XPF</td>
+  </tr>`).join('');
+
+  okEl.innerHTML = `
+  <div style="text-align:center;margin-bottom:18px">
+    <div style="font-size:2rem;margin-bottom:6px">✅</div>
+    <div style="font-weight:800;font-size:1.05rem;margin-bottom:4px">Paiement accepté !</div>
+    <div style="font-size:.8rem;color:rgba(255,255,255,.6)">Commande <strong style="color:#fff">${orderId}</strong></div>
+  </div>
+
+  <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:.8rem;line-height:1.7">
+    ${productName ? `<div>📦 ${productName}</div>` : ''}
+    <div>💰 Total payé : <strong style="color:#43e97b">${total.toLocaleString('fr-FR')} XPF</strong></div>
+    <div>${livraisonTxt}</div>
+  </div>
+
+  <div style="background:linear-gradient(135deg,rgba(246,211,101,.1),rgba(240,160,48,.07));border:1px solid rgba(246,211,101,.2);border-radius:10px;padding:14px;margin-bottom:12px">
+    <div style="font-weight:700;color:#f6d365;margin-bottom:10px;font-size:.88rem">⭐ Vos points fidélité</div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+      <span style="font-size:1.8rem;font-weight:800;color:#f0a030">+${ptsGagne}</span>
+      <span style="font-size:.8rem;color:rgba(255,255,255,.6)">points gagnés</span>
+    </div>
+    <div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:10px">
+      ${total.toLocaleString('fr-FR')} XPF × ×${taux} (niveau ${tier}) = ${ptsGagne} pts
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(0,0,0,.2);border-radius:7px;margin-bottom:8px;font-size:.8rem">
+      <span style="color:rgba(255,255,255,.7)">Solde total</span>
+      <span style="font-weight:700;color:#f6d365">${totalPts.toLocaleString('fr-FR')} pts · ${tier}</span>
+    </div>
+    <div style="font-size:.73rem;color:rgba(255,255,255,.5)">${nextMsg}</div>
+
+    <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px">
+      <div style="font-size:.68rem;font-weight:600;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Barème du programme</div>
+      <table style="width:100%;border-collapse:collapse;font-size:.73rem">${bareme}</table>
+    </div>
+  </div>
+
+  <div style="background:rgba(79,172,254,.08);border:1px solid rgba(79,172,254,.2);border-radius:10px;padding:12px 14px;font-size:.8rem">
+    <div style="font-weight:600;color:#4facfe;margin-bottom:6px">🔗 Votre espace client HCS</div>
+    <div style="color:rgba(255,255,255,.6);margin-bottom:8px;font-size:.75rem">Consultez vos points, votre historique et vos avantages fidélité en ligne.</div>
+    <a href="${magicUrl}" target="_blank"
+      style="display:block;text-align:center;padding:10px;background:rgba(79,172,254,.15);border:1px solid rgba(79,172,254,.3);border-radius:8px;color:#4facfe;font-weight:600;font-size:.8rem;text-decoration:none">
+      Accéder à mon espace client →
+    </a>
+    <div style="margin-top:6px;font-size:.65rem;color:rgba(255,255,255,.3);text-align:center">Lien valable 24h — un nouveau lien sera généré à chaque commande</div>
+  </div>
+
+  <div style="text-align:center;margin-top:14px;font-size:.72rem;color:rgba(255,255,255,.35)">
+    Merci ${contact.name} — High Coffee Shirt 🌺
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -5754,10 +6226,81 @@ function renderMysqlLPsView(lps) {
 }
 
 // ═══════════════════════════════════════════════════════
-// PERSISTANCE IMAGES (localStorage)
+// PERSISTANCE IMAGES + CHAMPS (localStorage)
 // ═══════════════════════════════════════════════════════
-const IMG_STORE = 'hcs_img_v1';
+const IMG_STORE   = 'hcs_img_v1';
+const CAMPS_STORE = 'hcs_camps_v1';
 const _memState = {}; // état en mémoire (switching rapide, pas de quota)
+
+// Sauvegarde les champs texte éditables + PayZen pour un id de campagne
+function saveCamps(id) {
+  try {
+    const c = CAMPS[id];
+    if (!c) return;
+    const all = JSON.parse(localStorage.getItem(CAMPS_STORE) || '{}');
+    all[id] = {
+      headline:  c.headline,
+      subline:   c.subline,
+      badge:     c.badge,
+      cta:       c.cta,
+      domain:    c.domain    || '',
+      linktitle: c.linktitle || '',
+      products:  c.products.map(p => ({
+        n: p.n, p: p.p,
+        couleur:    p.couleur    || '',
+        couleurHex: p.couleurHex || '',
+        dtfLogoRef: p.dtfLogoRef || '',
+      })),
+      // PayZen (lus depuis le DOM si disponible)
+      pzAmount: document.getElementById(`pz-amount-${id}`)?.value || _memState[id]?.pzAmount || '',
+      pzWorker: document.getElementById(`pz-worker-${id}`)?.value || _memState[id]?.pzWorker || '',
+      pzSecret: document.getElementById(`pz-secret-${id}`)?.value || _memState[id]?.pzSecret || '',
+      pzMode:   document.getElementById(`pz-mode-${id}`)?.value   || _memState[id]?.pzMode   || 'TEST',
+    };
+    localStorage.setItem(CAMPS_STORE, JSON.stringify(all));
+  } catch(e) { console.warn('saveCamps:', e.message); }
+}
+
+// Debounce autosave — évite de spammer localStorage à chaque frappe
+const _saveCampsTimers = {};
+function debounceSaveCamps(id) {
+  clearTimeout(_saveCampsTimers[id]);
+  _saveCampsTimers[id] = setTimeout(() => saveCamps(id), 800);
+}
+
+// Restaure les champs texte + PayZen depuis localStorage dans CAMPS[] et _memState
+function restoreCamps() {
+  try {
+    const all = JSON.parse(localStorage.getItem(CAMPS_STORE) || '{}');
+    Object.entries(all).forEach(([idStr, data]) => {
+      const id = parseInt(idStr);
+      const c = CAMPS[id];
+      if (!c) return;
+      if (data.headline  !== undefined) c.headline  = data.headline;
+      if (data.subline   !== undefined) c.subline   = data.subline;
+      if (data.badge     !== undefined) c.badge     = data.badge;
+      if (data.cta       !== undefined) c.cta       = data.cta;
+      if (data.domain    !== undefined) c.domain    = data.domain;
+      if (data.linktitle !== undefined) c.linktitle = data.linktitle;
+      if (Array.isArray(data.products)) {
+        data.products.forEach((p, i) => {
+          if (!c.products[i]) return;
+          if (p.n !== undefined) c.products[i].n = p.n;
+          if (p.p !== undefined) c.products[i].p = p.p;
+          if (p.couleur    !== undefined) c.products[i].couleur    = p.couleur;
+          if (p.couleurHex !== undefined) c.products[i].couleurHex = p.couleurHex;
+          if (p.dtfLogoRef !== undefined) c.products[i].dtfLogoRef = p.dtfLogoRef;
+        });
+      }
+      // PayZen → _memState (sera injecté dans le DOM par restoreState)
+      if (!_memState[id]) _memState[id] = {};
+      if (data.pzAmount) _memState[id].pzAmount = data.pzAmount;
+      if (data.pzWorker) _memState[id].pzWorker = data.pzWorker;
+      if (data.pzSecret) _memState[id].pzSecret = data.pzSecret;
+      if (data.pzMode)   _memState[id].pzMode   = data.pzMode;
+    });
+  } catch(e) { console.warn('restoreCamps:', e.message); }
+}
 
 function saveState(id) {
   const cv = document.getElementById('cv-' + id);
@@ -5792,6 +6335,9 @@ function saveState(id) {
   } catch(e) {
     console.warn('⚠️ localStorage plein — images non sauvegardées:', e.message);
   }
+
+  // 3. Persister les champs texte + PayZen
+  saveCamps(id);
 }
 
 function saveBg(id, dataUrl) {
@@ -6087,6 +6633,7 @@ function toggleHcsCampHistory() {
 }
 
 // Init
+restoreCamps();   // recharge les champs texte + PayZen depuis localStorage
 buildSidebar();
 render(0);
 restoreState(0);
@@ -6498,6 +7045,8 @@ function stkRemoveCustomFont(campId, fontVal, el) {
 // ── Images par face produit ──────────────────────────────
 // tshFaceImages[campId][prodIdx][face] = dataURL
 const tshFaceImages = {};
+// tshDtfLogos[campId][prodIdx][n] = { url:dataURL, name:string }  (n = 1..3)
+const tshDtfLogos = {};
 
 function tshGetFaceImg(campId, prodIdx, face) {
   const custom = tshFaceImages[campId]?.[prodIdx]?.[face];
@@ -6522,6 +7071,25 @@ function tshLoadFaceImg(e, campId, prodIdx, face) {
     if (thumb) thumb.innerHTML = `<img src="${ev.target.result}">`;
   };
   reader.readAsDataURL(file);
+}
+
+function tshLoadDtfLogo(e, campId, prodIdx, n) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    if (!tshDtfLogos[campId]) tshDtfLogos[campId] = {};
+    if (!tshDtfLogos[campId][prodIdx]) tshDtfLogos[campId][prodIdx] = {};
+    tshDtfLogos[campId][prodIdx][n] = { url: ev.target.result, name: file.name };
+    const thumb = document.getElementById(`tsh-${campId}-dtf-${prodIdx}-${n}`);
+    if (thumb) thumb.innerHTML = `<img src="${ev.target.result}" style="max-width:90%;max-height:90%;object-fit:contain">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function tshGetDtfLogos(campId, prodIdx) {
+  const obj = tshDtfLogos[campId]?.[prodIdx] || {};
+  return [1,2,3].map(n => obj[n] || null).filter(Boolean);
 }
 
 function tshSetFace(campId, face, enabled) {

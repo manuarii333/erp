@@ -254,23 +254,31 @@ const CRM = (() => {
       addLabel:  '+ Opportunité',
       cardTemplate: (opp) => {
         const cn    = _contactNom(opp.contactId);
-        const color = _avatarColor(cn);
         const pct   = opp.probabilite || 0;
-        const pctC  = pct >= 70 ? 'var(--accent-green)' : pct >= 40 ? 'var(--accent-orange)' : 'var(--accent-red)';
+
+        // Couleur unique par opportunité — intensité croît avec la probabilité
+        const idNum     = opp.id ? Array.from(String(opp.id)).reduce((a, c) => a + c.charCodeAt(0), 0) : 0;
+        const hue       = (idNum * 137 + 43) % 360;
+        const sat       = 30 + Math.round(pct * 0.60); // 30 % (proba 0) → 90 % (proba 100)
+        const lit       = 55 - Math.round(pct * 0.10); // 55 % → 45 %
+        const cardColor = `hsl(${hue},${sat}%,${lit}%)`;
+
         return `
-          <div class="kanban-card-title">${_esc(opp.nom)}</div>
-          <div class="kanban-card-sub" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-            <div class="avatar" style="width:20px;height:20px;font-size:9px;background:${color};">${_initiales(cn)}</div>
-            <span>${_esc(cn)}</span>
+          <div style="margin:-12px -12px 10px -12px;padding:10px 12px 8px;background:${cardColor};border-radius:7px 7px 0 0;">
+            <div style="font-size:15px;font-weight:800;color:#fff;line-height:1.25;letter-spacing:-0.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_esc(opp.nom)}">${_esc(opp.nom)}</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px;">
+              <div class="avatar" style="width:16px;height:16px;font-size:8px;background:rgba(255,255,255,0.25);color:#fff;">${_initiales(cn)}</div>
+              <span style="font-size:11px;color:rgba(255,255,255,0.92);font-weight:600;">${_esc(cn)}</span>
+            </div>
           </div>
           <div class="kanban-card-amount">${_fmt(opp.montant || 0)}</div>
           <div style="margin-top:8px;">
             <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:3px;">
               <span>Probabilité</span>
-              <span style="color:${pctC};font-weight:600;">${pct}%</span>
+              <span style="color:${cardColor};font-weight:700;">${pct}%</span>
             </div>
             <div class="kanban-progress">
-              <div class="kanban-progress-bar" style="width:${pct}%;background:${pctC};"></div>
+              <div class="kanban-progress-bar" style="width:${pct}%;background:${cardColor};"></div>
             </div>
           </div>
           ${opp.echeance ? `<div class="kanban-card-meta"><span>📅 ${_fmtD(opp.echeance)}</span></div>` : ''}`;

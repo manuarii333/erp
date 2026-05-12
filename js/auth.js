@@ -414,6 +414,33 @@ function toggleMdpVisibility() {
 }
 
 /* ================================================================
+   JETON API HMAC — récupéré silencieusement après connexion
+   Stocké dans sessionStorage (effacé à la fermeture du navigateur).
+   Si l'API est inaccessible, l'ERP continue en mode localStorage-only.
+
+   ⚠️  ROUTE NON IMPLÉMENTÉE côté PHP : api/token n'existe pas dans
+   allowedTables (index.php). La fonction retourne silencieusement sans
+   erreur. La clé statique 'hcs-erp-2026' (mysql-api.js) reste active.
+   À FAIRE : ajouter le contrôleur api/controllers/token.php et
+   enregistrer 'token' dans allowedTables de index.php.
+   ================================================================ */
+async function _fetchApiToken(login, mdpHash) {
+  try {
+    const res = await fetch('https://highcoffeeshirts.com/erp/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, mdpHash })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.token) {
+      sessionStorage.setItem('hcs_api_token', data.token);
+      if (window.MYSQL) window.MYSQL.apiKey = data.token;
+    }
+  } catch (_) { /* API inaccessible — mode localStorage-only */ }
+}
+
+/* ================================================================
    SOUMISSION DU FORMULAIRE DE CONNEXION
    ================================================================ */
 function handleLogin(event) {
@@ -447,6 +474,9 @@ function handleLogin(event) {
 
   /* Connexion réussie */
   Auth.setSession(user);
+  const mdpHash = _hashMdp(mdpVal);
+  sessionStorage.setItem('hcs_mdp_hash', mdpHash);
+  _fetchApiToken(loginVal, mdpHash); /* fire-and-forget */
   showApp();
 }
 
@@ -639,6 +669,8 @@ window._couleurAvatar     = _couleurAvatar;
 (function () {
   const session = Auth.getSession();
   if (session) {
+    /* Renouveler le jeton API si le hash est disponible en session */
+    _fetchApiToken(session.login, sessionStorage.getItem('hcs_mdp_hash') || '');
     showApp();
   } else {
     renderLoginScreen();

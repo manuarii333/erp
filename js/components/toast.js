@@ -4,13 +4,13 @@
    Usage : toast('Message', 'success'|'error'|'warning'|'info')
    ================================================================ */
 
+'use strict';
+
 function _escT(str) {
   return String(str ?? '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-'use strict';
 
 /* ----------------------------------------------------------------
    Configuration globale
@@ -325,3 +325,6 @@ window.toastError   = toastError;
 window.toastWarning = toastWarning;
 window.toastInfo    = toastInfo;
 window.clearToasts  = clearToasts;
+// Aliases de compatibilité — certains modules appellent showToast() ou Toast.show()
+window.showToast    = toast;
+window.Toast        = { show: toast };

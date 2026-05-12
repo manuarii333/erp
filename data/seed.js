@@ -19,6 +19,22 @@ const _mkTextileVariantes = (prix, cout, tailles, couleurs) => {
 const _mkFormatVariantes = (formats, prix, cout) =>
   formats.map(f => ({ 'Format Thermocollant': f, ref: '', prix, cout, quantite: 0 }));
 
+/* Coûts DTF calculés : 10× 1Yard HTV4U @$16.57 + fret USPS + douane 7% + TVA 16% + frais
+   Total landed 38 609 XPF / 51 099 cm² = 0.756 XPF/cm²  (marge ×4 = prix client) */
+const FORMATS_DTF = [
+  { nom: 'Nuque 8×8',      sku: 'DTF-NUQ-8x8',   cm2:  64, cout:  48, prix:  200 },
+  { nom: 'Coeur 10×10',    sku: 'DTF-COE-10x10',  cm2: 100, cout:  76, prix:  300 },
+  { nom: 'Manche 10×10',   sku: 'DTF-MCH-10x10',  cm2: 100, cout:  76, prix:  300 },
+  { nom: 'A5 (14×20)',     sku: 'DTF-A5-14x20',   cm2: 280, cout: 212, prix:  850 },
+  { nom: 'Poitrine 24×24', sku: 'DTF-POI-24x24',  cm2: 576, cout: 435, prix: 1750 },
+  { nom: 'Dos 24×24',      sku: 'DTF-DOS-24x24',  cm2: 576, cout: 435, prix: 1750 },
+  { nom: 'A4 (20×28)',     sku: 'DTF-A4-20x28',   cm2: 560, cout: 423, prix: 1700 },
+  { nom: 'A3 (28×40)',     sku: 'DTF-A3-28x40',   cm2:1120, cout: 846, prix: 3400 },
+  { nom: 'A2 (40×56)',     sku: 'DTF-A2-40x56',   cm2:2240, cout:1693, prix: 6800 },
+];
+const _mkDTFVariantes = () =>
+  FORMATS_DTF.map(f => ({ 'Format DTF': f.nom, ref: f.sku, prix: f.prix, cout: f.cout, quantite: 0 }));
+
 const TAILLES_STD    = ['XS','S','M','L','XL','XXL','3XL'];
 const COULEURS_POLO  = ['Blanc','Noir','Marine','Gris','Rouge','Kaki'];
 const COULEURS_SHIRT = ['Blanc','Noir','Marine','Gris','Rouge','Bordeaux','Kaki','Rose'];
@@ -102,20 +118,24 @@ const SEED = {
       prix: 3200, cout: 900, stock: 35, stockMin: 5,
       unite: 'pce', description: 'Plaque alu blanc 21×29,7cm, sublimation HD, finition brillante'
     },
-    /* --- DTF (Direct To Film) --- */
+    /* --- DTF (Direct To Film) — source HTV4U, coûts calculés DTF V2 --- */
     {
-      id: 'prod-008', sku: 'DTF-TRANSFERT-A4', emoji: '🎨',
-      nom: 'Transfert DTF A4',
+      id: 'prod-008', sku: 'DTF-TRANSFERT', emoji: '🎨',
+      nom: 'Transfert DTF',
       categorie: 'DTF',
-      prix: 850, cout: 220, stock: 500, stockMin: 50,
-      unite: 'pce', description: 'Film DTF A4 prêt à presser, poudre colle incluse'
+      prix: 850, cout: 212, stock: 0, stockMin: 0,
+      unite: 'pce',
+      description: 'Gang sheets 22" HTV4U — film prêt à presser, poudre colle incluse. Coût calculé : 0.756 XPF/cm² (10×1Yard, palier 6-10).',
+      productKind: 'variable',
+      variantes: _mkDTFVariantes(),
+      customAttrs: [{ nom: 'Format DTF', valeurs: FORMATS_DTF.map(f => f.nom) }]
     },
     {
       id: 'prod-009', sku: 'DTF-TRANSFERT-A3', emoji: '🎨',
       nom: 'Transfert DTF A3',
       categorie: 'DTF',
-      prix: 1400, cout: 380, stock: 320, stockMin: 30,
-      unite: 'pce', description: 'Film DTF A3, idéal pour dos de t-shirt et grandes impressions'
+      prix: 3400, cout: 846, stock: 320, stockMin: 30,
+      unite: 'pce', description: 'Film DTF A3 (28×40cm) — 1 120 cm² · Coût matière 846 XPF · Prix client 3 400 XPF (marge ×4)'
     },
     /* --- DÉCOUPE VINYLE --- */
     {

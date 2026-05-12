@@ -40,12 +40,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 /* ----------------------------------------------------------------
+   1b. ROUTES SPÉCIALES : sans clé API admin
+   Traitement avant la vérification de clé.
+   ---------------------------------------------------------------- */
+
+/* POST /api/token — authentification ERP */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $_tokenPath = trim(preg_replace('#^.*/api/?#', '', strtok($_SERVER['REQUEST_URI'], '?')), '/');
+    if ($_tokenPath === 'token') {
+        $rawBody = file_get_contents('php://input');
+        $body    = json_decode($rawBody, true) ?? [];
+        require_once __DIR__ . '/controllers/token.php';
+        (new TokenController())->handle($body);
+        exit;
+    }
+}
+
+/* GET|POST /api/compte_client — portail client public (magic link, login, données fidélité) */
+$_ccUri  = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '';
+$_ccSeg  = trim(preg_replace('#^.*/api/?#', '', $_ccUri), '/');
+if ($_ccSeg === 'compte_client') {
+    $rawBody = file_get_contents('php://input');
+    $body    = json_decode($rawBody, true) ?? [];
+    try {
+        require_once __DIR__ . '/controllers/compte_client.php';
+        $pdo = Database::getInstance()->getPdo();
+        (new CompteClientController($pdo))->handle($_SERVER['REQUEST_METHOD'], $body);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['error' => $e->getMessage(), 'file' => basename($e->getFile()), 'line' => $e->getLine()]);
+    }
+    exit;
+}
+
+/* ----------------------------------------------------------------
    2. VÉRIFICATION CLÉ API
-   Le front envoie le header : x-api-key: hcs-erp-2026
+   Accepte : clé statique (hcs-erp-2026) OU token HMAC valide
+   généré par /api/token après authentification.
    ---------------------------------------------------------------- */
 $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
 
-if ($apiKey !== API_KEY) {
+$_isStaticKey = ($apiKey === API_KEY);
+$_isValidToken = false;
+
+if (!$_isStaticKey && $apiKey !== '') {
+    require_once __DIR__ . '/controllers/token.php';
+    $_tokenSecret = getenv('API_TOKEN_SECRET') ?: API_KEY;
+    $_isValidToken = (TokenController::verify($apiKey, $_tokenSecret) !== null);
+}
+
+if (!$_isStaticKey && !$_isValidToken) {
     http_response_code(401);
     echo json_encode(['error' => 'Clé API invalide ou manquante']);
     exit;
@@ -72,10 +116,20 @@ $resource = $segments[0] ?? null;  /* Nom de la table */
 $segment2 = $segments[1] ?? null;  /* ID ou action */
 
 /* Différencier action spéciale "search" d'un ID numérique */
-$action = null;
-$id     = null;
+$action   = null;
+$id       = null;
+$segment3 = $segments[2] ?? null;  /* action sous-ressource ex: /sessions_caisse/5/fermer */
+
 if ($segment2 === 'search') {
     $action = 'search';
+} elseif ($segment2 === 'stats') {
+    $action = 'stats';            /* GET /api/ventes_caisse/stats */
+} elseif ($segment2 === 'today') {
+    $action = 'today';            /* GET /api/sessions_caisse/today */
+} elseif ($segment2 !== null && $segment3 !== null) {
+    /* ex: PUT /api/sessions_caisse/5/fermer */
+    $id     = $segment2;
+    $action = $segment3;
 } elseif ($segment2 !== null) {
     $id = $segment2;
 }
@@ -101,6 +155,27 @@ $allowedTables = [
     'landing_pages',
     'assets',
     'taches_agents',
+    'images_source_client',
+    /* Finance Dashboard */
+    'finance_transactions',
+    'finance_charges',
+    /* Rapport P&L */
+    'pl_rapports',
+    /* Sessions comptables (périodes comptables) */
+    'sessions_comptables',
+    /* Caisse POS */
+    'ventes_caisse',
+    'sessions_caisse',
+    /* Planning Production */
+    'planning_commandes',
+    'planning_fournisseurs',
+    'planning_achats',
+    /* Andromeda Campaign */
+    'lp_publiees',
+    'lp_commandes',
+    /* Programme Fidélité */
+    'fidelite_clients',
+    'fidelite_historique',
 ];
 
 if (!$resource || !in_array($resource, $allowedTables, true)) {
@@ -158,6 +233,22 @@ try {
         /* GET /api/contacts/search?q=dupont */
         $q      = trim($_GET['q'] ?? '');
         $result = $ctrl->search($q);
+
+    } elseif ($method === 'GET' && $action === 'stats') {
+        /* GET /api/ventes_caisse/stats?date_debut=&date_fin= */
+        $result = method_exists($ctrl, 'stats') ? $ctrl->stats($_GET) : ['error' => 'Non supporté'];
+
+    } elseif ($method === 'GET' && $action === 'today') {
+        /* GET /api/sessions_caisse/today */
+        $result = method_exists($ctrl, 'today') ? $ctrl->today() : ['error' => 'Non supporté'];
+
+    } elseif ($method === 'PUT' && $id !== null && $action === 'fermer') {
+        /* PUT /api/sessions_caisse/{id}/fermer */
+        $result = method_exists($ctrl, 'fermer') ? $ctrl->fermer((int)$id, $body) : ['error' => 'Non supporté'];
+
+    } elseif ($method === 'PUT' && $id !== null && $action === 'annuler') {
+        /* PUT /api/ventes_caisse/{id}/annuler */
+        $result = method_exists($ctrl, 'annuler') ? $ctrl->annuler((int)$id, $body) : ['error' => 'Non supporté'];
 
     } elseif ($method === 'GET' && $id !== null) {
         /* GET /api/contacts/42 */

@@ -150,6 +150,24 @@ const Manufacturing = (() => {
         const progColor = prog >= 100 ? 'var(--accent-green)'
           : prog >= 50 ? 'var(--accent-blue)'
           : 'var(--accent-orange)';
+        const mockups = Array.isArray(of.mockupUrls) ? of.mockupUrls : [];
+        const mockupStrip = mockups.length > 0
+          ? `<div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;">
+               ${mockups.slice(0, 4).map((m, i) => `
+                 <img src="${m.dataUrl}"
+                      data-of-mockup-id="${_escM(of.id)}"
+                      data-of-mockup-idx="${i}"
+                      style="width:40px;height:40px;object-fit:cover;border-radius:4px;
+                             border:1px solid var(--border,#333);cursor:zoom-in;flex-shrink:0;"
+                      title="${_escM(m.nom || m.source || 'Mockup')}" />`).join('')}
+               ${mockups.length > 4
+                 ? `<div style="width:40px;height:40px;background:var(--bg-elevated);
+                               border-radius:4px;display:flex;align-items:center;
+                               justify-content:center;font-size:11px;color:var(--text-muted);
+                               border:1px solid var(--border,#333);">+${mockups.length - 4}</div>`
+                 : ''}
+             </div>`
+          : '';
 
         return `
           <div style="padding:12px;cursor:pointer;" data-id="${of.id}">
@@ -181,6 +199,8 @@ const Manufacturing = (() => {
             <div style="font-size:11px;color:var(--text-muted);">
               📅 Butoir : ${_escM(butoir)}
             </div>
+            <!-- Mockups -->
+            ${mockupStrip}
           </div>`;
       },
 
@@ -209,6 +229,22 @@ const Manufacturing = (() => {
         );
       }
     });
+
+    /* Délégation : clic sur une vignette mockup dans le kanban → lightbox */
+    const kanbanEl = document.getElementById('mfg-mo-kanban');
+    if (kanbanEl) {
+      kanbanEl.addEventListener('click', function(e) {
+        const thumb = e.target.closest('[data-of-mockup-id]');
+        if (!thumb) return;
+        e.stopPropagation();
+        const ofId  = thumb.dataset.ofMockupId;
+        const idx   = parseInt(thumb.dataset.ofMockupIdx, 10);
+        const of    = Store.getById('ordresFab', ofId);
+        if (of && Array.isArray(of.mockupUrls) && of.mockupUrls.length) {
+          _openMockupLightboxMfg(of.mockupUrls, idx);
+        }
+      });
+    }
   }
 
   /* ---- Liste OF ---- */
@@ -448,6 +484,36 @@ const Manufacturing = (() => {
             placeholder="Instructions de fabrication, remarques…">${notes}</textarea>
         </div>
 
+        <!-- Mockups projet (hérités du devis) -->
+        ${(() => {
+          const mockups = Array.isArray(of.mockupUrls) ? of.mockupUrls : [];
+          if (mockups.length === 0) return '';
+          return `
+          <div class="form-group" style="margin-bottom:24px;">
+            <label class="form-label" style="margin-bottom:8px;">
+              🖼 Visuels du projet (${mockups.length} image${mockups.length > 1 ? 's' : ''})
+            </label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              ${mockups.map((m, i) => `
+                <div style="position:relative;display:inline-block;">
+                  <img src="${m.dataUrl}"
+                       data-mfg-mockup-idx="${i}"
+                       style="width:80px;height:80px;object-fit:cover;border-radius:6px;
+                              border:2px solid transparent;cursor:zoom-in;
+                              transition:border-color .15s,transform .15s;"
+                       title="${_escM(m.nom || m.source || 'Mockup')} — Cliquer pour zoomer"
+                       onmouseover="this.style.borderColor='var(--caramel,#c4813a)';this.style.transform='scale(1.06)'"
+                       onmouseout="this.style.borderColor='transparent';this.style.transform='scale(1)'" />
+                  <div style="font-size:9px;color:var(--text-muted);text-align:center;
+                              max-width:80px;overflow:hidden;white-space:nowrap;
+                              text-overflow:ellipsis;margin-top:2px;">
+                    ${_escM(m.nom || m.source || '')}
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>`;
+        })()}
+
       </div>`;
 
     /* Slider live */
@@ -459,6 +525,16 @@ const Manufacturing = (() => {
         const v = slider.value;
         if (display) display.textContent = v + '%';
         if (bar)     bar.style.width     = v + '%';
+      });
+    }
+
+    /* Zoom mockups depuis le formulaire */
+    const mockups = Array.isArray(of.mockupUrls) ? of.mockupUrls : [];
+    if (mockups.length > 0) {
+      area.querySelectorAll('[data-mfg-mockup-idx]').forEach(img => {
+        img.addEventListener('click', function() {
+          _openMockupLightboxMfg(mockups, parseInt(this.dataset.mfgMockupIdx, 10));
+        });
       });
     }
   }
@@ -1071,6 +1147,59 @@ const Manufacturing = (() => {
   }
   function _td() {
     return 'padding:8px 12px;font-size:14px;color:var(--text-primary);';
+  }
+
+  /* Lightbox plein écran pour les mockups des OFs */
+  function _openMockupLightboxMfg(mockups, startIdx) {
+    if (!mockups || !mockups.length) return;
+    let current = startIdx || 0;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,.92);' +
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out;';
+
+    function render() {
+      const m = mockups[current];
+      overlay.innerHTML = `
+        <button id="lb-close" style="position:fixed;top:16px;right:20px;background:none;
+          border:none;color:#fff;font-size:28px;cursor:pointer;line-height:1;z-index:1;">✕</button>
+        ${mockups.length > 1 ? `<button id="lb-prev" style="position:fixed;left:12px;top:50%;
+          transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;
+          font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:1;">‹</button>` : ''}
+        <img src="${m.dataUrl}" style="max-width:92vw;max-height:82vh;object-fit:contain;
+          border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6);" />
+        ${mockups.length > 1 ? `<button id="lb-next" style="position:fixed;right:12px;top:50%;
+          transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;
+          font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:1;">›</button>` : ''}
+        <div style="margin-top:12px;color:rgba(255,255,255,.7);font-size:12px;text-align:center;">
+          ${_escM(m.nom || '')}${m.source ? ' — ' + _escM(m.source) : ''}${m.date ? ' — ' + _escM(m.date) : ''}
+          ${mockups.length > 1 ? `<span style="margin-left:12px;opacity:.5;">${current+1} / ${mockups.length}</span>` : ''}
+        </div>
+        ${mockups.length > 1 ? `<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;justify-content:center;">
+          ${mockups.map((u, i) => `<img src="${u.dataUrl}" data-lb="${i}"
+            style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer;
+                   opacity:${i===current?'1':'.4'};border:2px solid ${i===current?'var(--caramel,#c4813a)':'transparent'};" />`).join('')}
+        </div>` : ''}`;
+
+      overlay.querySelector('#lb-close')?.addEventListener('click', e => { e.stopPropagation(); overlay.remove(); removeKey(); });
+      overlay.querySelector('#lb-prev')?.addEventListener('click',  e => { e.stopPropagation(); current = (current - 1 + mockups.length) % mockups.length; render(); });
+      overlay.querySelector('#lb-next')?.addEventListener('click',  e => { e.stopPropagation(); current = (current + 1) % mockups.length; render(); });
+      overlay.querySelectorAll('[data-lb]').forEach(th => {
+        th.addEventListener('click', e => { e.stopPropagation(); current = parseInt(th.dataset.lb, 10); render(); });
+      });
+    }
+
+    function onKey(e) {
+      if (e.key === 'Escape')     { overlay.remove(); removeKey(); }
+      if (e.key === 'ArrowRight') { current = (current + 1) % mockups.length; render(); }
+      if (e.key === 'ArrowLeft')  { current = (current - 1 + mockups.length) % mockups.length; render(); }
+    }
+    function removeKey() { document.removeEventListener('keydown', onKey); }
+
+    render();
+    overlay.addEventListener('click', () => { overlay.remove(); removeKey(); });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(overlay);
   }
 
   /* Échappement HTML */

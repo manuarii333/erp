@@ -1,0 +1,26 @@
+# ================================================================
+# HCS ERP — .htaccess racine
+# Cache intelligent : index.html + app.js toujours frais,
+# assets statiques mis en cache longue durée
+# ================================================================
+
+# ── CSP : autoriser eval() pour PayZen/Krypton SDK ───────────
+# Le SDK PayZen utilise eval() en interne — sans unsafe-eval il est bloqué
+Header always set Content-Security-Policy "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+
+# ── Tous les fichiers HTML : jamais mis en cache ──────────────
+<FilesMatch "\.html$">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+  Header set Pragma "no-cache"
+  Header set Expires "0"
+</FilesMatch>
+
+# ── JS/CSS : cache 1h (les ?v= gèrent l'invalidation) ─────────
+<FilesMatch "\.css$">
+  Header set Cache-Control "public, max-age=3600"
+</FilesMatch>
+
+# ── Images et fonts : cache 7 jours ───────────────────────────
+<FilesMatch "\.(png|jpg|jpeg|gif|svg|woff2|woff|ttf)$">
+  Header set Cache-Control "public, max-age=604800"
+</FilesMatch>

@@ -9,7 +9,10 @@
 /* ----------------------------------------------------------------
    CLÉ DE STOCKAGE DANS LE LOCALSTORAGE
    ---------------------------------------------------------------- */
-const LS_KEY = 'hcs_erp_db';
+const LS_KEY      = 'hcs_erp_db';
+/* Clé séparée pour les images base64 des mockups (évite QuotaExceededError) */
+const MOCKUPS_KEY  = 'hcs_erp_mockups';
+const MOCKUP_COLS  = ['devis', 'factures'];
 
 /* ----------------------------------------------------------------
    SCHÉMA PAR DÉFAUT DE LA BASE
@@ -33,6 +36,10 @@ const DB_DEFAULT = {
   utilisateurs:      [],   // Comptes utilisateurs ERP
   auditLog:          [],   // Journal d'audit (actions utilisateurs)
   depenses:          [],   // Dépenses du magasin (avec TVA 13% / 16%)
+  employes:          [],   // Fiches employés RH
+  conges:            [],   // Demandes de congés RH
+  notifications:     [],   // Notifications système
+  postes:            [],   // Postes de travail (manufacturing)
   _meta: {
     version: '1.2.0',
     createdAt: new Date().toISOString(),
@@ -111,6 +118,17 @@ const Store = (() => {
         }
 
         if (patched) save();
+
+        /* Fusionner les images mockups depuis hcs_erp_mockups */
+        try {
+          const mockupsStore = JSON.parse(localStorage.getItem(MOCKUPS_KEY) || '{}');
+          for (const col of MOCKUP_COLS) {
+            (db[col] || []).forEach(record => {
+              if (mockupsStore[record.id]) record.mockupUrls = mockupsStore[record.id];
+            });
+          }
+        } catch (_) {}
+
         console.info('[Store] Base chargée depuis localStorage');
       } catch (e) {
         console.warn('[Store] Données corrompues, réinitialisation');
@@ -139,7 +157,65 @@ const Store = (() => {
    */
   function save() {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(db));
+      /* Extraire les dataUrl des mockups dans hcs_erp_mockups (clé séparée)
+         pour éviter QuotaExceededError — les images base64 peuvent dépasser 5 MB */
+      const mockupsStore = {};
+      const dbForStorage = JSON.parse(JSON.stringify(db));
+
+      for (const col of MOCKUP_COLS) {
+        (dbForStorage[col] || []).forEach(record => {
+          if (Array.isArray(record.mockupUrls) && record.mockupUrls.some(m => m.dataUrl)) {
+            mockupsStore[record.id] = record.mockupUrls;
+            /* Garder seulement les métadonnées dans hcs_erp_db */
+            record.mockupUrls = record.mockupUrls.map(m => ({
+              nom: m.nom || '', date: m.date || '', source: m.source || ''
+            }));
+          }
+        });
+      }
+
+      /* Fusionner avec les images existantes et sauvegarder */
+      if (Object.keys(mockupsStore).length > 0) {
+        try {
+          const existing = JSON.parse(localStorage.getItem(MOCKUPS_KEY) || '{}');
+          localStorage.setItem(MOCKUPS_KEY, JSON.stringify(Object.assign(existing, mockupsStore)));
+        } catch (e) {
+          console.warn('[Store] hcs_erp_mockups quota dépassé :', e);
+        }
+      }
+
+      /* Limiter l'auditLog à 200 entrées pour éviter QuotaExceededError */
+      if (dbForStorage.auditLog && dbForStorage.auditLog.length > 200) {
+        dbForStorage.auditLog = dbForStorage.auditLog.slice(-200);
+      }
+      /* Limiter les messages à 500 entrées */
+      if (dbForStorage.messages && dbForStorage.messages.length > 500) {
+        dbForStorage.messages = dbForStorage.messages.slice(-500);
+      }
+
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify(dbForStorage));
+      } catch (e1) {
+        /* Fallback 1 : audit log minimal + stripping des champs binaires */
+        if (dbForStorage.auditLog) dbForStorage.auditLog = dbForStorage.auditLog.slice(-50);
+        if (dbForStorage.messages) dbForStorage.messages = dbForStorage.messages.slice(-100);
+        /* Supprimer les dataUrl résiduels dans toutes les collections */
+        for (const col of Object.keys(dbForStorage)) {
+          if (!Array.isArray(dbForStorage[col])) continue;
+          dbForStorage[col].forEach(r => {
+            if (typeof r !== 'object' || !r) return;
+            for (const k of Object.keys(r)) {
+              if (typeof r[k] === 'string' && r[k].startsWith('data:')) r[k] = '';
+            }
+          });
+        }
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify(dbForStorage));
+          console.warn('[Store] Sauvegarde dégradée (images supprimées) après QuotaExceededError');
+        } catch (e2) {
+          console.error('[Store] Erreur de sauvegarde :', e2);
+        }
+      }
     } catch (e) {
       console.error('[Store] Erreur de sauvegarde :', e);
     }
@@ -237,12 +313,25 @@ const Store = (() => {
     if (!db) load();
 
     /* Verrou comptable — une facture ou écriture ne se supprime jamais */
+    /* Exception : facture avec statut 'Annulé' → aucune écriture comptable liée, suppression autorisée */
     if (PROTECTED_COLLECTIONS.has(collection)) {
-      console.error(`[Store] Suppression interdite sur "${collection}" — intégrité comptable.`);
-      if (typeof showToast === 'function') {
-        showToast('Suppression interdite : utilisez l\'annulation (statut Annulé).', 'error');
+      if (collection === 'factures') {
+        const rec = (db[collection] || []).find(r => r.id === id);
+        if (!rec || rec.statut !== 'Annulé') {
+          console.error(`[Store] Suppression interdite sur "${collection}" — intégrité comptable.`);
+          if (typeof showToast === 'function') {
+            showToast('Suppression interdite : utilisez l\'annulation (statut Annulé).', 'error');
+          }
+          return false;
+        }
+        /* Facture Annulée : on continue vers la suppression réelle */
+      } else {
+        console.error(`[Store] Suppression interdite sur "${collection}" — intégrité comptable.`);
+        if (typeof showToast === 'function') {
+          showToast('Suppression interdite : utilisez l\'annulation (statut Annulé).', 'error');
+        }
+        return false;
       }
-      return false;
     }
 
     if (!db[collection]) return false;
@@ -252,6 +341,20 @@ const Store = (() => {
     _syncMySQLDelete(collection, id);
 
     db[collection] = db[collection].filter(item => item.id !== id);
+
+    /* Tombstone : mémorise l'ID supprimé pour que pullAllFromMySQL ne le réinjecte pas */
+    if (!db._tombstones) db._tombstones = {};
+    if (!db._tombstones[collection]) db._tombstones[collection] = [];
+    if (!db._tombstones[collection].includes(id)) db._tombstones[collection].push(id);
+
+    /* Nettoyer les images mockups orphelines */
+    if (MOCKUP_COLS.includes(collection)) {
+      try {
+        const mk = JSON.parse(localStorage.getItem(MOCKUPS_KEY) || '{}');
+        if (mk[id]) { delete mk[id]; localStorage.setItem(MOCKUPS_KEY, JSON.stringify(mk)); }
+      } catch (_) {}
+    }
+
     save();
     return db[collection].length < len;
   }
@@ -621,6 +724,7 @@ const Store = (() => {
 
   /**
    * Envoie une suppression vers MySQL.
+   * Une erreur 404 est silencieuse : l'enregistrement n'existe déjà plus côté serveur.
    */
   async function _syncMySQLDelete(collection, storeId) {
     if (!window.MYSQL || !MYSQL_TABLES.has(collection)) return;
@@ -629,6 +733,9 @@ const Store = (() => {
       if (!record || !record._mysql_id) return;
       await window.MYSQL.delete(collection, record._mysql_id);
     } catch (e) {
+      /* 404 = déjà absent de MySQL → pas une vraie erreur */
+      if (e.message && e.message.includes('404')) return;
+      if (e.message && e.message.includes('introuvable')) return;
       console.warn(`[Store] MySQL delete ${collection} échoué:`, e.message);
     }
   }
@@ -653,6 +760,7 @@ const Store = (() => {
     devisId:           'devis_id',
     quoteId:           'quote_id',
     archivedAt:        'archived_at',
+    mockupUrls:        'mockup_urls',
     stockMin:          'stock_min',
     attrPrix:          'attr_prix',
     attrIncrements:    'attr_increments',
@@ -704,6 +812,7 @@ const Store = (() => {
     devis_id:          'devisId',
     quote_id:          'quoteId',
     archived_at:       'archivedAt',
+    mockup_urls:       'mockupUrls',
     /* Produits */
     stock_min:         'stockMin',
     attr_prix:         'attrPrix',
@@ -770,7 +879,12 @@ const Store = (() => {
           if (r.id)        byStoreId.set(r.id, r);
         });
 
+        const tombstones = new Set((db._tombstones && db._tombstones[col]) || []);
+
         for (const row of rows) {
+          /* Ignorer les enregistrements supprimés localement */
+          if (row.store_id && tombstones.has(row.store_id)) continue;
+
           const alreadyLinked  = byMysqlId.has(String(row.id));
           const alreadyByStore = row.store_id && byStoreId.has(row.store_id);
           if (alreadyLinked || alreadyByStore) {
@@ -864,13 +978,26 @@ const Store = (() => {
    * @param {string} [collection='produits']
    * @returns {Promise<{created: number, updated: number, errors: string[]}>}
    */
-  async function syncAllToMySQL(collection = 'produits') {
+  /* Timeout par requête pour éviter un freeze si le serveur ne répond pas */
+  function _withTimeout(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise(function(_, rej) {
+        setTimeout(function() { rej(new Error('timeout ' + ms + 'ms')); }, ms);
+      })
+    ]);
+  }
+
+  async function syncAllToMySQL(collection = 'produits', onProgress = null) {
     if (!window.MYSQL) return { created: 0, updated: 0, errors: ['MySQL non disponible'] };
     if (!db) load();
 
     const records = db[collection] || [];
     let created = 0, updated = 0;
     const errors = [];
+    const total = records.length;
+    let done = 0;
+    const TIMEOUT_MS = 20000; /* 20s max par requête */
 
     for (const record of records) {
       try {
@@ -878,7 +1005,7 @@ const Store = (() => {
 
         if (!record._mysql_id) {
           /* Pas encore en MySQL → CREATE */
-          const res = await window.MYSQL.create(collection, payload);
+          const res = await _withTimeout(window.MYSQL.create(collection, payload), TIMEOUT_MS);
           if (res && res.id) {
             const idx = db[collection].findIndex(r => r.id === record.id);
             if (idx !== -1) db[collection][idx]._mysql_id = res.id;
@@ -886,12 +1013,16 @@ const Store = (() => {
           }
         } else {
           /* Déjà en MySQL → UPDATE pour refléter les modifications locales */
-          await window.MYSQL.update(collection, record._mysql_id, payload);
+          await _withTimeout(window.MYSQL.update(collection, record._mysql_id, payload), TIMEOUT_MS);
           updated++;
         }
       } catch (e) {
         errors.push(`${record.id}: ${e.message}`);
         console.warn(`[Store] syncAllToMySQL ${collection} échoué pour ${record.id}:`, e.message);
+      }
+      done++;
+      if (typeof onProgress === 'function') {
+        onProgress({ done, total, label: record.nom || record.id || '' });
       }
     }
 
@@ -911,22 +1042,33 @@ const Store = (() => {
    * @param {string[]} [collections]  — liste optionnelle ; défaut : toutes les tables sync
    * @returns {Promise<{updated: number, added: number, errors: string[]}>}
    */
-  async function pullAllFromMySQL(collections) {
+  async function pullAllFromMySQL(collections, onProgress = null) {
     if (!window.MYSQL) return { updated: 0, added: 0, errors: ['MySQL non disponible'] };
     if (!db) load();
 
     const DEFAULT_COLS = ['produits', 'contacts', 'fournisseurs', 'devis', 'commandes', 'factures'];
     const COLS = Array.isArray(collections) ? collections : DEFAULT_COLS;
+    const total = COLS.length;
+    let colDone = 0;
     let updated = 0, added = 0;
     const errors = [];
 
     for (const col of COLS) {
       try {
-        const rows = await window.MYSQL.getAll(col, { limit: 5000 });
-        if (!Array.isArray(rows) || !rows.length) continue;
+        const rows = await _withTimeout(window.MYSQL.getAll(col, { limit: 5000 }), 30000);
+        if (!Array.isArray(rows) || !rows.length) {
+          colDone++;
+          if (typeof onProgress === 'function') onProgress({ done: colDone, total, label: col });
+          continue;
+        }
         if (!db[col]) db[col] = [];
 
+        const tombstones = new Set((db._tombstones && db._tombstones[col]) || []);
+
         for (const row of rows) {
+          /* Ignorer les produits supprimés localement */
+          if (row.store_id && tombstones.has(row.store_id)) continue;
+
           const record = _mysqlRowToLocal(col, row);
 
           /* Cherche le record local : d'abord par store_id, puis par _mysql_id */
@@ -945,6 +1087,8 @@ const Store = (() => {
         errors.push(`${col}: ${e.message}`);
         console.warn(`[Store] pullAllFromMySQL ${col} échoué:`, e.message);
       }
+      colDone++;
+      if (typeof onProgress === 'function') onProgress({ done: colDone, total, label: col });
     }
 
     if (updated + added > 0) {
@@ -952,6 +1096,44 @@ const Store = (() => {
       console.info(`[Store] pullAllFromMySQL : ↓${updated} mis à jour, +${added} ajouté(s)`);
     }
     return { updated, added, errors };
+  }
+
+  /**
+   * Dédoublonne une collection en regroupant par une clé.
+   * Conserve le "meilleur" enregistrement par groupe (rankFn retourne un score).
+   * Supprime les doublons via Store.remove() (sync MySQL inclus).
+   *
+   * @param {string}   collection  - ex: 'devis'
+   * @param {function} keyFn       - (record) => clé de groupe (ex: r => r.ref)
+   * @param {function} rankFn      - (record) => score (plus haut = meilleur)
+   * @returns {{ kept: number, removed: number }}
+   */
+  function deduplicateCollection(collection, keyFn, rankFn) {
+    if (!db) load();
+    const records = db[collection] || [];
+    /* Grouper par clé */
+    const groups = {};
+    records.forEach(r => {
+      const k = keyFn(r);
+      if (!k) return;
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(r);
+    });
+
+    let removed = 0;
+    Object.values(groups).forEach(group => {
+      if (group.length <= 1) return;
+      /* Trier : meilleur en premier */
+      group.sort((a, b) => (rankFn(b) || 0) - (rankFn(a) || 0));
+      /* Supprimer tous sauf le premier */
+      group.slice(1).forEach(dup => {
+        remove(collection, dup.id);
+        removed++;
+      });
+    });
+
+    if (removed > 0) save();
+    return { kept: Object.keys(groups).length, removed };
   }
 
   /* ---------- API PUBLIQUE ---------- */
@@ -964,6 +1146,7 @@ const Store = (() => {
     create,
     update,
     remove,
+    deduplicateCollection,
     search,
     nextCounter,
     addMessage,
@@ -991,8 +1174,14 @@ Store.load();
    2. Local → MySQL : pousse les records sans _mysql_id (créés hors-ligne)
 */
 (async () => {
-  /* Attendre que mysql-api.js soit chargé (window.MYSQL dispo) */
-  await new Promise(r => setTimeout(r, 300));
+  /* Attendre que mysql-api.js soit chargé (window.MYSQL dispo) — polling au lieu de délai fixe */
+  await new Promise(r => {
+    if (window.MYSQL) { r(); return; }
+    let tries = 0;
+    const t = setInterval(() => {
+      if (window.MYSQL || ++tries > 20) { clearInterval(t); r(); }
+    }, 100);
+  });
 
   const [fromMySQL, toMySQL] = await Promise.all([
     Store.syncFromMySQL(),
