@@ -2256,11 +2256,19 @@ async function publishLP(id) {
   const slug = `${c.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${id}`;
 
   try {
-    const res = await fetch(`${WORKER_BASE}/lp/publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': adminSecret },
-      body: JSON.stringify({ slug, html: generatedHtml, campaignName: c.name, campaignId: id }),
-    });
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    let res;
+    try {
+      res = await fetch(`${WORKER_BASE}/lp/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': adminSecret },
+        body: JSON.stringify({ slug, html: generatedHtml, campaignName: c.name, campaignId: id }),
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erreur serveur');
 
@@ -2902,10 +2910,10 @@ function ckRender() {
 }
 function normalizePhone(raw) {
   if (!raw) return '';
-  let p = raw.replace(/[\s\-\.]/g, '');
+  let p = raw.replace(/[-\s.]/g, '');
   if (p.startsWith('+')) return p;
   if (p.startsWith('00')) return '+' + p.slice(2);
-  if (/^\d{8}$/.test(p)) return '+689' + p;
+  if (/^\\d{8}$/.test(p)) return '+689' + p;
   return '+689' + p;
 }
 function ckContact1() {
@@ -3921,8 +3929,8 @@ function gfStep1HTML() {
   }
   if (CAMP_ID===6) {
     var plans=CFG.plans||['starter','pro','premium'];
-    var PLAN={starter:{label:'Starter',emoji:'🌱',priceM:1800,priceA:18000,color:'#30cfd0',av:'Points bonus HCS\nAccès offres prioritaires'},pro:{label:'Pro',emoji:'⚡',priceM:3500,priceA:35000,color:'#a18cd1',av:'Points bonus ×2\nLogos offerts (2/mois)\nRemise 10%'},premium:{label:'Premium',emoji:'👑',priceM:5500,priceA:55000,color:'#f6d365',av:'Points bonus ×3\nLogos offerts (5/mois)\nRemise 20%\nConseil personnalisé'}};
-    var pc=plans.filter(function(p){return PLAN[p];}).map(function(p){var av=(CFG['avantages_'+p]||PLAN[p].av).split('\n').filter(Boolean).map(function(a){return '✓ '+a;}).join('<br>');return '<div class="fl-plan-card'+(_s.plan===p?' selected':'')+'" onclick="gfSetPlan(\''+p+'\')"><div class="fl-plan-head"><span class="fl-plan-emoji">'+PLAN[p].emoji+'</span><span class="fl-plan-name" style="color:'+PLAN[p].color+'">'+PLAN[p].label+'</span><span class="fl-plan-price" style="color:'+PLAN[p].color+'">'+PLAN[p].priceM.toLocaleString('fr-FR')+' XPF/mois</span></div><div class="fl-plan-av">'+av+'</div></div>';}).join('');
+    var PLAN={starter:{label:'Starter',emoji:'🌱',priceM:1800,priceA:18000,color:'#30cfd0',av:'Points bonus HCS\\nAccès offres prioritaires'},pro:{label:'Pro',emoji:'⚡',priceM:3500,priceA:35000,color:'#a18cd1',av:'Points bonus ×2\\nLogos offerts (2/mois)\\nRemise 10%'},premium:{label:'Premium',emoji:'👑',priceM:5500,priceA:55000,color:'#f6d365',av:'Points bonus ×3\\nLogos offerts (5/mois)\\nRemise 20%\\nConseil personnalisé'}};
+    var pc=plans.filter(function(p){return PLAN[p];}).map(function(p){var av=(CFG['avantages_'+p]||PLAN[p].av).split('\\n').filter(Boolean).map(function(a){return '✓ '+a;}).join('<br>');return '<div class="fl-plan-card'+(_s.plan===p?' selected':'')+'" onclick="gfSetPlan(\''+p+'\')"><div class="fl-plan-head"><span class="fl-plan-emoji">'+PLAN[p].emoji+'</span><span class="fl-plan-name" style="color:'+PLAN[p].color+'">'+PLAN[p].label+'</span><span class="fl-plan-price" style="color:'+PLAN[p].color+'">'+PLAN[p].priceM.toLocaleString('fr-FR')+' XPF/mois</span></div><div class="fl-plan-av">'+av+'</div></div>';}).join('');
     return lbl('Choisir votre plan')+pc;
   }
   if (CAMP_ID===7) {
@@ -3946,8 +3954,8 @@ function gfStep2HTML() {
     extra='<div style="margin-bottom:14px">'+lbl('Quantité de feuilles')+'<div class="fl-qty-row"><button class="fl-qty-btn" onclick="gfChgQty(-1)">−</button><span class="fl-qty-val" id="gf-qty-val">'+_s.qty+'</span><button class="fl-qty-btn" onclick="gfChgQty(1)">+</button><span class="fl-price-row" id="fl-price-row">'+(base*_s.qty).toLocaleString('fr-FR')+' XPF</span></div></div>';
   }
   if (CAMP_ID===5) {
-    var dates=(CFG.dates||'').split('\n').filter(function(d){return d.trim();});
-    var dp=dates.length?dates.map(function(d){return '<div class="fl-date-pill'+(_s.date===d.trim()?' selected':'')+'" onclick="gfSetDate(\''+d.trim().replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',this)" data-date="'+d.trim()+'">'+d.trim()+'</div>';}).join(''):'<div style="font-size:.72rem;color:rgba(255,255,255,.4)">Contactez-nous pour les dates.</div>';
+    var dates=(CFG.dates||'').split('\\n').filter(function(d){return d.trim();});
+    var dp=dates.length?dates.map(function(d){return '<div class="fl-date-pill'+(_s.date===d.trim()?' selected':'')+'" onclick="gfSetDate(\''+d.trim().replace(/'/g,"\\\\'")+'\',this)" data-date="'+d.trim()+'">'+d.trim()+'</div>';}).join(''):'<div style="font-size:.72rem;color:rgba(255,255,255,.4)">Contactez-nous pour les dates.</div>';
     var fmts=CFG.formats||['atelier'];
     var fmtL={atelier:'🏫 En atelier',enligne:'💻 En ligne'};
     var fb=fmts.map(function(f){return '<div class="fl-fmt-btn'+(_s.sessFmt===f?' selected':'')+'" onclick="gfSetSF(\''+f+'\')">'+( fmtL[f]||f)+'</div>';}).join('');
