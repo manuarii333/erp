@@ -23,6 +23,7 @@ const Sales = (() => {
 
   /* Lignes de règlement du devis en cours (multi-mode/montant) */
   let _paiementsDevis = []; // [{mode, montant}]
+  let _mockupUrls     = []; // [{dataUrl, nom, date, source}] — mockups projet en cours d'édition
   const REG_ICONS = { 'Espèces': '💵', 'Carte bancaire': '💳', 'Virement': '🏦', 'Chèque': '📋' };
   const REG_MODES = ['Espèces', 'Carte bancaire', 'Virement', 'Chèque'];
 
@@ -306,13 +307,11 @@ const Sales = (() => {
       6000
     );
 
-    Store.addAuditLog({
-      action:  'reservation_fournisseur',
-      module:  'sales',
-      ref:     devis.ref,
-      bonRef:  ref,
-      detail:  `${lignesReservation.length} article(s) réservé(s) — flux tendu`
-    });
+    Store.addAuditLog(
+      'reservation_fournisseur',
+      'sales',
+      { ref: devis.ref, bonRef: ref, detail: `${lignesReservation.length} article(s) réservé(s) — flux tendu` }
+    );
   }
 
   /** Génère le prochain numéro de document */
@@ -1138,2725 +1137,6 @@ const Sales = (() => {
       </div>`;
   }
 
-  /* ================================================================
-     VUE DEVIS (QUOTES)
-     ================================================================ */
-
-  /* ---- Liste des devis ---- */
-  function _renderQuotesList(toolbar, area) {
-    let allDevis = Store.getAll('devis');
-    const isKanban = _state.listMode === 'kanban';
-
-    toolbar.innerHTML = `
-      <button class="btn btn-primary btn-sm" id="btn-new-quote">+ Nouveau Devis</button>
-      <button class="btn btn-ghost btn-sm" id="btn-sync-mysql-devis" title="Importer les devis créés via n8n/API">↓ Sync MySQL</button>
-      <select class="form-control" id="filter-quote-statut"
-        style="height:28px;width:140px;font-size:12px;">
-        <option value="">Tous les statuts</option>
-        ${STATUTS_DEVIS.map(s => `<option value="${s}">${s}</option>`).join('')}
-      </select>
-      <input type="text" id="filter-quote-client" placeholder="🔍 Client..."
-        class="form-control" style="height:28px;width:140px;font-size:12px;">
-      <input type="date" id="filter-quote-from" title="Date début"
-        class="form-control" style="height:28px;width:130px;font-size:12px;">
-      <input type="date" id="filter-quote-to" title="Date fin"
-        class="form-control" style="height:28px;width:130px;font-size:12px;">
-      <div style="display:flex;gap:4px;margin-left:4px;">
-        <button class="btn ${!isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-q-list">☰</button>
-        <button class="btn ${isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-q-kanban">⊞</button>
-      </div>`;
-
-    const _applyQuoteFilters = () => {
-      const statut = document.getElementById('filter-quote-statut')?.value || '';
-      const client = (document.getElementById('filter-quote-client')?.value || '').toLowerCase();
-      const from   = document.getElementById('filter-quote-from')?.value || '';
-      const to     = document.getElementById('filter-quote-to')?.value || '';
-      let filtered = allDevis;
-      if (statut) filtered = filtered.filter(d => d.statut === statut);
-      if (client) filtered = filtered.filter(d => (d.client || '').toLowerCase().includes(client));
-      if (from)   filtered = filtered.filter(d => (d.date || '') >= from);
-      if (to)     filtered = filtered.filter(d => (d.date || '') <= to);
-      if (isKanban) _drawKanban(filtered, STATUTS_DEVIS, BADGE_DEVIS, 'quotes', toolbar, area);
-      else _drawQuotesTable(filtered, toolbar, area);
-    };
-
-    document.getElementById('btn-new-quote')
-      ?.addEventListener('click', () => _goForm('quotes', null, toolbar, area));
-
-    document.getElementById('btn-sync-mysql-devis')
-      ?.addEventListener('click', async function() {
-        this.disabled = true;
-        this.textContent = '⏳ Sync...';
-        const result = await Store.syncFromMySQL(['devis']);
-        this.disabled = false;
-        this.textContent = '↓ Sync MySQL';
-        if (result.synced > 0) {
-          if (typeof showToast === 'function') showToast(`${result.synced} devis importé(s) depuis MySQL`, 'success');
-          allDevis = Store.getAll('devis');
-          _applyQuoteFilters();
-        } else {
-          if (typeof showToast === 'function') showToast('Aucun nouveau devis à importer', 'info');
-        }
-      });
-    document.getElementById('btn-q-list')?.addEventListener('click', () => {
-      _state.listMode = 'list'; _renderQuotesList(toolbar, area);
-    });
-    document.getElementById('btn-q-kanban')?.addEventListener('click', () => {
-      _state.listMode = 'kanban'; _renderQuotesList(toolbar, area);
-    });
-    document.getElementById('filter-quote-statut')?.addEventListener('change', _applyQuoteFilters);
-    document.getElementById('filter-quote-client')?.addEventListener('input', _applyQuoteFilters);
-    document.getElementById('filter-quote-from')?.addEventListener('change', _applyQuoteFilters);
-    document.getElementById('filter-quote-to')?.addEventListener('change', _applyQuoteFilters);
-
-    area.innerHTML = `
-      <div class="page-header">
-        <div class="page-title">Devis</div>
-        <div class="page-subtitle">${allDevis.length} document(s)</div>
-      </div>
-      <div id="sales-quotes-table"></div>`;
-
-    if (isKanban) _drawKanban(allDevis, STATUTS_DEVIS, BADGE_DEVIS, 'quotes', toolbar, area);
-    else _drawQuotesTable(allDevis, toolbar, area);
-  }
-
-  function _drawQuotesTable(data, toolbar, area) {
-    renderTable('sales-quotes-table', {
-      searchable: true,
-      sortable:   true,
-      data,
-      columns: [
-        { key: 'ref',      label: 'Numéro',    render: (v) => `<span class="col-ref">${_esc(v)}</span>` },
-        { key: 'date',     label: 'Date',       type: 'date' },
-        { key: 'client',   label: 'Client',     type: 'text' },
-        { key: 'dateExpiration', label: 'Validité', type: 'date' },
-        { key: 'modeReglement', label: 'Règlement', render: (v, row) => {
-            const parts = [];
-            if (v) parts.push(`<span class="chip no-dot">${REG_ICONS[v] || '💰'} ${_esc(v)}</span>`);
-            if (row.resteAPayer > 0.01)
-              parts.push(`<span style="color:var(--accent-red);font-size:11px;font-weight:600;">
-                Reste ${_fmt(row.resteAPayer)}</span>`);
-            else if (row.totalRegle > 0)
-              parts.push(`<span style="color:var(--accent-green);font-size:11px;">✔ Soldé</span>`);
-            return parts.length ? `<div style="display:flex;flex-direction:column;gap:2px;">${parts.join('')}</div>`
-                                : '<span style="color:var(--text-muted)">—</span>';
-          }
-        },
-        { key: 'totalTTC', label: 'Total TTC',  render: (v) => `<span class="mono">${_fmt(v)}</span>` },
-        { key: 'statut',   label: 'Statut',     type: 'badge', badgeMap: BADGE_DEVIS },
-        { type: 'actions', width: '60px', actions: [
-            { label: '🗑', className: 'btn btn-ghost btn-sm', onClick: (row) => {
-                showConfirm(`Supprimer le devis ${row.ref || row.id} ?`, () => {
-                  Store.remove('devis', row.id);
-                  toast('Devis supprimé.', 'success');
-                  _goList('quotes', toolbar, area);
-                });
-              }
-            }
-          ]
-        }
-      ],
-      onRowClick: (item) => _goForm('quotes', item.id, toolbar, area),
-      emptyMsg:   'Aucun devis. Cliquez sur "+ Nouveau Devis" pour commencer.'
-    });
-  }
-
-  /* ---- Formulaire devis ---- */
-  function _renderQuoteForm(toolbar, area) {
-    const isNew = !_state.currentId;
-    const doc   = isNew ? null : Store.getById('devis', _state.currentId);
-
-    if (!isNew && !doc) {
-      toast('Devis introuvable.', 'error');
-      return _goList('quotes', toolbar, area);
-    }
-
-    _state.lignes = doc ? doc.lignes.map(l => ({ ...l })) : [];
-
-    /* Résolution automatique noms→IDs pour les devis créés par workflow/API */
-    if (doc) {
-      /* CLIENT : résoudre depuis doc.client / doc.clientNom si contactId manquant */
-      if (!doc.contactId && (doc.client || doc.clientNom)) {
-        const _needle = (doc.client || doc.clientNom || '').toLowerCase().trim();
-        const _found  = Store.getAll('contacts').find(c =>
-          (c.nom || '').toLowerCase().trim() === _needle ||
-          (c.nom || '').toLowerCase().includes(_needle) ||
-          _needle.includes((c.nom || '').toLowerCase())
-        );
-        if (_found) doc.contactId = _found.id;
-      }
-
-      /* PRODUITS : résoudre produitId depuis l.produit / l.nom dans chaque ligne */
-      const _allProduits = Store.getAll('produits');
-      _state.lignes = _state.lignes.map(l => {
-        if (l.produitId) return l; /* déjà résolu */
-        const _nomLigne = (l.produit || l.nom || l.description || '').toLowerCase().trim();
-        if (!_nomLigne) return l;
-        const _match = _allProduits.find(p => {
-          const _n = (p.nom || '').toLowerCase();
-          return _n === _nomLigne || _nomLigne.startsWith(_n) || _n.split(' ').some(w => w.length > 3 && _nomLigne.includes(w));
-        });
-        return _match ? { ...l, produitId: _match.id } : l;
-      });
-    }
-
-    const ref    = doc?.ref    || _genRef('DEV', 'devis');
-    const statut = doc?.statut || 'Brouillon';
-
-    /* Toolbar : retour + boutons d'actions */
-    toolbar.innerHTML = `
-      <button class="btn btn-ghost btn-sm" id="btn-back">← Retour</button>
-      ${_quoteActionBtns(statut, isNew, doc)}`;
-
-    document.getElementById('btn-back')
-      ?.addEventListener('click', () => _goList('quotes', toolbar, area));
-
-    const reglChip = (() => {
-      if (!doc?.paiementsDevis?.length && !doc?.modeReglement) return '';
-      const chips = [];
-      if (doc.modeReglement) {
-        const icon = REG_ICONS[doc.modeReglement] || '💰';
-        chips.push(`<span class="chip no-dot">${icon} ${_esc(doc.modeReglement)}</span>`);
-      }
-      if (doc.totalRegle > 0) {
-        chips.push(`<span class="chip no-dot" style="color:var(--accent-green);">✔ Réglé : ${_fmt(doc.totalRegle)}</span>`);
-      }
-      if (doc.resteAPayer > 0.01) {
-        chips.push(`<span class="chip no-dot" style="color:var(--accent-red);">Reste : ${_fmt(doc.resteAPayer)}</span>`);
-      }
-      return chips.join('');
-    })();
-
-    area.innerHTML = `
-      ${_renderFormHeader(ref, statut, BADGE_DEVIS, reglChip)}
-      ${isNew ? '' : _renderSuiviBDC(doc, 'devis')}
-
-      <!-- Informations générales -->
-      <div class="form-section">
-        <div class="form-section-title">Informations générales</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label required">Client</label>
-            <select class="form-control" id="q-client" required>
-              <option value="">— Choisir un client —</option>
-              <option value="__new__" style="color:var(--accent-blue);font-weight:600;">➕ Créer nouveau client</option>
-              ${Store.getAll('contacts').map(c =>
-                `<option value="${c.id}" ${doc?.contactId === c.id ? 'selected' : ''}>${_esc(c.nom)}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label required">Date du devis</label>
-            <input type="date" class="form-control" id="q-date"
-              value="${doc?.date || new Date().toISOString().slice(0,10)}" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Validité jusqu'au</label>
-            <input type="date" class="form-control" id="q-validite"
-              value="${doc?.dateExpiration || ''}" />
-          </div>
-          <div class="form-group span-full">
-            <label class="form-label">Notes / Conditions</label>
-            <textarea class="form-control" id="q-notes" rows="2"
-              placeholder="Délais, conditions particulières…">${_esc(doc?.notes || '')}</textarea>
-          </div>
-        </div>
-      </div>
-
-      <!-- Articles -->
-      <div class="form-section">
-        <div class="form-section-title">Articles</div>
-        ${_renderLineTable(_state.lignes)}
-      </div>
-
-      <!-- Totaux -->
-      <div class="form-section" style="padding:0;">
-        ${_renderTotalsBlock(_state.lignes)}
-      </div>
-
-      <!-- Règlement -->
-      <div class="form-section" id="reglement-section">
-        <div class="form-section-title">Règlement</div>
-        <div id="reg-lines"></div>
-        <button class="btn-add-line" id="btn-add-reg" style="margin-top:8px;">
-          + Ajouter un mode de règlement
-        </button>
-        <div id="reg-totaux" style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px;"></div>
-      </div>
-
-      <!-- Pied de formulaire -->
-      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:16px;">
-        <button class="btn btn-ghost" id="q-cancel">Annuler</button>
-        <button class="btn btn-primary" id="q-save">✔ Sauvegarder</button>
-      </div>`;
-
-    /* Initialiser les lignes de règlement depuis le doc existant */
-    _paiementsDevis = doc?.paiementsDevis ? doc.paiementsDevis.map(p => ({ ...p })) : [];
-    _renderReglementLines(area);
-    _refreshReglementTotaux(area);
-    _bindReglementEvents(area);
-
-    _bindLineTableEvents();
-    _bindQuoteFormEvents(isNew, doc, ref, toolbar, area);
-  }
-
-  /* ----------------------------------------------------------------
-     RÈGLEMENT DEVIS — affichage, calcul et interactions
-     ---------------------------------------------------------------- */
-
-  /** Redessine la liste des lignes de règlement dans le DOM */
-  function _renderReglementLines(area) {
-    const container = area.querySelector('#reg-lines');
-    if (!container) return;
-    if (_paiementsDevis.length === 0) {
-      container.innerHTML = `<p style="color:var(--text-muted);font-size:12px;margin-bottom:4px;">
-        Aucun règlement enregistré — cliquez sur "+ Ajouter" ci-dessous.</p>`;
-      return;
-    }
-    container.innerHTML = _paiementsDevis.map((p, i) => `
-      <div class="reglement-line" data-idx="${i}"
-           style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-        <select class="form-control reg-mode" data-idx="${i}"
-                style="width:180px;flex-shrink:0;">
-          ${REG_MODES.map(m =>
-            `<option value="${m}" ${p.mode === m ? 'selected' : ''}>
-              ${REG_ICONS[m]} ${m}
-            </option>`
-          ).join('')}
-        </select>
-        <div class="input-suffix" style="flex:1;max-width:200px;">
-          <input type="number" class="form-control reg-montant" data-idx="${i}"
-                 value="${p.montant || ''}" min="0" placeholder="0"
-                 style="text-align:right;" />
-          <span class="suffix-label">XPF</span>
-        </div>
-        <button class="btn btn-ghost btn-sm btn-rem-reg" data-idx="${i}"
-                title="Supprimer cette ligne" style="flex-shrink:0;">✕</button>
-      </div>`).join('');
-  }
-
-  /** Recalcule et affiche le résumé règlement + reste à payer */
-  function _refreshReglementTotaux(area) {
-    const box = area.querySelector('#reg-totaux');
-    if (!box) return;
-    const totalTTC    = _calcTotaux(_state.lignes).totalTTC || 0;
-    const totalRegle  = _paiementsDevis.reduce((s, p) => s + (parseFloat(p.montant) || 0), 0);
-    const reste       = totalTTC - totalRegle;
-    const resteColor  = reste > 0.01  ? 'var(--accent-red)'
-                      : reste < -0.01 ? 'var(--accent-orange)'
-                      : 'var(--accent-green)';
-    const resteLabel  = reste > 0.01  ? 'Reste à payer'
-                      : reste < -0.01 ? 'Trop-perçu'
-                      : 'Solde';
-
-    box.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-        <div style="display:flex;gap:32px;font-size:13px;">
-          <span style="color:var(--text-secondary);">Total TTC</span>
-          <span class="mono" style="font-weight:600;">${_fmt(totalTTC)}</span>
-        </div>
-        <div style="display:flex;gap:32px;font-size:13px;">
-          <span style="color:var(--text-secondary);">Total réglé</span>
-          <span class="mono" style="font-weight:600;">${_fmt(totalRegle)}</span>
-        </div>
-        <div style="display:flex;gap:32px;align-items:center;font-size:14px;
-                    font-weight:700;border-top:1px solid var(--border);
-                    padding-top:8px;margin-top:2px;">
-          <span style="color:${resteColor};">${resteLabel}</span>
-          <span class="mono" style="color:${resteColor};">${_fmt(Math.abs(reste))}</span>
-        </div>
-        ${totalRegle > 0 && reste > 0.01 ? `
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;
-                    padding:8px 12px;background:#FFFBEB;border:1px solid #FDE68A;
-                    border-radius:var(--radius-md);font-size:12px;">
-          <span>📄</span>
-          <span style="color:var(--accent-orange);">
-            <strong>Facture partielle</strong> de ${_fmt(totalRegle)} sera générée à la sauvegarde —
-            reste <strong>${_fmt(reste)}</strong> à régler.
-          </span>
-        </div>` : ''}
-        ${totalRegle > 0 && reste <= 0.01 ? `
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;
-                    padding:8px 12px;background:#F0FDF4;border:1px solid #BBF7D0;
-                    border-radius:var(--radius-md);font-size:12px;">
-          <span>✅</span>
-          <span style="color:var(--accent-green);">
-            <strong>Facture totale</strong> sera générée et le devis passera en Confirmé à la sauvegarde.
-          </span>
-        </div>` : ''}
-        ${reste < -0.01 ? `
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;
-                    padding:8px 12px;background:#FEF2F2;border:1px solid #FECACA;
-                    border-radius:var(--radius-md);font-size:12px;">
-          <span>⚠️</span>
-          <span style="color:var(--accent-red);">Montant réglé supérieur au total — vérifiez les montants.</span>
-        </div>` : ''}
-      </div>`;
-  }
-
-  /** Gère les événements de la section règlement (ajout, suppression, saisie) */
-  function _bindReglementEvents(area) {
-    /* Ajouter une ligne */
-    area.querySelector('#btn-add-reg')?.addEventListener('click', () => {
-      _paiementsDevis.push({ mode: REG_MODES[0], montant: '' });
-      _renderReglementLines(area);
-      _refreshReglementTotaux(area);
-      _bindReglementEvents(area);
-    });
-
-    /* Suppression ligne */
-    area.querySelectorAll('.btn-rem-reg').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.idx);
-        _paiementsDevis.splice(idx, 1);
-        _renderReglementLines(area);
-        _refreshReglementTotaux(area);
-        _bindReglementEvents(area);
-      });
-    });
-
-    /* Changement mode */
-    area.querySelectorAll('.reg-mode').forEach(sel => {
-      sel.addEventListener('change', () => {
-        const idx = parseInt(sel.dataset.idx);
-        _paiementsDevis[idx].mode = sel.value;
-      });
-    });
-
-    /* Saisie montant → recalcul en temps réel */
-    area.querySelectorAll('.reg-montant').forEach(inp => {
-      inp.addEventListener('input', () => {
-        const idx = parseInt(inp.dataset.idx);
-        _paiementsDevis[idx].montant = parseFloat(inp.value) || 0;
-        _refreshReglementTotaux(area);
-        /* Rebind uniquement le bouton facture partielle (pas toute la section) */
-        area.querySelector('#btn-facture-partielle')?.addEventListener('click', () => {
-          const currentDoc = Store.getById('devis', _state.currentId);
-          if (!currentDoc) { toast('Sauvegardez d\'abord le devis.', 'warning'); return; }
-          const totalTTC   = _calcTotaux(_state.lignes).totalTTC || 0;
-          const totalRegle = _paiementsDevis.reduce((s, p) => s + (parseFloat(p.montant)||0), 0);
-          _createPartialInvoice(currentDoc, totalTTC - totalRegle, area);
-        });
-      });
-    });
-  }
-
-  /** Crée une facture (Brouillon) reprenant toutes les lignes du devis */
-  function _createPartialInvoice(devis, reste, area) {
-    const ref    = _genRef('FAC', 'factures');
-    const totaux = _calcTotaux(devis.lignes);
-    Store.create('factures', {
-      ref,
-      _type:        'Facture',
-      contactId:    devis.contactId,
-      client:       devis.client,
-      date:         new Date().toISOString().slice(0, 10),
-      statut:       'Brouillon',
-      devisId:      devis.id,
-      lignes:       devis.lignes,
-      paiements:    [],
-      ...totaux,
-      notes:        `Facture — ${devis.ref} — Reste à régler : ${_fmt(reste)}`
-    });
-    toast(`📄 Facture ${ref} créée depuis ${devis.ref} (reste : ${_fmt(reste)}).`, 'success');
-  }
-
-  /**
-   * Génère ou met à jour la facture liée à un devis réglé.
-   * - Règlement total (resteAPayer ≤ 0) → facture avec toutes les lignes du devis, statut "Payé"
-   * - Règlement partiel (resteAPayer > 0) → facture d'acompte pour le montant réglé, statut "Payé partiel"
-   * Détecte si une facture existe déjà (devisId) pour mettre à jour plutôt que créer.
-   */
-  function _genererFactureDepuisDevis(devis, paiementsDevis, totalRegle, resteAPayer, totauxDevis) {
-    const isTotal = resteAPayer <= 0.01;
-
-    /* Paiements à enregistrer dans la facture */
-    const facPaiements = paiementsDevis.map((p, i) => ({
-      id:      `pay-${Date.now()}-${i}`,
-      date:    new Date().toISOString().slice(0, 10),
-      methode: p.mode,
-      montant: p.montant,
-      type:    'Paiement'
-    }));
-
-    /* Toujours reprendre les lignes complètes du devis.
-       Le paiement partiel est tracké via paiements[] — reste = totalTTC - Σpaiements */
-    const lignesFac = devis.lignes;
-    const totauxFac = totauxDevis;
-    const facStatut = isTotal ? 'Payé' : 'Payé partiel';
-    const typeLabel = isTotal ? 'totale' : 'partielle';
-
-    const today   = new Date().toISOString().slice(0, 10);
-    const facData = {
-      _type:      'Facture',
-      contactId:  devis.contactId,
-      client:     devis.client,
-      client_nom: devis.client,      /* MySQL: colonne legacy */
-      client_id:  devis.contactId,   /* MySQL: colonne legacy */
-      date:       today,
-      statut:     facStatut,
-      devisId:    devis.id,
-      devis_id:   devis.id,          /* MySQL: colonne legacy */
-      lignes:     lignesFac,
-      paiements:  facPaiements,
-      notes:      `Facture ${typeLabel} — ${devis.ref}${resteAPayer > 0.01 ? ` — Reste à payer : ${_fmt(resteAPayer)}` : ''}`,
-      ...totauxFac,
-      total_ht:   totauxFac.totalHT,  /* MySQL: colonne legacy */
-      total_ttc:  totauxFac.totalTTC, /* MySQL: colonne legacy */
-      total_tva:  totauxFac.totalTVA, /* MySQL: colonne legacy */
-    };
-
-    /* Cherche une facture déjà liée à ce devis */
-    const existante = Store.getAll('factures').find(f => f.devisId === devis.id);
-    let facRef;
-
-    if (existante) {
-      /* Mise à jour de la facture existante */
-      facRef = existante.ref;
-      Store.update('factures', existante.id, facData);
-      toast(`📄 Facture ${facRef} mise à jour (${typeLabel}, ${_fmt(totalRegle)} réglé).`, 'info');
-    } else {
-      /* Création d'une nouvelle facture */
-      facRef = _genRef('FAC', 'factures');
-      Store.create('factures', { ref: facRef, ...facData });
-      toast(`📄 Facture ${facRef} créée (${typeLabel}, ${_fmt(totalRegle)} réglé).`, 'success');
-    }
-
-    /* ----------------------------------------------------------------
-       ÉCRITURES COMPTABLES AUTOMATIQUES
-       Supprimer les écritures précédentes de cette pièce, puis recréer
-       ---------------------------------------------------------------- */
-    const now = new Date().toISOString();
-
-    /* Nettoyer les anciennes écritures automatiques pour cette pièce */
-    Store.getAll('ecritures')
-      .filter(e => e.pieceRef === facRef && e.type === 'vente')
-      .forEach(e => Store.remove('ecritures', e.id));
-
-    /* 1 — Constatation de la vente : Débit Clients / Crédit Ventes + TVA */
-    const totalHT  = totauxFac.totalHT  || 0;
-    const totalTVA = (totauxFac.totalTTC || 0) - totalHT;
-    const totalTTC = totauxFac.totalTTC  || 0;
-
-    Store.create('ecritures', {
-      date: today, createdAt: now,
-      compte:   '411000',
-      journal:  'Ventes',
-      libelle:  `Vente — ${devis.client} / ${facRef}`,
-      debit:    Math.round(totalTTC),
-      credit:   0,
-      pieceRef: facRef,
-      type:     'vente'
-    });
-    Store.create('ecritures', {
-      date: today, createdAt: now,
-      compte:   '700000',
-      journal:  'Ventes',
-      libelle:  `CA — ${devis.client} / ${facRef}`,
-      debit:    0,
-      credit:   Math.round(totalHT),
-      pieceRef: facRef,
-      type:     'vente'
-    });
-    if (totalTVA > 0) {
-      Store.create('ecritures', {
-        date: today, createdAt: now,
-        compte:   '445700',
-        journal:  'Ventes',
-        libelle:  `TVA collectée — ${facRef}`,
-        debit:    0,
-        credit:   Math.round(totalTVA),
-        pieceRef: facRef,
-        type:     'vente'
-      });
-    }
-
-    /* 2 — Règlements reçus : Débit Trésorerie / Crédit Clients */
-    const COMPTE_TRESORERIE = {
-      'Espèces':   '530000', // Caisse
-      'Chèque':    '512000',
-      'Virement':  '512000',
-      'CB':        '512000',
-      'Carte':     '512000',
-      'Mobile':    '512000',
-      'Mixte':     '512000'
-    };
-
-    facPaiements.forEach(p => {
-      const compteTresor = COMPTE_TRESORERIE[p.methode] || '512000';
-      const libTresor    = compteTresor === '530000' ? 'Caisse' : 'Banque';
-
-      /* Débit trésorerie */
-      Store.create('ecritures', {
-        date: today, createdAt: now,
-        compte:   compteTresor,
-        journal:  'Trésorerie',
-        libelle:  `${libTresor} — ${p.methode} / ${facRef}`,
-        debit:    Math.round(p.montant || 0),
-        credit:   0,
-        pieceRef: facRef,
-        type:     'vente'
-      });
-      /* Crédit 411 Clients */
-      Store.create('ecritures', {
-        date: today, createdAt: now,
-        compte:   '411000',
-        journal:  'Trésorerie',
-        libelle:  `Règlement ${devis.client} — ${facRef}`,
-        debit:    0,
-        credit:   Math.round(p.montant || 0),
-        pieceRef: facRef,
-        type:     'vente'
-      });
-    });
-  }
-
-  function _quoteActionBtns(statut, isNew, doc = null) {
-    if (isNew) return '';
-
-    /* Vérifie si une facture ou commande est déjà liée à ce devis */
-    const factureLiee  = doc ? Store.getAll('factures').find(f => f.devisId === doc.id) : null;
-    const commandeLiee = doc ? Store.getAll('commandes').find(c => c.quoteId === doc.id) : null;
-
-    const btns = [];
-    btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="apercu" title="Aperçu du document devis">📄 Aperçu</button>`);
-    if (statut === 'Brouillon') {
-      btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="envoyer">📤 Envoyer</button>`);
-    }
-    if (['Brouillon', 'Envoyé'].includes(statut)) {
-      btns.push(`<button class="btn btn-success btn-sm" data-q-action="confirmer">✔ Confirmer</button>`);
-      btns.push(`<button class="btn btn-danger btn-sm"  data-q-action="annuler">✕ Annuler</button>`);
-    }
-    if (['Envoyé', 'Confirmé'].includes(statut)) {
-      if (factureLiee) {
-        /* Facture déjà créée → lien direct, bouton désactivé */
-        btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="voir-facture" data-linked-id="${factureLiee.id}"
-          title="Ouvrir la facture liée ${factureLiee.ref}" style="color:var(--accent-green);">
-          🧾 ${_esc(factureLiee.ref)} ↗</button>`);
-      } else {
-        btns.push(`<button class="btn btn-success btn-sm" data-q-action="facturer" title="Convertir en facture">🧾 → Facture</button>`);
-      }
-    }
-    if (statut === 'Confirmé') {
-      if (commandeLiee) {
-        btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="voir-commande" data-linked-id="${commandeLiee.id}"
-          title="Ouvrir la commande liée ${commandeLiee.reference || commandeLiee.ref}" style="color:var(--accent-blue);">
-          📦 ${_esc(commandeLiee.reference || commandeLiee.ref)} ↗</button>`);
-      } else {
-        btns.push(`<button class="btn btn-primary btn-sm" data-q-action="convertir">📦 → Commande</button>`);
-      }
-    }
-    btns.push(`<button class="btn btn-ghost btn-sm" data-q-action="supprimer" style="color:var(--accent-red);margin-left:8px;" title="Supprimer ce devis">🗑 Supprimer</button>`);
-    return btns.join('');
-  }
-
-  function _bindQuoteFormEvents(isNew, doc, ref, toolbar, area) {
-    /* Création rapide client depuis la liste déroulante */
-    _bindClientSelectCreation('q-client');
-
-    /* Re-peupler le select client après sync MySQL (contacts chargés async) */
-    (async () => {
-      await new Promise(r => setTimeout(r, 500));
-      const sel = document.getElementById('q-client');
-      if (!sel) return;
-      const currentVal = sel.value;
-      const contacts = Store.getAll('contacts');
-      if (contacts.length + 2 > sel.options.length) {
-        while (sel.options.length > 2) sel.remove(2);
-        contacts.forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = c.id;
-          opt.text  = _esc(c.nom);
-          opt.selected = c.id === currentVal || c.id === doc?.contactId;
-          sel.appendChild(opt);
-        });
-      }
-    })();
-
-    /* Remise client spéciale : appliquée dès la sélection */
-    document.getElementById('q-client')?.addEventListener('change', () => {
-      _applyRemiseClient('q-client');
-    });
-
-    /* Sauvegarder — guard anti double-clic */
-    document.getElementById('q-save')?.addEventListener('click', (e) => {
-      const btn = e.currentTarget;
-      if (btn.disabled) return;
-      btn.disabled = true;
-      btn.textContent = '…';
-      setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = '✔ Sauvegarder'; } }, 3000);
-
-      const contactId = document.getElementById('q-client')?.value;
-      if (!contactId || contactId === '__new__') {
-        btn.disabled = false; btn.textContent = '✔ Sauvegarder';
-        toast('Veuillez sélectionner un client.', 'error'); return;
-      }
-      if (_state.lignes.length === 0) {
-        btn.disabled = false; btn.textContent = '✔ Sauvegarder';
-        toast('Ajoutez au moins un article.', 'error'); return;
-      }
-
-      /* Collecter les montants saisis dans le DOM (évite désync) */
-      area.querySelectorAll('.reg-montant').forEach(inp => {
-        const idx = parseInt(inp.dataset.idx);
-        if (_paiementsDevis[idx]) _paiementsDevis[idx].montant = parseFloat(inp.value) || 0;
-      });
-      area.querySelectorAll('.reg-mode').forEach(sel => {
-        const idx = parseInt(sel.dataset.idx);
-        if (_paiementsDevis[idx]) _paiementsDevis[idx].mode = sel.value;
-      });
-
-      const paiementsDevis = _paiementsDevis.filter(p => p.montant > 0);
-      const totalRegle  = paiementsDevis.reduce((s, p) => s + (p.montant || 0), 0);
-      const totaux      = _calcTotaux(_state.lignes);
-      const resteAPayer = Math.max(0, (totaux.totalTTC || 0) - totalRegle);
-
-      /* Mode de règlement principal (pour la liste) */
-      const modeReglement = paiementsDevis.length === 1
-        ? paiementsDevis[0].mode
-        : paiementsDevis.length > 1 ? 'Mixte' : '';
-
-      /* Si un règlement est saisi → confirmer automatiquement le devis */
-      const statutFinal = (totalRegle > 0 && (doc?.statut || 'Brouillon') !== 'Annulé')
-        ? 'Confirmé'
-        : (doc?.statut || 'Brouillon');
-
-      const clientNom = _contactNom(contactId);
-      const dateExp   = document.getElementById('q-validite')?.value || '';
-      const record = {
-        ref,
-        _type:           'Devis',
-        contactId,
-        client:          clientNom,
-        client_nom:      clientNom,      /* MySQL: colonne legacy */
-        client_id:       contactId,      /* MySQL: colonne legacy */
-        date:            document.getElementById('q-date')?.value || '',
-        dateExpiration:  dateExp,
-        date_expiration: dateExp,        /* MySQL: colonne legacy */
-        date_validite:   dateExp,        /* MySQL: colonne legacy */
-        modeReglement,
-        mode_reglement:  modeReglement,  /* MySQL: colonne legacy */
-        paiementsDevis,
-        paiements_devis: paiementsDevis, /* MySQL: colonne legacy */
-        totalRegle,
-        total_regle:     totalRegle,     /* MySQL: colonne legacy */
-        resteAPayer,
-        reste_a_payer:   resteAPayer,    /* MySQL: colonne legacy */
-        notes:           document.getElementById('q-notes')?.value || '',
-        statut:          statutFinal,
-        lignes:          _state.lignes,
-        ...totaux,
-        total_ht:        totaux.totalHT,  /* MySQL: colonne legacy */
-        total_ttc:       totaux.totalTTC, /* MySQL: colonne legacy */
-        total_tva:       totaux.totalTVA, /* MySQL: colonne legacy */
-      };
-
-      /* 1 — Sauvegarder le devis */
-      let savedDevis;
-      if (isNew) {
-        savedDevis = Store.create('devis', record);
-        toast('Devis créé.', 'success');
-        _createDropboxFolder(record.client);
-      } else {
-        Store.update('devis', doc.id, record);
-        savedDevis = { ...record, id: doc.id };
-        toast('Devis sauvegardé.', 'success');
-      }
-
-      /* 2 — Flux tendu : réservation fournisseur si le devis est confirmé */
-      if (savedDevis.statut === 'Confirmé') {
-        _creerReservationFournisseur(savedDevis);
-      }
-
-      /* 3 — Si règlement > 0 : générer ou mettre à jour la facture */
-      if (totalRegle > 0) {
-        _genererFactureDepuisDevis(savedDevis, paiementsDevis, totalRegle, resteAPayer, totaux);
-      }
-
-      _goList('quotes', toolbar, area);
-    });
-
-    document.getElementById('q-cancel')
-      ?.addEventListener('click', () => _goList('quotes', toolbar, area));
-
-    /* Boutons d'action statut */
-    toolbar.querySelectorAll('[data-q-action]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const action = btn.dataset.qAction;
-
-        if (action === 'apercu') {
-          _previewDevis(doc, toolbar, area);
-          return;
-        }
-
-        if (action === 'convertir') {
-          _convertQuoteToOrder(doc, toolbar, area);
-          return;
-        }
-
-        if (action === 'facturer') {
-          _createInvoiceFromQuote(doc, toolbar, area);
-          return;
-        }
-
-        if (action === 'voir-facture') {
-          const facId = btn.dataset.linkedId;
-          if (facId) { _goForm('invoices', facId, toolbar, area); }
-          return;
-        }
-
-        if (action === 'voir-commande') {
-          const cmdId = btn.dataset.linkedId;
-          if (cmdId) { _goForm('orders', cmdId, toolbar, area); }
-          return;
-        }
-
-        if (action === 'supprimer') {
-          showConfirm(`Supprimer le devis ${doc.ref} ? Cette action est irréversible.`, () => {
-            Store.remove('devis', doc.id);
-            toast(`Devis ${doc.ref} supprimé.`, 'success');
-            _goList('quotes', toolbar, area);
-          });
-          return;
-        }
-
-        const newStatut = { envoyer: 'Envoyé', confirmer: 'Confirmé', annuler: 'Annulé' }[action];
-        if (newStatut) {
-          showConfirm(`Passer ce devis en "${newStatut}" ?`, () => {
-            Store.update('devis', doc.id, { statut: newStatut });
-            toast(`Devis ${newStatut.toLowerCase()}.`, 'success');
-            /* Réservation fournisseur local dès confirmation */
-            if (newStatut === 'Confirmé') {
-              _creerReservationFournisseur({ ...doc, statut: 'Confirmé' });
-            }
-            _goList('quotes', toolbar, area);
-          });
-        }
-      });
-    });
-  }
-
-  /* ----------------------------------------------------------------
-     APERÇU DEVIS — document mis en forme + options impression / facture
-     ---------------------------------------------------------------- */
-
-  /**
-   * Ouvre une fenêtre d'aperçu du devis avec mise en forme professionnelle.
-   * Propose d'imprimer le document et, si le statut le permet, de convertir en facture.
-   */
-  /* Paramètres de mise en forme des documents (stockés en localStorage) */
-  function _getDocParams() {
-    const defaults = {
-      entreprise:   'HCS — High Coffee Shirts',
-      slogan:       'Tenue · Sublimation · DTF · Broderie · Impression textile',
-      adresse:      'Tahiti, Polynésie française',
-      telephone:    '',
-      email:        'contact@highcoffeeshirts.com',
-      website:      'highcoffeeshirts.com',
-      logoUrl:      '',
-      accentColor:  '#4a5fff',
-      footerText:   'Merci de votre confiance — High Coffee Shirts',
-      conditions:   '',
-      gmailFrom:    'highcoffeeshirt@gmail.com'
-    };
-    try {
-      return { ...defaults, ...JSON.parse(localStorage.getItem('hcs_doc_params') || '{}') };
-    } catch { return defaults; }
-  }
-
-  function _previewDevis(devis, toolbar, area) {
-    const contact      = Store.getById('contacts', devis.contactId) || {};
-    const peutFacturer = ['Envoyé', 'Confirmé'].includes(devis.statut);
-    const p            = _getDocParams();
-
-    /* Calcul des totaux ligne par ligne pour affichage détaillé */
-    const lignesHtml = (devis.lignes || []).map(l => {
-      const brut   = (l.qte || 0) * (l.prixUnitaire || 0);
-      const remise = brut * ((l.remise || 0) / 100);
-      const ht     = brut - remise;
-      const taux   = (l.tauxTVA !== undefined ? l.tauxTVA : 16);
-      const tva    = Math.round(ht * taux / 100);
-      const ttc    = Math.round(ht + tva);
-      return `
-        <tr>
-          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">
-            ${_esc(l.produit || l.description || '—')}
-            ${l.description && l.produit ? `<br><span style="color:#6b7280;font-size:11px;">${_esc(l.description)}</span>` : ''}
-          </td>
-          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${l.qte || 0}</td>
-          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;font-family:monospace;">${_fmt(l.prixUnitaire || 0)}</td>
-          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${l.remise ? l.remise + ' %' : '—'}</td>
-          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px;color:#6b7280;">${taux} %</td>
-          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;font-weight:600;font-family:monospace;">${_fmt(ttc)}</td>
-        </tr>`;
-    }).join('');
-
-    /* Ligne de règlements déjà enregistrés */
-    const reglHtml = (devis.paiementsDevis || []).filter(p => p.montant > 0).map(p =>
-      `<div style="display:flex;justify-content:space-between;font-size:12px;color:#374151;padding:3px 0;">
-        <span>${REG_ICONS[p.mode] || '💰'} ${_esc(p.mode)}</span>
-        <span style="font-family:monospace;font-weight:600;">${_fmt(p.montant)}</span>
-      </div>`
-    ).join('');
-
-    /* Statut badge couleurs */
-    const BADGE_COLORS = {
-      'Brouillon': { bg: '#f3f4f6', color: '#374151' },
-      'Envoyé':    { bg: '#dbeafe', color: '#1d4ed8' },
-      'Confirmé':  { bg: '#dcfce7', color: '#15803d' },
-      'Annulé':    { bg: '#fee2e2', color: '#dc2626' }
-    };
-    const badgeStyle = BADGE_COLORS[devis.statut] || BADGE_COLORS['Brouillon'];
-
-    const documentHtml = `
-      <!DOCTYPE html>
-      <html lang="fr">
-      <head>
-        <meta charset="UTF-8">
-        <title>Devis ${_esc(devis.ref)}</title>
-        <style>
-          * { margin:0; padding:0; box-sizing:border-box; }
-          body { font-family: 'Segoe UI', Arial, sans-serif; color:#111827; background:#fff; }
-          .page { max-width:800px; margin:0 auto; padding:40px 32px; }
-
-          /* En-tête société */
-          .header { display:flex; justify-content:space-between; align-items:flex-start;
-                    padding-bottom:24px; border-bottom:3px solid #4a5fff; margin-bottom:28px; }
-          .brand-name { font-size:22px; font-weight:800; color:#4a5fff; letter-spacing:-0.5px; }
-          .brand-sub  { font-size:11px; color:#6b7280; margin-top:2px; }
-          .brand-contact { text-align:right; font-size:11px; color:#6b7280; line-height:1.8; }
-
-          /* Bloc doc info */
-          .doc-meta { display:flex; justify-content:space-between; align-items:flex-start;
-                      margin-bottom:28px; }
-          .doc-title { font-size:26px; font-weight:800; color:#111827; }
-          .doc-ref   { font-size:13px; color:#6b7280; font-family:monospace; margin-top:4px; }
-          .doc-badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:11px;
-                       font-weight:700; background:${badgeStyle.bg}; color:${badgeStyle.color};
-                       margin-top:8px; }
-          .doc-dates { text-align:right; font-size:12px; color:#374151; line-height:2; }
-          .doc-dates strong { color:#111827; }
-
-          /* Bloc client */
-          .section-title { font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;
-                           letter-spacing:1px; margin-bottom:8px; }
-          .client-box { background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;
-                        padding:14px 18px; margin-bottom:28px; }
-          .client-name { font-size:15px; font-weight:700; color:#111827; margin-bottom:4px; }
-          .client-detail { font-size:12px; color:#6b7280; line-height:1.8; }
-
-          /* Tableau articles */
-          table { width:100%; border-collapse:collapse; margin-bottom:24px; }
-          thead th { background:#4a5fff; color:#fff; padding:10px 10px; text-align:left;
-                     font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
-          thead th:not(:first-child) { text-align:center; }
-          thead th:last-child { text-align:right; }
-          tbody tr:last-child td { border-bottom:none; }
-
-          /* Totaux */
-          .totaux { display:flex; justify-content:flex-end; margin-bottom:24px; }
-          .totaux-box { width:280px; }
-          .totaux-row { display:flex; justify-content:space-between; padding:5px 0;
-                        font-size:13px; color:#374151; border-bottom:1px solid #f3f4f6; }
-          .totaux-row.ttc { font-size:16px; font-weight:800; color:#111827;
-                            border-top:2px solid #4a5fff; border-bottom:none;
-                            padding-top:10px; margin-top:4px; }
-          .mono { font-family:monospace; }
-
-          /* Règlements */
-          .regl-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;
-                      padding:12px 16px; margin-bottom:24px; }
-          .regl-title { font-size:11px; font-weight:700; color:#15803d; margin-bottom:8px; }
-
-          /* Notes */
-          .notes-box { background:#fffbeb; border:1px solid #fde68a; border-radius:8px;
-                       padding:12px 16px; margin-bottom:28px; font-size:12px; color:#374151;
-                       line-height:1.7; }
-
-          /* Footer doc */
-          .doc-footer { text-align:center; font-size:10px; color:#9ca3af;
-                        border-top:1px solid #e5e7eb; padding-top:16px; margin-top:8px; }
-
-          /* Boutons interface (masqués à l'impression) */
-          .ui-actions { display:flex; gap:10px; justify-content:flex-end;
-                        padding:16px 0 4px 0; margin-bottom:16px; }
-          .btn-print   { padding:9px 20px; background:#4a5fff; color:#fff; border:none;
-                         border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
-          .btn-facture { padding:9px 20px; background:#22c55e; color:#fff; border:none;
-                         border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
-          .btn-email   { padding:9px 20px; background:#f97316; color:#fff; border:none;
-                         border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
-          .btn-close   { padding:9px 16px; background:#f3f4f6; color:#374151; border:none;
-                         border-radius:8px; font-size:13px; cursor:pointer; }
-          .email-tip   { background:#fffbeb; border:1px solid #fde68a; border-radius:8px;
-                         padding:12px 16px; font-size:12px; color:#374151; margin-bottom:12px;
-                         display:none; line-height:1.7; }
-
-          @media print {
-            .ui-actions { display:none !important; }
-            body { padding:0; }
-            .page { padding:20px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="page">
-
-          <!-- Boutons interface -->
-          <div class="email-tip" id="email-tip">
-            <strong>📧 Comment envoyer par email :</strong><br>
-            1. Clique sur <strong>🖨 Imprimer</strong> → dans la boîte d'impression, choisis <strong>"Enregistrer en PDF"</strong><br>
-            2. Reviens ici et clique <strong>📧 Composer l'email</strong> — ton client de messagerie s'ouvrira avec le devis pré-rempli<br>
-            3. Joint le PDF que tu viens de sauvegarder et envoie !
-          </div>
-          <div class="ui-actions">
-            <button class="btn-close" onclick="window.close()">✕ Fermer</button>
-            ${peutFacturer
-              ? `<button class="btn-facture" id="btn-doc-facturer">🧾 Convertir en Facture</button>`
-              : ''}
-            <button class="btn-email" id="btn-doc-email">📧 Envoyer par email</button>
-            <button class="btn-print" id="btn-doc-print">🖨 Imprimer / PDF</button>
-          </div>
-
-          <!-- En-tête société -->
-          <div class="header">
-            <div style="display:flex;align-items:center;gap:14px;">
-              ${p.logoUrl ? `<img src="${p.logoUrl}" style="height:52px;width:auto;object-fit:contain;" alt="logo">` : ''}
-              <div>
-                <div class="brand-name" style="color:${p.accentColor};">${_esc(p.entreprise)}</div>
-                <div class="brand-sub">${_esc(p.slogan)}</div>
-              </div>
-            </div>
-            <div class="brand-contact">
-              ${p.adresse ? _esc(p.adresse) + '<br>' : ''}
-              ${p.telephone ? '📞 ' + _esc(p.telephone) + '<br>' : ''}
-              ${p.email ? _esc(p.email) + '<br>' : ''}
-              ${p.website ? _esc(p.website) : ''}
-            </div>
-          </div>
-
-          <!-- Identité du document -->
-          <div class="doc-meta">
-            <div>
-              <div class="doc-title">DEVIS</div>
-              <div class="doc-ref">${_esc(devis.ref)}</div>
-              <div class="doc-badge">${_esc(devis.statut)}</div>
-            </div>
-            <div class="doc-dates">
-              <div>Date : <strong>${_fmtDate(devis.date)}</strong></div>
-              ${devis.dateExpiration
-                ? `<div>Validité : <strong>${_fmtDate(devis.dateExpiration)}</strong></div>`
-                : ''}
-            </div>
-          </div>
-
-          <!-- Client -->
-          <div class="section-title">Client</div>
-          <div class="client-box">
-            <div class="client-name">${_esc(devis.client || contact.nom || '—')}</div>
-            <div class="client-detail">
-              ${contact.email ? `📧 ${_esc(contact.email)}<br>` : ''}
-              ${contact.tel   ? `📞 ${_esc(contact.tel)}<br>`   : ''}
-              ${contact.type  ? `🏷 ${_esc(contact.type)}`      : ''}
-            </div>
-          </div>
-
-          <!-- Articles -->
-          <div class="section-title">Articles</div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width:40%;">Désignation</th>
-                <th style="width:8%;">Qté</th>
-                <th style="width:14%;">PU HT</th>
-                <th style="width:10%;">Remise</th>
-                <th style="width:10%;">TVA</th>
-                <th style="width:18%;">Total TTC</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${lignesHtml || '<tr><td colspan="6" style="padding:16px;text-align:center;color:#6b7280;">Aucun article</td></tr>'}
-            </tbody>
-          </table>
-
-          <!-- Totaux -->
-          <div class="totaux">
-            <div class="totaux-box">
-              <div class="totaux-row">
-                <span>Total HT</span>
-                <span class="mono">${_fmt(devis.totalHT || 0)}</span>
-              </div>
-              <div class="totaux-row">
-                <span>TVA</span>
-                <span class="mono">${_fmt(devis.totalTVA || 0)}</span>
-              </div>
-              <div class="totaux-row ttc">
-                <span>Total TTC</span>
-                <span class="mono">${_fmt(devis.totalTTC || 0)}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Règlements enregistrés -->
-          ${reglHtml ? `
-          <div class="regl-box">
-            <div class="regl-title">✅ Règlements enregistrés</div>
-            ${reglHtml}
-            ${devis.resteAPayer > 0.01
-              ? `<div style="font-size:12px;color:#dc2626;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid #bbf7d0;">
-                  Reste à payer : ${_fmt(devis.resteAPayer)}
-                </div>`
-              : `<div style="font-size:12px;color:#15803d;font-weight:700;margin-top:8px;">✔ Entièrement réglé</div>`}
-          </div>` : ''}
-
-          <!-- Notes / Conditions -->
-          ${devis.notes ? `
-          <div class="section-title">Notes &amp; Conditions</div>
-          <div class="notes-box">${_esc(devis.notes).replace(/\n/g, '<br>')}</div>` : ''}
-
-          <!-- Fiche atelier (uniquement si au moins une ligne a une position) -->
-          ${(() => {
-            const lignesAvecPos = (devis.lignes || []).filter(l => l.positionAtelier);
-            if (!lignesAvecPos.length) return '';
-            return `
-              <div style="margin-top:24px;border-top:2px dashed #e5e7eb;padding-top:16px;">
-                <div style="font-size:11px;font-weight:700;text-transform:uppercase;
-                  letter-spacing:1px;color:#6b7280;margin-bottom:10px;">📋 Fiche Atelier</div>
-                <table style="width:100%;border-collapse:collapse;font-size:12px;">
-                  <thead>
-                    <tr style="background:#f3f4f6;">
-                      <th style="padding:6px 10px;text-align:left;font-weight:700;color:#374151;">Article</th>
-                      <th style="padding:6px 10px;text-align:center;font-weight:700;color:#374151;">Qté</th>
-                      <th style="padding:6px 10px;text-align:left;font-weight:700;color:#374151;">Position atelier</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${lignesAvecPos.map(l => `
-                      <tr style="border-bottom:1px solid #f3f4f6;">
-                        <td style="padding:7px 10px;">${_esc(l.produit || l.description || '—')}</td>
-                        <td style="padding:7px 10px;text-align:center;font-weight:600;">${l.qte || 1}</td>
-                        <td style="padding:7px 10px;">
-                          <span style="background:#eff6ff;color:#1d4ed8;border-radius:6px;
-                            padding:3px 10px;font-weight:600;">
-                            ${_esc(l.positionAtelier)}
-                          </span>
-                        </td>
-                      </tr>`).join('')}
-                  </tbody>
-                </table>
-              </div>`;
-          })()}
-
-          <!-- Pied de page -->
-          <div class="doc-footer">
-            ${p.footerText ? _esc(p.footerText) + '<br>' : ''}
-            ${p.conditions ? '<em>' + _esc(p.conditions) + '</em><br>' : ''}
-            Document généré le ${new Date().toLocaleDateString('fr-FR')} — HCS ERP
-          </div>
-
-        </div>
-      </body>
-      </html>`;
-
-    /* Ouvrir dans une nouvelle fenêtre navigateur */
-    const win = window.open('', '_blank', 'width=860,height=750,scrollbars=yes,toolbar=no,menubar=no');
-    if (!win) {
-      toast('Le navigateur a bloqué l\'ouverture de la fenêtre. Autorisez les popups pour ce site.', 'warning');
-      return;
-    }
-    win.document.write(documentHtml);
-    win.document.close();
-
-    /* Bouton "Convertir en Facture" dans la nouvelle fenêtre */
-    if (peutFacturer) {
-      win.document.getElementById('btn-doc-facturer')?.addEventListener('click', () => {
-        win.close();
-        _createInvoiceFromQuote(devis, toolbar, area);
-      });
-    }
-
-    /* Bouton "Imprimer / PDF" — sauvegarde automatiquement dans Dropbox + ERP */
-    win.document.getElementById('btn-doc-print')?.addEventListener('click', async () => {
-      const filename = `${_safeFilename(devis.client)}_devis_${_safeFilename(devis.ref)}.html`;
-      const htmlContent = '<!DOCTYPE html>' + win.document.documentElement.outerHTML;
-      await _sauverDocDropbox(devis.client, filename, htmlContent, 'Devis');
-      win.print();
-    });
-
-    /* Bouton "Envoyer par email" — génère un mailto: avec le résumé du devis */
-    win.document.getElementById('btn-doc-email')?.addEventListener('click', () => {
-      /* Afficher le guide étape par étape */
-      const tip = win.document.getElementById('email-tip');
-      if (tip) tip.style.display = tip.style.display === 'block' ? 'none' : 'block';
-
-      /* Construire le corps de l'email */
-      const lignesTxt = (devis.lignes || []).map(l => {
-        const brut = (l.qte || 0) * (l.prixUnitaire || 0);
-        const ht   = brut * (1 - ((l.remise || 0) / 100));
-        const taux = (l.tauxTVA !== undefined ? l.tauxTVA : 16) / 100;
-        const ttc  = Math.round(ht * (1 + taux));
-        return `- ${l.produit || l.description || '?'} × ${l.qte || 0}  →  ${ttc.toLocaleString('fr-FR')} XPF`;
-      }).join('\n');
-
-      const corps = [
-        `Bonjour,`,
-        ``,
-        `Veuillez trouver ci-joint le devis ${devis.ref} établi à votre attention.`,
-        ``,
-        `─── Récapitulatif ───`,
-        `Référence : ${devis.ref}`,
-        `Date      : ${devis.date || ''}`,
-        devis.dateExpiration ? `Validité  : ${devis.dateExpiration}` : '',
-        ``,
-        `Articles :`,
-        lignesTxt,
-        ``,
-        `Total HT  : ${(devis.totalHT || 0).toLocaleString('fr-FR')} XPF`,
-        `TVA       : ${(devis.totalTVA || 0).toLocaleString('fr-FR')} XPF`,
-        `Total TTC : ${(devis.totalTTC || 0).toLocaleString('fr-FR')} XPF`,
-        ``,
-        devis.notes ? `Conditions : ${devis.notes}` : '',
-        ``,
-        `Pour toute question, n'hésitez pas à nous contacter.`,
-        ``,
-        `Cordialement,`,
-        _getDocParams().entreprise,
-        _getDocParams().email
-      ].filter(l => l !== '').join('\n');
-
-      const pDoc  = _getDocParams();
-      const email = (contact.email || '').trim();
-      const sujet = encodeURIComponent(`Devis ${devis.ref} — ${pDoc.entreprise}`);
-      const body  = encodeURIComponent(corps);
-
-      /* Ouvre directement Gmail Compose (boîte highcoffeeshirt@gmail.com) */
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&from=${encodeURIComponent(pDoc.gmailFrom)}&to=${encodeURIComponent(email)}&su=${sujet}&body=${body}`;
-      win.open(gmailUrl, '_blank');
-    });
-  }
-
-  /** Détecte le type de production depuis les lignes du devis */
-  function _detectTypeProduction(lignes) {
-    const txt = (lignes || []).map(l => `${l.produit || ''} ${l.description || ''}`).join(' ').toLowerCase();
-    if (/vinyl|vinyle|plotter/i.test(txt))    return 'vinyle';
-    if (/dtf|transfert/i.test(txt))           return 'dtf';
-    if (/broderie|broder/i.test(txt))         return 'broderie';
-    if (/casquette|cap/i.test(txt))           return 'casquette';
-    if (/sublim/i.test(txt))                  return 'sublimation';
-    return 'dtf';
-  }
-
-  /** Synchronise une commande ERP → carte Planning dashboard (hcs_planning) */
-  function _pushPlanningCard(devis, cmdRef) {
-    try {
-      const planning = JSON.parse(localStorage.getItem('hcs_planning') || '[]');
-      /* Évite les doublons si la carte existe déjà */
-      if (planning.some(c => c.ref === devis.ref)) return;
-
-      const totalQte = (devis.lignes || []).reduce((s, l) => s + (l.qte || 1), 0);
-      const desc = (devis.lignes || [])
-        .map(l => `${l.qte || 1}× ${l.produit || l.description || '—'}`)
-        .join(' + ');
-
-      planning.push({
-        id:        'erp-' + Date.now(),
-        client:    devis.client || '',
-        ref:       devis.ref,
-        cmdRef:    cmdRef,
-        canal:     'ERP',
-        desc:      desc,
-        type:      _detectTypeProduction(devis.lignes),
-        machine:   '',
-        qty:       totalQte,
-        deadline:  devis.dateLivraison
-          ? new Date(devis.dateLivraison).toISOString()
-          : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
-        priority:  'normal',
-        notes:     devis.notes || '',
-        col:       'attente',
-        createdAt: new Date().toISOString()
-      });
-      localStorage.setItem('hcs_planning', JSON.stringify(planning));
-    } catch (e) { /* silencieux */ }
-  }
-
-  function _convertQuoteToOrder(devis, toolbar, area) {
-    showConfirm(
-      `Convertir "${devis.ref}" en commande ? Le devis passera en "Confirmé".`,
-      () => {
-        const ref = _genRef('CMD', 'commandes');
-        Store.create('commandes', {
-          ref,
-          _type:        'Commande',
-          contactId:    devis.contactId,
-          client:       devis.client,
-          date:         new Date().toISOString().slice(0, 10),
-          dateLivraison:'',
-          statut:       'Confirmé',
-          quoteId:      devis.id,
-          lignes:       devis.lignes,
-          totalHT:      devis.totalHT,
-          totalTVA:     devis.totalTVA,
-          totalTTC:     devis.totalTTC,
-          notes:        devis.notes || ''
-        });
-        Store.update('devis', devis.id, { statut: 'Confirmé' });
-        _pushPlanningCard(devis, ref);
-        toast(`✔ Commande ${ref} créée + carte ajoutée au planning.`, 'success');
-        _goList('quotes', toolbar, area);
-      }
-    );
-  }
-
-  /** Crée une facture directement depuis un devis confirmé */
-  function _createInvoiceFromQuote(devis, toolbar, area) {
-    showFormModal(
-      `Facturer le devis ${devis.ref}`,
-      [
-        {
-          name: 'type',
-          label: 'Type de facture',
-          type: 'select',
-          options: [
-            { value: 'totale',  label: 'Facture totale (100%)' },
-            { value: 'acompte', label: 'Acompte / Facture partielle' }
-          ]
-        },
-        {
-          name: 'montantAcompte',
-          label: 'Montant de l\'acompte (XPF) — si partiel',
-          type: 'number'
-        },
-        {
-          name: 'dateEcheance',
-          label: 'Date d\'échéance',
-          type: 'date'
-        }
-      ],
-      { type: 'totale', dateEcheance: '' },
-      (data) => {
-        const ref = _genRef('FAC', 'factures');
-        const isAcompte = data.type === 'acompte';
-        let lignes = devis.lignes;
-        let totalHT  = devis.totalHT;
-        let totalTVA = devis.totalTVA;
-        let totalTTC = devis.totalTTC;
-
-        if (isAcompte && data.montantAcompte) {
-          const montantAc = parseFloat(data.montantAcompte) || 0;
-          const ratio = devis.totalTTC > 0 ? montantAc / devis.totalTTC : 1;
-          lignes = devis.lignes.map(l => ({
-            ...l,
-            prixUnitaire: Math.round((l.prixUnitaire || 0) * ratio)
-          }));
-          const t = _calcTotaux(lignes);
-          totalHT  = t.totalHT;
-          totalTVA = t.totalTVA;
-          totalTTC = t.totalTTC;
-        }
-
-        Store.create('factures', {
-          ref,
-          _type:        'Facture',
-          contactId:    devis.contactId,
-          client:       devis.client,
-          devisId:      devis.id,
-          date:         new Date().toISOString().slice(0, 10),
-          dateEcheance: data.dateEcheance || '',
-          statut:       'Brouillon',
-          lignes,
-          paiements:    [],
-          totalHT,
-          totalTVA,
-          totalTTC,
-          notes:        (isAcompte ? `Acompte sur devis ${devis.ref}` : `Facture devis ${devis.ref}`)
-                        + (devis.notes ? '\n' + devis.notes : '')
-        });
-
-        toast(`✔ Facture ${ref} créée depuis ${devis.ref}.`, 'success');
-        _goList('quotes', toolbar, area);
-      }
-    );
-  }
-
-  /* ================================================================
-     VUE COMMANDES (ORDERS)
-     ================================================================ */
-
-  function _renderOrdersList(toolbar, area) {
-    let allCmds = Store.getAll('commandes');
-    const isKanban = _state.listMode === 'kanban';
-
-    /* Les commandes sont créées depuis les devis — pas de création manuelle */
-    toolbar.innerHTML = `
-      <select class="form-control" id="filter-order-statut"
-        style="height:28px;width:155px;font-size:12px;">
-        <option value="">Tous les statuts</option>
-        ${STATUTS_CMD.map(s => `<option value="${s}">${s}</option>`).join('')}
-      </select>
-      <input type="text" id="filter-order-client" placeholder="🔍 Client..."
-        class="form-control" style="height:28px;width:140px;font-size:12px;">
-      <input type="date" id="filter-order-from" title="Date début"
-        class="form-control" style="height:28px;width:130px;font-size:12px;">
-      <input type="date" id="filter-order-to" title="Date fin"
-        class="form-control" style="height:28px;width:130px;font-size:12px;">
-      <div style="display:flex;gap:4px;margin-left:4px;">
-        <button class="btn ${!isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-o-list">☰</button>
-        <button class="btn ${isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-o-kanban">⊞</button>
-      </div>`;
-
-    const _applyOrderFilters = () => {
-      const statut = document.getElementById('filter-order-statut')?.value || '';
-      const client = (document.getElementById('filter-order-client')?.value || '').toLowerCase();
-      const from   = document.getElementById('filter-order-from')?.value || '';
-      const to     = document.getElementById('filter-order-to')?.value || '';
-      let filtered = allCmds;
-      if (statut) filtered = filtered.filter(c => c.statut === statut);
-      if (client) filtered = filtered.filter(c => (c.client || '').toLowerCase().includes(client));
-      if (from)   filtered = filtered.filter(c => (c.date || '') >= from);
-      if (to)     filtered = filtered.filter(c => (c.date || '') <= to);
-      if (isKanban) _drawKanban(filtered, STATUTS_CMD, BADGE_CMD, 'orders', toolbar, area);
-      else _drawOrdersTable(filtered, toolbar, area);
-    };
-
-    document.getElementById('btn-o-list')?.addEventListener('click', () => {
-      _state.listMode = 'list'; _renderOrdersList(toolbar, area);
-    });
-    document.getElementById('btn-o-kanban')?.addEventListener('click', () => {
-      _state.listMode = 'kanban'; _renderOrdersList(toolbar, area);
-    });
-    document.getElementById('filter-order-statut')?.addEventListener('change', _applyOrderFilters);
-    document.getElementById('filter-order-client')?.addEventListener('input', _applyOrderFilters);
-    document.getElementById('filter-order-from')?.addEventListener('change', _applyOrderFilters);
-    document.getElementById('filter-order-to')?.addEventListener('change', _applyOrderFilters);
-
-    area.innerHTML = `
-      <div class="page-header">
-        <div class="page-title">Commandes</div>
-        <div class="page-subtitle">${allCmds.length} document(s)</div>
-      </div>
-      <div id="sales-orders-table"></div>`;
-
-    if (isKanban) _drawKanban(allCmds, STATUTS_CMD, BADGE_CMD, 'orders', toolbar, area);
-    else _drawOrdersTable(allCmds, toolbar, area);
-  }
-
-  function _drawOrdersTable(data, toolbar, area) {
-    renderTable('sales-orders-table', {
-      searchable: true,
-      sortable:   true,
-      data,
-      columns: [
-        { key: 'ref',          label: 'Numéro',    render: (v) => `<span class="col-ref">${_esc(v)}</span>` },
-        { key: 'date',         label: 'Date',       type: 'date' },
-        { key: 'client',       label: 'Client',     type: 'text' },
-        { key: 'dateLivraison',label: 'Livraison',  type: 'date' },
-        { key: 'totalTTC',     label: 'Total TTC',  render: (v) => `<span class="mono">${_fmt(v)}</span>` },
-        { key: 'statut',       label: 'Statut',     type: 'badge', badgeMap: BADGE_CMD }
-      ],
-      onRowClick: (item) => _goForm('orders', item.id, toolbar, area),
-      emptyMsg:   'Aucune commande.'
-    });
-  }
-
-  /* ---- Formulaire commande ---- */
-  function _renderOrderForm(toolbar, area) {
-    const isNew = !_state.currentId;
-    const doc   = isNew ? null : Store.getById('commandes', _state.currentId);
-
-    if (!isNew && !doc) {
-      toast('Commande introuvable.', 'error');
-      return _goList('orders', toolbar, area);
-    }
-
-    _state.lignes = doc ? doc.lignes.map(l => ({ ...l })) : [];
-
-    const ref    = doc?.ref    || _genRef('CMD', 'commandes');
-    const statut = doc?.statut || 'Brouillon';
-    const chips  = doc?.quoteId ? `<span class="chip">📄 ${_esc(doc.quoteId)}</span>` : '';
-
-    toolbar.innerHTML = `
-      <button class="btn btn-ghost btn-sm" id="btn-back">← Retour</button>
-      ${_orderActionBtns(statut, isNew)}`;
-
-    document.getElementById('btn-back')
-      ?.addEventListener('click', () => _goList('orders', toolbar, area));
-
-    area.innerHTML = `
-      ${_renderFormHeader(ref, statut, BADGE_CMD, chips)}
-
-      <div class="form-section">
-        <div class="form-section-title">Informations générales</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label required">Client</label>
-            <select class="form-control" id="o-client" required>
-              <option value="">— Choisir un client —</option>
-              <option value="__new__" style="color:var(--accent-blue);font-weight:600;">➕ Créer nouveau client</option>
-              ${Store.getAll('contacts').map(c =>
-                `<option value="${c.id}" ${doc?.contactId === c.id ? 'selected' : ''}>${_esc(c.nom)}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label required">Date commande</label>
-            <input type="date" class="form-control" id="o-date"
-              value="${doc?.date || new Date().toISOString().slice(0,10)}" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Livraison prévue</label>
-            <input type="date" class="form-control" id="o-livraison"
-              value="${doc?.dateLivraison || ''}" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Notes</label>
-            <textarea class="form-control" id="o-notes" rows="2"
-              placeholder="Instructions de livraison, références client…">${_esc(doc?.notes || '')}</textarea>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="form-section-title">Articles</div>
-        ${_renderLineTable(_state.lignes)}
-      </div>
-
-      <div class="form-section" style="padding:0;">
-        ${_renderTotalsBlock(_state.lignes)}
-      </div>
-
-      <!-- Section livraison -->
-      <div class="form-section">
-        <div class="form-section-title">🚚 Livraison</div>
-        <div class="form-grid cols-3">
-          <div class="form-group">
-            <label class="form-label">Mode de livraison</label>
-            <select class="form-control" id="o-livraison-mode">
-              <option value="retrait" ${(doc?.livraisonMode||'retrait')==='retrait'?'selected':''}>🏪 Retrait boutique</option>
-              <option value="livraison" ${doc?.livraisonMode==='livraison'?'selected':''}>🚚 Livraison à domicile</option>
-              <option value="coursier" ${doc?.livraisonMode==='coursier'?'selected':''}>🛵 Coursier</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Date de retrait / livraison</label>
-            <input type="date" class="form-control" id="o-retrait-date"
-              value="${doc?.retraitDate || doc?.dateLivraison || ''}" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Adresse de livraison</label>
-            <input type="text" class="form-control" id="o-livraison-adresse"
-              value="${_esc(doc?.livraisonAdresse || '')}"
-              placeholder="Ex: BP 123, Papeete" />
-          </div>
-        </div>
-      </div>
-
-      <!-- Section acompte / paiement -->
-      <div class="form-section">
-        <div class="form-section-title">💳 Acompte &amp; paiement</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Acompte reçu (XPF)</label>
-            <input type="number" class="form-control" id="o-acompte"
-              value="${doc?.acompte || 0}" min="0" step="100"
-              placeholder="0" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Statut paiement</label>
-            <select class="form-control" id="o-statut-paiement">
-              <option value="non_paye"   ${(doc?.statutPaiement||'non_paye')==='non_paye'  ?'selected':''}>🔴 Non payé</option>
-              <option value="acompte"    ${doc?.statutPaiement==='acompte'  ?'selected':''}>🟡 Acompte reçu</option>
-              <option value="paye"       ${doc?.statutPaiement==='paye'     ?'selected':''}>✅ Payé intégralement</option>
-            </select>
-          </div>
-        </div>
-        <div id="o-reste-payer" style="margin-top:8px;padding:10px 14px;background:#F5F8FF;border-radius:8px;font-size:13px;display:none;"></div>
-      </div>
-
-      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:16px;">
-        <button class="btn btn-ghost" id="o-cancel">Annuler</button>
-        <button class="btn btn-primary" id="o-save">✔ Sauvegarder</button>
-      </div>`;
-
-    _bindLineTableEvents();
-    _bindOrderFormEvents(isNew, doc, ref, toolbar, area);
-  }
-
-  function _orderActionBtns(statut, isNew) {
-    if (isNew) return '';
-    const flow = ['Brouillon', 'Confirmé', 'En production', 'Prêt', 'Livré', 'Terminé'];
-    const idx  = flow.indexOf(statut);
-    const btns = [];
-
-    if (idx >= 0 && idx < flow.length - 1) {
-      const next = flow[idx + 1];
-      btns.push(`<button class="btn btn-primary btn-sm" data-o-action="next"
-        data-next="${_esc(next)}">→ ${_esc(next)}</button>`);
-    }
-    /* Lancer en production (OF) dès "Confirmé" */
-    if (statut === 'Confirmé') {
-      btns.push(`<button class="btn btn-primary btn-sm" data-o-action="lancer-prod">▶ Lancer en production</button>`);
-    }
-    /* Bon de production dès "En production" */
-    if (statut === 'En production') {
-      btns.push(`<button class="btn btn-ghost btn-sm" data-o-action="production">⚙ Bon de production</button>`);
-    }
-    /* Bon de livraison quand prêt ou livré */
-    if (['Prêt', 'Livré'].includes(statut)) {
-      btns.push(`<button class="btn btn-ghost btn-sm" data-o-action="livraison">📋 Bon de livraison</button>`);
-    }
-    if (['Livré', 'Terminé'].includes(statut)) {
-      btns.push(`<button class="btn btn-success btn-sm" data-o-action="facturer">🧾 Créer Facture</button>`);
-    }
-    return btns.join('');
-  }
-
-  function _bindOrderFormEvents(isNew, doc, ref, toolbar, area) {
-    /* Création rapide client depuis la liste déroulante */
-    _bindClientSelectCreation('o-client');
-
-    /* Remise client spéciale : appliquée dès la sélection */
-    document.getElementById('o-client')?.addEventListener('change', () => {
-      _applyRemiseClient('o-client');
-    });
-
-    document.getElementById('o-save')?.addEventListener('click', () => {
-      const contactId = document.getElementById('o-client')?.value;
-      if (!contactId || contactId === '__new__') { toast('Veuillez sélectionner un client.', 'error'); return; }
-      if (_state.lignes.length === 0) { toast('Ajoutez au moins un article.', 'error'); return; }
-
-      const record = {
-        ref,
-        _type:            'Commande',
-        contactId,
-        client:           _contactNom(contactId),
-        date:             document.getElementById('o-date')?.value      || '',
-        dateLivraison:    document.getElementById('o-livraison')?.value || '',
-        notes:            document.getElementById('o-notes')?.value     || '',
-        statut:           doc?.statut || 'Brouillon',
-        quoteId:          doc?.quoteId || null,
-        lignes:           _state.lignes,
-        livraisonMode:    document.getElementById('o-livraison-mode')?.value    || 'retrait',
-        retraitDate:      document.getElementById('o-retrait-date')?.value      || '',
-        livraisonAdresse: document.getElementById('o-livraison-adresse')?.value || '',
-        acompte:          parseFloat(document.getElementById('o-acompte')?.value) || 0,
-        statutPaiement:   document.getElementById('o-statut-paiement')?.value   || 'non_paye',
-        ..._calcTotaux(_state.lignes)
-      };
-
-      if (isNew) {
-        Store.create('commandes', record);
-        toast('Commande créée.', 'success');
-      } else {
-        Store.update('commandes', doc.id, record);
-        toast('Commande sauvegardée.', 'success');
-      }
-      _goList('orders', toolbar, area);
-    });
-
-    document.getElementById('o-cancel')
-      ?.addEventListener('click', () => _goList('orders', toolbar, area));
-
-    /* Calcul du reste à payer en temps réel */
-    function _updateRestePayer() {
-      const acompte = parseFloat(document.getElementById('o-acompte')?.value) || 0;
-      const total   = _calcTotaux(_state.lignes).totalTTC;
-      const reste   = total - acompte;
-      const el      = document.getElementById('o-reste-payer');
-      if (!el) return;
-      if (acompte > 0 || total > 0) {
-        el.style.display = 'block';
-        el.innerHTML = `
-          <div style="display:flex;gap:24px;flex-wrap:wrap;">
-            <span>💰 Total TTC : <strong style="font-family:var(--font-mono);">${_fmt(total)}</strong></span>
-            <span>✅ Acompte : <strong style="font-family:var(--font-mono);color:#16A34A;">${_fmt(acompte)}</strong></span>
-            <span>🔴 Reste à payer : <strong style="font-family:var(--font-mono);color:${reste > 0 ? '#DC2626' : '#16A34A'};">${_fmt(Math.max(0, reste))}</strong></span>
-          </div>`;
-      } else {
-        el.style.display = 'none';
-      }
-    }
-    document.getElementById('o-acompte')?.addEventListener('input', _updateRestePayer);
-    _updateRestePayer(); /* état initial */
-
-    toolbar.querySelectorAll('[data-o-action]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const action = btn.dataset.oAction;
-        if (action === 'next') {
-          const next = btn.dataset.next;
-          showConfirm(`Passer la commande en "${next}" ?`, () => {
-            Store.update('commandes', doc.id, { statut: next });
-            toast(`Commande : ${next}`, 'success');
-            _goList('orders', toolbar, area);
-          });
-        } else if (action === 'lancer-prod') {
-          _createOFFromOrder(doc, toolbar, area);
-        } else if (action === 'facturer') {
-          _createInvoiceFromOrder(doc, toolbar, area);
-        } else if (action === 'production') {
-          _createBonProduction(doc, toolbar, area);
-        } else if (action === 'livraison') {
-          _createBonLivraison(doc, toolbar, area);
-        }
-      });
-    });
-  }
-
-  function _createInvoiceFromOrder(cmd, toolbar, area) {
-    showConfirm(
-      `Créer une facture depuis la commande ${cmd.ref} ?`,
-      () => {
-        const ref = _genRef('FAC', 'factures');
-        Store.create('factures', {
-          ref,
-          _type:        'Facture',
-          contactId:    cmd.contactId,
-          client:       cmd.client,
-          commandeId:   cmd.id,
-          date:         new Date().toISOString().slice(0, 10),
-          dateEcheance: '',
-          statut:       'Brouillon',
-          lignes:       cmd.lignes,
-          paiements:    [],
-          totalHT:      cmd.totalHT,
-          totalTVA:     cmd.totalTVA,
-          totalTTC:     cmd.totalTTC,
-          notes:        cmd.notes || ''
-        });
-        Store.update('commandes', cmd.id, { statut: 'Terminé' });
-        /* Déduire le stock automatiquement */
-        _deductStockFromLines(cmd.lignes || []);
-        toast(`✔ Facture ${ref} créée depuis ${cmd.ref}.`, 'success');
-        _goList('orders', toolbar, area);
-      }
-    );
-  }
-
-  /* ================================================================
-     VUE FACTURES (INVOICES)
-     ================================================================ */
-
-  function _renderInvoicesList(toolbar, area) {
-    let allFacs = Store.getAll('factures');
-    const isKanban = _state.listMode === 'kanban';
-
-    /* Totaux rapides pour résumé */
-    const enCours  = allFacs.filter(f => !['Payé'].includes(f.statut));
-    const reglees  = allFacs.filter(f => f.statut === 'Payé');
-    const totalReste = enCours.reduce((s, f) =>
-      s + Math.max(0, (f.totalTTC || 0) - _totalPaiements(f.paiements)), 0);
-
-    toolbar.innerHTML = `
-      <button class="btn btn-primary btn-sm" id="btn-new-invoice">+ Nouveau</button>
-      <select class="form-control" id="filter-invoice-tab"
-        style="height:28px;width:140px;font-size:12px;">
-        <option value="en_cours">En cours (${enCours.length})</option>
-        <option value="reglees">Réglées (${reglees.length})</option>
-        <option value="toutes">Toutes (${allFacs.length})</option>
-      </select>
-      <select class="form-control" id="filter-invoice-statut"
-        style="height:28px;width:145px;font-size:12px;">
-        <option value="">Tous les statuts</option>
-        ${STATUTS_FAC.map(s => `<option value="${s}">${s}</option>`).join('')}
-      </select>
-      <input type="text" id="filter-invoice-client" placeholder="🔍 Client..."
-        class="form-control" style="height:28px;width:135px;font-size:12px;">
-      <input type="date" id="filter-invoice-from" title="Date début"
-        class="form-control" style="height:28px;width:130px;font-size:12px;">
-      <input type="date" id="filter-invoice-to" title="Date fin"
-        class="form-control" style="height:28px;width:130px;font-size:12px;">
-      <div style="display:flex;gap:4px;margin-left:4px;">
-        <button class="btn ${!isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-i-list">☰</button>
-        <button class="btn ${isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-i-kanban">⊞</button>
-      </div>`;
-
-    let currentData = enCours;
-
-    const _applyFilters = () => {
-      const tab    = document.getElementById('filter-invoice-tab')?.value || 'en_cours';
-      const statut = document.getElementById('filter-invoice-statut')?.value || '';
-      const client = (document.getElementById('filter-invoice-client')?.value || '').toLowerCase();
-      const from   = document.getElementById('filter-invoice-from')?.value || '';
-      const to     = document.getElementById('filter-invoice-to')?.value || '';
-      let base = tab === 'reglees' ? reglees : tab === 'toutes' ? allFacs : enCours;
-      if (statut) base = base.filter(f => f.statut === statut);
-      if (client) base = base.filter(f => (f.client || '').toLowerCase().includes(client));
-      if (from)   base = base.filter(f => (f.date || '') >= from);
-      if (to)     base = base.filter(f => (f.date || '') <= to);
-      currentData = base;
-      if (isKanban) _drawKanban(base, STATUTS_FAC, BADGE_FAC, 'invoices', toolbar, area);
-      else _drawInvoicesTable(base, toolbar, area);
-    };
-
-    document.getElementById('btn-new-invoice')
-      ?.addEventListener('click', () => _goForm('invoices', null, toolbar, area));
-    document.getElementById('btn-i-list')?.addEventListener('click', () => {
-      _state.listMode = 'list'; _renderInvoicesList(toolbar, area);
-    });
-    document.getElementById('btn-i-kanban')?.addEventListener('click', () => {
-      _state.listMode = 'kanban'; _renderInvoicesList(toolbar, area);
-    });
-    document.getElementById('filter-invoice-tab')?.addEventListener('change', _applyFilters);
-    document.getElementById('filter-invoice-statut')?.addEventListener('change', _applyFilters);
-    document.getElementById('filter-invoice-client')?.addEventListener('input', _applyFilters);
-    document.getElementById('filter-invoice-from')?.addEventListener('change', _applyFilters);
-    document.getElementById('filter-invoice-to')?.addEventListener('change', _applyFilters);
-
-    area.innerHTML = `
-      <div class="page-header">
-        <div class="page-title">Factures</div>
-        <div class="page-subtitle">${allFacs.length} document(s) ·
-          <span style="color:var(--accent-red);font-weight:600;">
-            ${typeof fmt === 'function' ? fmt(totalReste) : totalReste + ' XPF'} à encaisser
-          </span>
-        </div>
-      </div>
-      <div id="sales-invoices-table"></div>`;
-
-    if (isKanban) _drawKanban(enCours, STATUTS_FAC, BADGE_FAC, 'invoices', toolbar, area);
-    else _drawInvoicesTable(enCours, toolbar, area);
-  }
-
-  function _drawInvoicesTable(data, toolbar, area) {
-    renderTable('sales-invoices-table', {
-      searchable: true,
-      sortable:   true,
-      data: data.map(f => ({
-        ...f,
-        _reste: Math.max(0, (f.totalTTC || 0) - _totalPaiements(f.paiements))
-      })),
-      columns: [
-        { key: 'ref',      label: 'Numéro',       render: (v) => `<span class="col-ref">${_esc(v)}</span>` },
-        { key: 'date',     label: 'Date',           type: 'date' },
-        { key: 'client',   label: 'Client',         type: 'text' },
-        { key: 'dateEcheance', label: 'Échéance',   type: 'date' },
-        { key: 'totalTTC', label: 'Total TTC',      render: (v) => `<span class="mono">${_fmt(v)}</span>` },
-        {
-          key: '_reste',   label: 'Reste à payer',
-          render: (v) => {
-            const color = v > 0 ? 'var(--accent-red)' : 'var(--accent-green)';
-            return `<span class="mono" style="color:${color};font-weight:600;">${_fmt(v)}</span>`;
-          }
-        },
-        { key: 'statut',   label: 'Statut', type: 'badge', badgeMap: BADGE_FAC },
-        { type: 'actions', width: '60px', actions: [
-            { label: '🗑', className: 'btn btn-ghost btn-sm', title: 'Annuler', onClick: (row) => {
-                showConfirm(`Annuler la facture ${row.ref || row.id} ? (statut → Annulé, non supprimée)`, () => {
-                  Store.update('factures', row.id, { statut: 'Annulé' });
-                  toast(`Facture ${row.ref} annulée.`, 'success');
-                  _goList('invoices', toolbar, area);
-                });
-              }
-            }
-          ]
-        }
-      ],
-      onRowClick: (item) => _goForm('invoices', item.id, toolbar, area),
-      emptyMsg:   'Aucune facture.'
-    });
-  }
-
-  /* ---- Formulaire facture ---- */
-  function _renderInvoiceForm(toolbar, area) {
-    const isNew = !_state.currentId;
-    const doc   = isNew ? null : Store.getById('factures', _state.currentId);
-
-    if (!isNew && !doc) {
-      toast('Facture introuvable.', 'error');
-      return _goList('invoices', toolbar, area);
-    }
-
-    _state.lignes    = doc ? doc.lignes.map(l => ({ ...l })) : [];
-    _state.paiements = doc ? (doc.paiements || []).map(p => ({ ...p })) : [];
-
-    const ref    = doc?.ref    || _genRef('FAC', 'factures');
-    const statut = doc?.statut || 'Brouillon';
-    const chips  = doc?.commandeId ? `<span class="chip">📦 ${_esc(doc.commandeId)}</span>` : '';
-
-    /* Lien vers le devis d'origine si la facture est liée */
-    const devisLie = doc?.devisId ? Store.getById('devis', doc.devisId) : null;
-    const btnDevisLie = devisLie
-      ? `<button class="btn btn-ghost btn-sm" id="btn-voir-devis"
-          title="Ouvrir le devis ${devisLie.ref}" style="color:var(--accent-blue);">
-          📄 ${_esc(devisLie.ref)} ↗</button>`
-      : '';
-
-    toolbar.innerHTML = `
-      <button class="btn btn-ghost btn-sm" id="btn-back">← Retour</button>
-      ${btnDevisLie}
-      ${_invoiceActionBtns(statut, isNew)}`;
-
-    document.getElementById('btn-voir-devis')
-      ?.addEventListener('click', () => _goForm('quotes', devisLie.id, toolbar, area));
-
-    document.getElementById('btn-back')
-      ?.addEventListener('click', () => _goList('invoices', toolbar, area));
-
-    const totaux    = _calcTotaux(_state.lignes);
-    const totalPaye = _totalPaiements(_state.paiements);
-    const reste     = Math.max(0, totaux.totalTTC - totalPaye);
-
-    area.innerHTML = `
-      ${_renderFormHeader(ref, statut, BADGE_FAC, chips)}
-      ${isNew ? '' : _renderSuiviBDC(doc, 'facture')}
-
-      <div class="form-section">
-        <div class="form-section-title">Informations générales</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label required">Client</label>
-            <select class="form-control" id="i-client" required>
-              <option value="">— Choisir un client —</option>
-              <option value="__new__" style="color:var(--accent-blue);font-weight:600;">➕ Créer nouveau client</option>
-              ${Store.getAll('contacts').map(c =>
-                `<option value="${c.id}" ${doc?.contactId === c.id ? 'selected' : ''}>${_esc(c.nom)}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label required">Date de facture</label>
-            <input type="date" class="form-control" id="i-date"
-              value="${doc?.date || new Date().toISOString().slice(0,10)}" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Date d'échéance</label>
-            <input type="date" class="form-control" id="i-echeance"
-              value="${doc?.dateEcheance || ''}" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Notes</label>
-            <textarea class="form-control" id="i-notes" rows="2"
-              placeholder="Mode de règlement, instructions…">${_esc(doc?.notes || '')}</textarea>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="form-section-title">Articles</div>
-        ${_renderLineTable(_state.lignes)}
-      </div>
-
-      <div class="form-section" style="padding:0;">
-        ${_renderTotalsBlock(_state.lignes)}
-      </div>
-
-      <!-- Section Paiements -->
-      <div class="form-section" id="section-paiements">
-        ${_renderPaiementsSection(doc?.id, reste)}
-      </div>
-
-      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:16px;">
-        <button class="btn btn-ghost" id="i-cancel">Annuler</button>
-        <button class="btn btn-primary" id="i-save">✔ Sauvegarder</button>
-      </div>`;
-
-    _bindLineTableEvents();
-    _bindInvoiceFormEvents(isNew, doc, ref, toolbar, area);
-    _bindPaiementEvents(doc, toolbar, area);
-  }
-
-  function _invoiceActionBtns(statut, isNew) {
-    if (isNew) return '';
-    const btns = [];
-    btns.push(`<button class="btn btn-ghost btn-sm" data-i-action="apercu" title="Aperçu + Dropbox">📄 Aperçu</button>`);
-    if (statut === 'Brouillon') {
-      btns.push(`<button class="btn btn-ghost btn-sm" data-i-action="envoyer">📤 Envoyer</button>`);
-    }
-    if (statut === 'En retard') {
-      btns.push(`<span class="badge badge-red" style="align-self:center;">⏰ En retard</span>`);
-    }
-    return btns.join('');
-  }
-
-  function _previewFacture(facture) {
-    const contact  = Store.getById('contacts', facture.contactId) || {};
-    const paiements = (facture.paiements || []).filter(p => (p.montant || 0) > 0);
-    const totalPaye = _totalPaiements(paiements);
-    const reste     = Math.max(0, (facture.totalTTC || 0) - totalPaye);
-    const estReglee = reste <= 0;
-    const typeDoc   = estReglee ? 'Facture réglée' : 'Facture partielle';
-
-    const lignesHtml = (facture.lignes || []).map(l => {
-      const brut   = (l.qte || 0) * (l.prixUnitaire || 0);
-      const remise = brut * ((l.remise || 0) / 100);
-      const ht     = brut - remise;
-      const taux   = (l.tauxTVA !== undefined ? l.tauxTVA : 16);
-      const tva    = Math.round(ht * taux / 100);
-      const ttc    = Math.round(ht + tva);
-      return `<tr>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${_esc(l.produit || l.description || '—')}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${l.qte || 0}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;font-family:monospace;">${_fmt(l.prixUnitaire || 0)}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${l.remise ? l.remise + ' %' : '—'}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;font-weight:600;font-family:monospace;">${_fmt(ttc)}</td>
-      </tr>`;
-    }).join('');
-
-    const paiHtml = paiements.length
-      ? paiements.map(p => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;">
-          <span>${REG_ICONS[p.mode] || '💰'} ${_esc(p.mode)}</span>
-          <span style="font-family:monospace;font-weight:600;">${_fmt(p.montant)}</span>
-        </div>`).join('')
-      : '<div style="color:#9ca3af;font-size:12px;">Aucun paiement enregistré</div>';
-
-    const docHtml = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-      <title>Facture ${_esc(facture.ref)}</title>
-      <style>
-        body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#f9fafb;color:#111827;}
-        .page{max-width:760px;margin:0 auto;background:#fff;padding:40px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
-        .ui-actions{display:flex;gap:10px;justify-content:flex-end;padding:0 0 16px;}
-        .btn-print{padding:9px 20px;background:#4a5fff;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
-        .btn-close{padding:9px 20px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
-        .brand-name{font-size:22px;font-weight:800;color:#111827;}
-        .brand-sub{font-size:11px;color:#6b7280;margin-top:2px;}
-        .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #e5e7eb;}
-        .doc-title{font-size:28px;font-weight:800;color:#4a5fff;}
-        .doc-ref{font-size:15px;font-weight:600;color:#374151;margin:4px 0;}
-        .doc-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;
-          background:${estReglee?'#dcfce7':'#fef9c3'};color:${estReglee?'#15803d':'#854d0e'};}
-        .doc-meta{display:flex;justify-content:space-between;margin-bottom:24px;}
-        .section-title{font-size:11px;font-weight:700;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;margin:20px 0 8px;}
-        .client-name{font-size:16px;font-weight:700;color:#111827;}
-        .client-box{background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:24px;}
-        table{width:100%;border-collapse:collapse;margin-bottom:16px;}
-        th{background:#f3f4f6;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:#6b7280;}
-        .totals-box{background:#f9fafb;border-radius:8px;padding:16px;margin-top:16px;}
-        .total-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#374151;}
-        .total-final{font-size:16px;font-weight:800;border-top:2px solid #e5e7eb;padding-top:8px;margin-top:8px;}
-        .reste-box{margin-top:12px;padding:10px 16px;border-radius:8px;font-weight:700;font-size:14px;
-          background:${estReglee?'#dcfce7':'#fff7ed'};color:${estReglee?'#15803d':'#c2410c'};}
-        .paiements-box{background:#f0fdf4;border-radius:8px;padding:12px 16px;margin-top:12px;}
-        @media print{.ui-actions{display:none!important;}body{padding:0;}}.page{box-shadow:none;}
-      </style></head><body><div class="page">
-      <div class="ui-actions">
-        <button class="btn-close" onclick="window.close()">✕ Fermer</button>
-        <button class="btn-print" id="btn-fac-print">🖨 Imprimer / PDF</button>
-      </div>
-      <div class="header">
-        <div><div class="brand-name">HCS — High Coffee Shirts</div>
-          <div class="brand-sub">Tenue · Sublimation · DTF · Broderie · Impression textile</div></div>
-        <div style="text-align:right;font-size:12px;color:#6b7280;">Tahiti, Polynésie française<br>contact@highcoffeeshirts.com</div>
-      </div>
-      <div class="doc-meta">
-        <div><div class="doc-title">FACTURE</div>
-          <div class="doc-ref">${_esc(facture.ref)}</div>
-          <div class="doc-badge">${typeDoc}</div></div>
-        <div style="text-align:right;font-size:13px;color:#374151;">
-          <div>Date : <strong>${_fmtDate(facture.date)}</strong></div>
-          ${facture.dateEcheance ? `<div>Échéance : <strong>${_fmtDate(facture.dateEcheance)}</strong></div>` : ''}
-        </div>
-      </div>
-      <div class="section-title">Client</div>
-      <div class="client-box">
-        <div class="client-name">${_esc(facture.client || contact.nom || '—')}</div>
-        ${contact.email ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">📧 ${_esc(contact.email)}</div>` : ''}
-        ${contact.telephone ? `<div style="font-size:12px;color:#6b7280;">📞 ${_esc(contact.telephone)}</div>` : ''}
-      </div>
-      <div class="section-title">Articles</div>
-      <table><thead><tr>
-        <th>Article</th><th style="text-align:center;">Qté</th>
-        <th style="text-align:right;">P.U.</th><th style="text-align:center;">Remise</th>
-        <th style="text-align:right;">TTC</th>
-      </tr></thead><tbody>${lignesHtml}</tbody></table>
-      <div class="totals-box">
-        <div class="total-row"><span>Total HT</span><span style="font-family:monospace;">${_fmt(facture.totalHT || 0)}</span></div>
-        <div class="total-row"><span>TVA</span><span style="font-family:monospace;">${_fmt(facture.totalTVA || 0)}</span></div>
-        <div class="total-row total-final"><span>Total TTC</span><span style="font-family:monospace;">${_fmt(facture.totalTTC || 0)}</span></div>
-      </div>
-      <div class="section-title">Paiements</div>
-      <div class="paiements-box">${paiHtml}
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:#374151;padding:6px 0 0;border-top:1px solid #d1fae5;margin-top:8px;">
-          <span>Total encaissé</span><span style="font-family:monospace;font-weight:700;">${_fmt(totalPaye)}</span>
-        </div>
-      </div>
-      <div class="reste-box">${estReglee ? '✅ Facture entièrement réglée' : `⚠️ Reste à payer : ${_fmt(reste)}`}</div>
-      <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:24px;">
-        Document généré le ${new Date().toLocaleDateString('fr-FR')} — HCS ERP
-      </div>
-    </div></body></html>`;
-
-    const win = window.open('', '_blank', 'width=860,height=750,scrollbars=yes,toolbar=no,menubar=no');
-    if (!win) { toast('Popup bloquée — autorise les popups pour ce site.', 'warning'); return; }
-    win.document.write(docHtml);
-    win.document.close();
-
-    win.document.getElementById('btn-fac-print')?.addEventListener('click', async () => {
-      const typeSlug  = estReglee ? 'reglee' : 'partielle';
-      const filename  = `${_safeFilename(facture.client)}_facture_${typeSlug}_${_safeFilename(facture.ref)}.html`;
-      const htmlContent = '<!DOCTYPE html>' + win.document.documentElement.outerHTML;
-      await _sauverDocDropbox(facture.client, filename, htmlContent, typeDoc);
-      win.print();
-    });
-  }
-
-  /* ---- Section paiements ---- */
-  function _renderPaiementsSection(invoiceId, reste) {
-    const paiements  = _state.paiements;
-    const totalPaye  = _totalPaiements(paiements);
-    const resteAff   = reste !== undefined ? reste : 0;
-    const resteColor = resteAff <= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-
-    let html = `
-      <div class="form-section-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>Paiements</span>
-        <span style="font-family:var(--font-mono);font-size:13px;color:${resteColor};">
-          Payé : ${_fmt(totalPaye)} · Reste : ${_fmt(resteAff)}
-        </span>
-      </div>`;
-
-    /* Table des paiements existants */
-    if (paiements.length > 0) {
-      html += `
-        <div class="table-wrapper" style="margin-bottom:16px;">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Méthode</th>
-                <th>Montant</th>
-                <th style="width:40px;"></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${paiements.map((p, i) => `
-                <tr>
-                  <td>${_fmtDate(p.date)}</td>
-                  <td><span class="badge ${p.type === 'Acompte' ? 'badge-orange' : p.type === 'Solde' ? 'badge-green' : 'badge-blue'}">${_esc(p.type || 'Paiement')}</span></td>
-                  <td><span class="badge badge-gray">${_esc(p.methode)}</span></td>
-                  <td class="col-amount"><strong>${_fmt(p.montant)}</strong></td>
-                  <td>
-                    <button class="btn-remove-line" data-del-pay="${i}" title="Supprimer ce paiement">✕</button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>`;
-    }
-
-    /* Formulaire d'enregistrement de paiement — toujours visible */
-    {
-      /* Pour une nouvelle facture, les paiements seront sauvegardés avec la facture */
-      const newInvoiceNote = !invoiceId
-        ? `<p style="color:var(--accent-blue);font-size:11px;margin-bottom:10px;">
-            ℹ️ Les paiements ajoutés ici seront sauvegardés avec la facture.</p>`
-        : '';
-      html += `
-        <div style="background:var(--bg-elevated);border-radius:10px;padding:14px;margin-top:8px;">
-          ${newInvoiceNote}
-          <div style="font-size:12px;font-weight:600;color:var(--text-muted);
-            margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em;">
-            Enregistrer un paiement
-          </div>
-          <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
-            <div class="form-group" style="min-width:130px;">
-              <label class="form-label">Type</label>
-              <select class="form-control" id="pay-type">
-                ${TYPES_PAIEMENT.map(t => `<option>${t}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group" style="min-width:140px;">
-              <label class="form-label">Date</label>
-              <input type="date" class="form-control" id="pay-date"
-                value="${new Date().toISOString().slice(0,10)}" />
-            </div>
-            <div class="form-group" style="min-width:160px;">
-              <label class="form-label">Méthode</label>
-              <select class="form-control" id="pay-methode">
-                ${METHODES_PAIEMENT.map(m => `<option>${m}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group" style="min-width:160px;">
-              <label class="form-label">Montant (XPF)</label>
-              <input type="number" class="form-control" id="pay-montant"
-                value="${resteAff > 0 ? resteAff : ''}"
-                placeholder="0" min="1" step="1" />
-            </div>
-            <button class="btn btn-success" id="btn-add-paiement" style="height:36px;">
-              + Enregistrer
-            </button>
-          </div>
-          ${resteAff > 0 ? `
-            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-              <button class="btn btn-ghost btn-sm" id="btn-pay-30pct">Acompte 30%</button>
-              <button class="btn btn-ghost btn-sm" id="btn-pay-50pct">Acompte 50%</button>
-              <button class="btn btn-ghost btn-sm" id="btn-pay-solde">Solde total</button>
-            </div>` : ''}
-        </div>`;
-    }
-
-    return html;
-  }
-
-  function _bindPaiementEvents(doc, toolbar, area) {
-    /* Supprimer un paiement */
-    document.querySelectorAll('[data-del-pay]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.delPay, 10);
-        _state.paiements.splice(idx, 1);
-        _refreshPaiementsSection(doc, toolbar, area);
-      });
-    });
-
-    /* Boutons acompte rapide */
-    const totaux    = _calcTotaux(_state.lignes);
-    const totalPaye = _totalPaiements(_state.paiements);
-    const reste     = Math.max(0, totaux.totalTTC - totalPaye);
-    const inputMontant = document.getElementById('pay-montant');
-    document.getElementById('btn-pay-30pct')?.addEventListener('click', () => {
-      if (inputMontant) { inputMontant.value = Math.round(totaux.totalTTC * 0.3); }
-      document.getElementById('pay-type')?.value && (document.getElementById('pay-type').value = 'Acompte');
-    });
-    document.getElementById('btn-pay-50pct')?.addEventListener('click', () => {
-      if (inputMontant) { inputMontant.value = Math.round(totaux.totalTTC * 0.5); }
-      document.getElementById('pay-type')?.value && (document.getElementById('pay-type').value = 'Acompte');
-    });
-    document.getElementById('btn-pay-solde')?.addEventListener('click', () => {
-      if (inputMontant) { inputMontant.value = reste; }
-      document.getElementById('pay-type')?.value && (document.getElementById('pay-type').value = 'Solde');
-    });
-
-    /* Ajouter un paiement */
-    document.getElementById('btn-add-paiement')?.addEventListener('click', () => {
-      const montant = parseInt(document.getElementById('pay-montant')?.value || '0', 10);
-      const date    = document.getElementById('pay-date')?.value;
-      const methode = document.getElementById('pay-methode')?.value || 'Virement';
-      const type    = document.getElementById('pay-type')?.value || 'Paiement';
-
-      if (!montant || montant <= 0) { toast('Montant invalide.', 'error'); return; }
-      if (!date) { toast('Date requise.', 'error'); return; }
-
-      const paiement = { id: 'pay-' + Date.now(), date, methode, montant, type: type || 'Paiement' };
-      _state.paiements.push(paiement);
-
-      /* Mise à jour immédiate du document en base */
-      if (doc) {
-        const totalPaye = _totalPaiements(_state.paiements);
-        const totaux    = _calcTotaux(_state.lignes);
-        let newStatut   = doc.statut;
-
-        if (totalPaye >= totaux.totalTTC) {
-          newStatut = 'Payé';
-        } else if (totalPaye > 0) {
-          newStatut = 'Payé partiel';
-        }
-
-        Store.update('factures', doc.id, { paiements: _state.paiements, statut: newStatut });
-
-        /* Écritures comptables automatiques */
-        _createPaiementEcritures(doc, paiement);
-
-        if (newStatut === 'Payé') {
-          toast('Facture intégralement réglée ! Écritures comptables générées. ✅', 'success', 4500);
-        } else {
-          toast(`Paiement de ${_fmt(montant)} enregistré.`, 'success');
-        }
-      }
-
-      _refreshPaiementsSection(doc, toolbar, area);
-    });
-  }
-
-  /** Rafraîchit uniquement la section paiements sans recharger tout le formulaire */
-  function _refreshPaiementsSection(doc, toolbar, area) {
-    const section = document.getElementById('section-paiements');
-    if (!section) return;
-
-    const totaux    = _calcTotaux(_state.lignes);
-    const totalPaye = _totalPaiements(_state.paiements);
-    const reste     = Math.max(0, totaux.totalTTC - totalPaye);
-
-    section.innerHTML = _renderPaiementsSection(doc?.id, reste);
-    _bindPaiementEvents(doc, toolbar, area);
-  }
-
-  /** Crée les 2 écritures comptables lors d'un paiement */
-  function _createPaiementEcritures(facture, paiement) {
-    const isEspeces  = paiement.methode === 'Espèces';
-    const compte     = isEspeces ? '530000' : '512000'; // Caisse ou Banque
-    const journal    = isEspeces ? 'Caisse' : 'Banque';
-
-    /* Débit compte de trésorerie */
-    Store.create('ecritures', {
-      date:    paiement.date,
-      libelle: `Paiement ${facture.ref} — ${paiement.methode}`,
-      compte,
-      debit:   paiement.montant,
-      credit:  0,
-      journal
-    });
-
-    /* Crédit compte client 411 */
-    Store.create('ecritures', {
-      date:    paiement.date,
-      libelle: `Solde client — ${facture.ref}`,
-      compte:  '411000',
-      debit:   0,
-      credit:  paiement.montant,
-      journal
-    });
-  }
-
-  function _bindInvoiceFormEvents(isNew, doc, ref, toolbar, area) {
-    /* Création rapide client depuis la liste déroulante */
-    _bindClientSelectCreation('i-client');
-
-    document.getElementById('i-save')?.addEventListener('click', () => {
-      const contactId = document.getElementById('i-client')?.value;
-      if (!contactId || contactId === '__new__') { toast('Veuillez sélectionner un client.', 'error'); return; }
-      if (_state.lignes.length === 0) { toast('Ajoutez au moins un article.', 'error'); return; }
-
-      const record = {
-        ref,
-        _type:        'Facture',
-        contactId,
-        client:       _contactNom(contactId),
-        date:         document.getElementById('i-date')?.value      || '',
-        dateEcheance: document.getElementById('i-echeance')?.value  || '',
-        notes:        document.getElementById('i-notes')?.value     || '',
-        statut:       doc?.statut || 'Brouillon',
-        commandeId:   doc?.commandeId || null,
-        lignes:       _state.lignes,
-        paiements:    _state.paiements,
-        ..._calcTotaux(_state.lignes)
-      };
-
-      if (isNew) {
-        Store.create('factures', record);
-        toast('Facture créée et paiements enregistrés. ✓', 'success', 3500);
-        _goList('invoices', toolbar, area);
-      } else {
-        Store.update('factures', doc.id, record);
-        toast('Facture sauvegardée.', 'success');
-        _goList('invoices', toolbar, area);
-      }
-    });
-
-    document.getElementById('i-cancel')
-      ?.addEventListener('click', () => _goList('invoices', toolbar, area));
-
-    toolbar.querySelectorAll('[data-i-action]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.iAction === 'apercu') {
-          _previewFacture(doc);
-          return;
-        }
-        if (btn.dataset.iAction === 'envoyer') {
-          showConfirm('Marquer cette facture comme envoyée ?', () => {
-            Store.update('factures', doc.id, { statut: 'Envoyé' });
-            toast('Facture marquée comme envoyée.', 'success');
-            _goList('invoices', toolbar, area);
-          });
-        }
-      });
-    });
-  }
-
-  /* ================================================================
-     LANCER EN PRODUCTION — crée un Ordre de Fabrication (OF)
-     ================================================================ */
-
-  function _createOFFromOrder(cmd, toolbar, area) {
-    showConfirm(
-      `Créer un Ordre de Fabrication pour la commande ${cmd.ref} ?`,
-      () => {
-        /* Générer la référence OF */
-        const ofs  = Store.getAll('ordresFab');
-        const num  = String(ofs.length + 1).padStart(3, '0');
-        const ref  = `OF-${num}`;
-
-        /* Créer l'OF pré-rempli */
-        Store.create('ordresFab', {
-          reference:  ref,
-          _type:      'OF',
-          commandeId: cmd.id,
-          cmdRef:     cmd.ref,
-          client:     cmd.client,
-          produit:    (cmd.lignes || []).map(l => l.description || l.produit || '').filter(Boolean).join(', ') || cmd.client,
-          quantite:   (cmd.lignes || []).reduce((s, l) => s + (Number(l.qte) || 1), 0) || 1,
-          statut:     'Prêt',
-          priorite:   'Haute',
-          dateDebut:  new Date().toISOString().slice(0, 10),
-          dateFin:    cmd.dateLivraison || '',
-          notes:      `Depuis commande ${cmd.ref} — Client : ${cmd.client}`,
-          progression: 0
-        });
-
-        /* Passer la commande en production */
-        Store.update('commandes', cmd.id, { statut: 'En production' });
-
-        toast(`✔ OF ${ref} créé et commande passée "En production".`, 'success');
-        _goList('orders', toolbar, area);
-      }
-    );
-  }
-
-  /* ================================================================
-     BONS DE PRODUCTION (création depuis commande)
-     ================================================================ */
-
-  function _createBonProduction(cmd, toolbar, area) {
-    showConfirm(
-      `Créer un bon de production pour la commande ${cmd.ref} ?`,
-      () => {
-        const ref = _genRef('BP', 'bons_production');
-        Store.create('bons_production', {
-          ref,
-          _type:      'BonProduction',
-          commandeId: cmd.id,
-          cmdRef:     cmd.ref,
-          contactId:  cmd.contactId,
-          client:     cmd.client,
-          date:       new Date().toISOString().slice(0, 10),
-          datePrevue: cmd.dateLivraison || '',
-          statut:     'En attente',
-          lignes:     cmd.lignes.map(l => ({ ...l, qteRealisee: 0 })),
-          notes:      cmd.notes || ''
-        });
-        /* Passer la commande en production */
-        if (cmd.statut === 'Confirmé') {
-          Store.update('commandes', cmd.id, { statut: 'En production' });
-        }
-        toast(`✔ Bon de production ${ref} créé.`, 'success');
-        _goList('orders', toolbar, area);
-      }
-    );
-  }
-
-  /* ================================================================
-     BONS DE LIVRAISON / RÉCEPTION
-     ================================================================ */
-
-  function _createBonLivraison(cmd, toolbar, area) {
-    showConfirm(
-      `Créer un bon de livraison pour la commande ${cmd.ref} ?`,
-      () => {
-        const ref = _genRef('BL', 'bons_livraison');
-        Store.create('bons_livraison', {
-          ref,
-          _type:      'BonLivraison',
-          commandeId: cmd.id,
-          cmdRef:     cmd.ref,
-          contactId:  cmd.contactId,
-          client:     cmd.client,
-          date:       new Date().toISOString().slice(0, 10),
-          statut:     'En attente',
-          lignes:     cmd.lignes.map(l => ({ ...l, qteRecue: 0 })),
-          notes:      ''
-        });
-        toast(`✔ Bon de livraison ${ref} créé.`, 'success');
-        _goList('orders', toolbar, area);
-      }
-    );
-  }
-
-  /* ---- Liste des Bons de Livraison ---- */
-  function _renderReceiptsList(toolbar, area) {
-    const allBL = Store.getAll('bons_livraison');
-    const isKanban = _state.listMode === 'kanban';
-
-    toolbar.innerHTML = `
-      <div style="display:flex;gap:4px;margin-left:auto;">
-        <button class="btn ${!isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-bl-list">☰</button>
-        <button class="btn ${isKanban ? 'btn-primary' : 'btn-ghost'} btn-sm" id="btn-bl-kanban">⊞</button>
-      </div>`;
-
-    document.getElementById('btn-bl-list')?.addEventListener('click', () => {
-      _state.listMode = 'list'; _renderReceiptsList(toolbar, area);
-    });
-    document.getElementById('btn-bl-kanban')?.addEventListener('click', () => {
-      _state.listMode = 'kanban'; _renderReceiptsList(toolbar, area);
-    });
-
-    area.innerHTML = `
-      <div class="page-header">
-        <div class="page-title">Bons de Livraison</div>
-        <div class="page-subtitle">${allBL.length} document(s)</div>
-      </div>
-      <div id="sales-bl-table"></div>`;
-
-    if (isKanban) {
-      _drawKanban(allBL, STATUTS_BL, BADGE_BL, 'receipts', toolbar, area);
-    } else {
-      renderTable('sales-bl-table', {
-        searchable: true,
-        sortable:   true,
-        data: allBL,
-        columns: [
-          { key: 'ref',       label: 'Numéro',   render: (v) => `<span class="col-ref">${_esc(v)}</span>` },
-          { key: 'date',      label: 'Date',      type: 'date' },
-          { key: 'cmdRef',    label: 'Commande',  type: 'text' },
-          { key: 'client',    label: 'Client',    type: 'text' },
-          { key: 'statut',    label: 'Statut',    type: 'badge', badgeMap: BADGE_BL },
-          {
-            key: '_actions', label: '', type: 'actions',
-            actions: [
-              {
-                label: '📋 Voir/Valider', className: 'btn-ghost',
-                onClick: (row) => _renderBLForm(toolbar, area, row)
-              }
-            ]
-          }
-        ],
-        onRowClick: (row) => _renderBLForm(toolbar, area, row),
-        emptyMsg: 'Aucun bon de livraison. Créez-les depuis les commandes (statut Prêt ou Livré).'
-      });
-    }
-  }
-
-  /** Formulaire / détail d'un bon de livraison */
-  function _renderBLForm(toolbar, area, bl) {
-    toolbar.innerHTML = `
-      <button class="btn btn-ghost btn-sm" id="btn-bl-back">← Retour</button>
-      ${bl.statut !== 'Reçu complet' ? `<button class="btn btn-success btn-sm" id="btn-bl-valider">✔ Marquer Reçu</button>` : ''}`;
-
-    document.getElementById('btn-bl-back')?.addEventListener('click', () => {
-      _state.mode = 'list';
-      _renderReceiptsList(toolbar, area);
-    });
-
-    const lignesHtml = (bl.lignes || []).map((l, i) => `
-      <tr>
-        <td>${_esc(l.description || l.produitId || '—')}</td>
-        <td class="col-num">${l.qte || 0}</td>
-        <td class="col-num">
-          <input type="number" class="line-input num-input" id="bl-qte-${i}"
-            value="${l.qteRecue || 0}" min="0" max="${l.qte || 999}" step="1" style="width:70px;" />
-        </td>
-        <td>
-          <span style="font-size:11px;color:${(l.qteRecue || 0) >= (l.qte || 0)
-            ? 'var(--accent-green)' : 'var(--accent-orange)'};">
-            ${(l.qteRecue || 0) >= (l.qte || 0) ? '✓ OK' : `Manque ${(l.qte || 0) - (l.qteRecue || 0)}`}
-          </span>
-        </td>
-      </tr>`).join('');
-
-    area.innerHTML = `
-      <div style="max-width:760px;margin:0 auto;padding:24px 0;">
-        <div style="font-size:20px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">
-          ${_esc(bl.ref)} <span class="badge ${BADGE_BL[bl.statut] || 'badge-gray'}">${_esc(bl.statut)}</span>
-        </div>
-        <div style="color:var(--text-muted);font-size:13px;margin-bottom:24px;">
-          Client : ${_esc(bl.client)} · Commande : ${_esc(bl.cmdRef)} · Date : ${_fmtDate(bl.date)}
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title">Articles à réceptionner</div>
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead><tr>
-                <th>Article</th>
-                <th class="col-num">Qté commandée</th>
-                <th class="col-num">Qté reçue</th>
-                <th>État</th>
-              </tr></thead>
-              <tbody>${lignesHtml}</tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title">Notes</div>
-          <textarea class="form-control" id="bl-notes" rows="3"
-            placeholder="Remarques sur la réception, dommages, manquants…">${_esc(bl.notes || '')}</textarea>
-        </div>
-
-        <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:16px;">
-          <button class="btn btn-ghost" id="bl-save-partiel">💾 Sauvegarder partiel</button>
-          ${bl.statut !== 'Reçu complet' ? `<button class="btn btn-success" id="bl-save-complet">✔ Reçu complet</button>` : ''}
-        </div>
-      </div>`;
-
-    const _saveBL = (complet) => {
-      const lignesMAJ = (bl.lignes || []).map((l, i) => ({
-        ...l,
-        qteRecue: parseInt(document.getElementById(`bl-qte-${i}`)?.value || '0', 10)
-      }));
-      const notes    = document.getElementById('bl-notes')?.value || '';
-      const totalQte = lignesMAJ.reduce((s, l) => s + (l.qte || 0), 0);
-      const recuQte  = lignesMAJ.reduce((s, l) => s + (l.qteRecue || 0), 0);
-      const newStatut = complet ? 'Reçu complet'
-        : recuQte > 0 ? 'Reçu partiel' : 'En attente';
-
-      Store.update('bons_livraison', bl.id, { lignes: lignesMAJ, notes, statut: newStatut });
-
-      /* Mettre à jour le stock si réception */
-      if (recuQte > 0) {
-        lignesMAJ.forEach(l => {
-          if (l.produitId && l.qteRecue > 0) {
-            const prod = Store.getById('produits', l.produitId);
-            if (prod) {
-              Store.update('produits', prod.id, { stock: (prod.stock || 0) + l.qteRecue });
-              Store.create('mouvements', {
-                date:       new Date().toISOString().slice(0, 10),
-                produitId:  prod.id,
-                produitNom: prod.nom,
-                type:       'Entrée',
-                quantite:   l.qteRecue,
-                motif:      `Réception ${bl.ref} — ${bl.cmdRef}`,
-                reference:  bl.ref
-              });
-            }
-          }
-        });
-      }
-
-      toast(`Bon de livraison ${bl.ref} — ${newStatut}.`, 'success');
-      _renderReceiptsList(toolbar, area);
-    };
-
-    document.getElementById('bl-save-partiel')?.addEventListener('click', () => _saveBL(false));
-    document.getElementById('bl-save-complet')?.addEventListener('click', () => _saveBL(true));
-    document.getElementById('btn-bl-valider')?.addEventListener('click', () => _saveBL(true));
-  }
-
-  /* ================================================================
-     VUE RAPPORT DE VENTES (SALES-REPORT)
-     ================================================================ */
-
-  function _renderSalesReport(toolbar, area) {
-    toolbar.innerHTML = '';
-
-    const db       = Store.getDB();
-    const factures = db.factures  || [];
-    const commandes= db.commandes || [];
-    const devis    = db.devis     || [];
-    const now      = new Date();
-    const moisPfx  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-    /* ---- KPIs ---- */
-    const facMois  = factures.filter(f => (f.date || '').startsWith(moisPfx));
-    const caMois   = facMois.reduce((s, f) => s + (f.totalTTC || 0), 0);
-    const nbVentes = facMois.length;
-    const ticket   = nbVentes > 0 ? Math.round(caMois / nbVentes) : 0;
-    const devisAtt = devis.filter(d => d.statut === 'Envoyé').length;
-
-    /* ---- CA par semaine (4 dernières) ---- */
-    const semaines = _caBySemaine(factures, 4);
-
-    /* ---- Top 5 produits commandés ---- */
-    const top5 = _top5Produits(commandes);
-
-    area.innerHTML = `
-      <div class="page-header">
-        <div class="page-title">Rapport de ventes</div>
-        <div class="page-subtitle">${_fmtDate(now.toISOString())}</div>
-      </div>
-
-      <!-- KPIs : 4 statCards -->
-      <div class="dash-grid" style="margin-bottom:24px;">
-        <div id="kpi-ca"></div>
-        <div id="kpi-ventes"></div>
-        <div id="kpi-ticket"></div>
-        <div id="kpi-devis-att"></div>
-      </div>
-
-      <!-- Graphiques côte à côte -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-        <div class="card">
-          <div class="card-header"><div class="card-title">CA par semaine</div></div>
-          <div id="chart-weekly" style="padding:8px 0 4px;"></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">Top 5 produits</div></div>
-          <div id="chart-top5" style="padding:8px 0 4px;"></div>
-        </div>
-      </div>
-
-      <!-- Dernières 10 factures -->
-      <div class="card">
-        <div class="card-header"><div class="card-title">Dernières factures</div></div>
-        <div id="report-last-invoices"></div>
-      </div>`;
-
-    /* Rendre les KPIs via chart.js */
-    statCard('kpi-ca',       { icon: '💰', value: caMois,   label: 'CA du mois',        color: 'var(--accent-green)',  format: true });
-    statCard('kpi-ventes',   { icon: '🧾', value: nbVentes, label: 'Factures ce mois',  color: 'var(--accent-blue)'  });
-    statCard('kpi-ticket',   { icon: '📊', value: ticket,   label: 'Ticket moyen',      color: 'var(--accent-violet)', format: true });
-    statCard('kpi-devis-att',{ icon: '📄', value: devisAtt, label: 'Devis en attente',  color: 'var(--accent-orange)' });
-
-    /* Graphique CA par semaine */
-    barChart('chart-weekly', {
-      labels:    semaines.map(s => s.label),
-      values:    semaines.map(s => s.ca),
-      colors:    semaines.map((_, i) => i === semaines.length - 1 ? '#00d4aa' : '#4a5fff'),
-      height:    32,
-      formatter: (v) => _fmt(v)
-    });
-
-    /* Graphique Top 5 produits */
-    barChart('chart-top5', {
-      labels:    top5.map(p => p.nom),
-      values:    top5.map(p => p.qte),
-      colors:    ['#b07bff', '#00d4aa', '#ffc857', '#ff6b6b', '#4a5fff'],
-      height:    28,
-      title:     '',
-      formatter: (v) => `${v} unité${v > 1 ? 's' : ''}`
-    });
-
-    /* Table des 10 dernières factures */
-    renderTable('report-last-invoices', {
-      searchable: false,
-      sortable:   false,
-      data: [...factures]
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 10),
-      columns: [
-        { key: 'ref',      label: 'Référence',   render: (v) => `<span class="col-ref">${_esc(v)}</span>` },
-        { key: 'date',     label: 'Date',         type: 'date' },
-        { key: 'client',   label: 'Client',       type: 'text' },
-        { key: 'totalTTC', label: 'Total TTC',    render: (v) => `<span class="mono">${_fmt(v)}</span>` },
-        { key: 'statut',   label: 'Statut',       type: 'badge', badgeMap: BADGE_FAC }
-      ],
-      onRowClick: (item) => _goForm('invoices', item.id, toolbar, area)
-    });
-  }
-
-  /** Calcule le CA par semaine sur les n dernières semaines */
-  function _caBySemaine(factures, n) {
-    const result = [];
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    for (let i = n - 1; i >= 0; i--) {
-      /* Lundi de la semaine */
-      const debut = new Date(now);
-      debut.setDate(debut.getDate() - (i * 7) - ((debut.getDay() + 6) % 7));
-      const fin = new Date(debut);
-      fin.setDate(debut.getDate() + 6);
-      fin.setHours(23, 59, 59, 999);
-
-      const ca = factures
-        .filter(f => { const d = new Date(f.date); return d >= debut && d <= fin; })
-        .reduce((s, f) => s + (f.totalTTC || 0), 0);
-
-      result.push({
-        label: `S${n - i} (${debut.getDate()}/${debut.getMonth() + 1})`,
-        ca
-      });
-    }
-    return result;
-  }
-
-  /** Calcule le top 5 des produits par quantité commandée */
-  function _top5Produits(commandes) {
-    const compteur = {};
-    const nomMap   = {};
-    Store.getAll('produits').forEach(p => { nomMap[p.id] = p.nom; });
-
-    commandes.forEach(cmd => {
-      (cmd.lignes || []).forEach(l => {
-        if (!l.produitId) return;
-        compteur[l.produitId] = (compteur[l.produitId] || 0) + (l.qte || 0);
-      });
-    });
-
-    return Object.entries(compteur)
-      .map(([id, qte]) => ({ id, qte, nom: nomMap[id] || id }))
-      .sort((a, b) => b.qte - a.qte)
-      .slice(0, 5);
-  }
 
   /* ================================================================
      CRÉATION RAPIDE CLIENT (depuis Devis / Commande / Facture)
@@ -4478,6 +1758,26 @@ const Sales = (() => {
   /* ----------------------------------------------------------------
      PARAMÈTRES DE MISE EN FORME DES DOCUMENTS
      ---------------------------------------------------------------- */
+  function _getDocParams() {
+    const defaults = {
+      entreprise:  'High Coffee Shirt',
+      slogan:      'Impression DTF & Transferts — Papeete, Tahiti',
+      adresse:     'Papeete, Polynésie française',
+      telephone:   '+689',
+      email:       'highcoffeeshirt@gmail.com',
+      website:     '',
+      gmailFrom:   'highcoffeeshirt@gmail.com',
+      logoUrl:     '',
+      accentColor: '#4a5fff',
+      footerText:  'Merci de votre confiance.',
+      conditions:  'Paiement à réception de facture. TVA 16%.',
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem('hcs_doc_params') || 'null');
+      return saved ? Object.assign({}, defaults, saved) : defaults;
+    } catch(_) { return defaults; }
+  }
+
   function _renderDocParams(toolbar, area) {
     const p = _getDocParams();
     toolbar.innerHTML = `<span style="font-weight:600;font-size:14px;">⚙ Paramètres documents</span>`;
@@ -4597,7 +1897,11 @@ const Sales = (() => {
         lignes: [{ description: 'Produit exemple', qte: 2, prixUnitaire: 2500, remise: 0, tauxTVA: 16 }],
         totalHT: 5000, totalTVA: 800, totalTTC: 5800, notes: ''
       };
-      _previewDevis(fakeDevis, toolbar, area);
+      if (window.SalesQuotes && window.SalesQuotes._previewDevis) {
+        window.SalesQuotes._previewDevis(fakeDevis, toolbar, area);
+      } else {
+        console.warn('[DocParams] SalesQuotes._previewDevis non disponible');
+      }
     });
   }
 
@@ -4611,31 +1915,61 @@ const Sales = (() => {
     }
     _state.view = viewId;
 
-    /* Mode formulaire (navigation interne) */
+    /* Mode formulaire (navigation interne) — délégué aux modules compagnons */
     if (_state.mode === 'form') {
       switch (viewId) {
-        case 'quotes':   _renderQuoteForm(toolbar, area);   break;
-        case 'orders':   _renderOrderForm(toolbar, area);   break;
-        case 'invoices': _renderInvoiceForm(toolbar, area); break;
+        case 'quotes':
+          if (window.SalesQuotes) window.SalesQuotes._renderForm(toolbar, area);
+          else _renderFallback(area, 'SalesQuotes');
+          break;
+        case 'orders':
+          if (window.SalesOrders) window.SalesOrders._renderForm(toolbar, area);
+          else _renderFallback(area, 'SalesOrders');
+          break;
+        case 'invoices':
+          if (window.SalesInvoices) window.SalesInvoices._renderForm(toolbar, area);
+          else _renderFallback(area, 'SalesInvoices');
+          break;
       }
       return;
     }
 
-    /* Mode liste */
+    /* Mode liste — délégué aux modules compagnons */
     switch (viewId) {
-      case 'clients':      _renderClientsList(toolbar, area);  break;
-      case 'quotes':       _renderQuotesList(toolbar, area);   break;
-      case 'orders':       _renderOrdersList(toolbar, area);   break;
-      case 'invoices':     _renderInvoicesList(toolbar, area); break;
-      case 'receipts':     _renderReceiptsList(toolbar, area); break;
-      case 'sales-report': _renderSalesReport(toolbar, area);  break;
-      case 'doc-params':   _renderDocParams(toolbar, area);    break;
+      case 'clients':      _renderClientsList(toolbar, area);                    break;
+      case 'quotes':
+        if (window.SalesQuotes) window.SalesQuotes._renderList(toolbar, area);
+        else _renderFallback(area, 'SalesQuotes');
+        break;
+      case 'orders':
+        if (window.SalesOrders) window.SalesOrders._renderList(toolbar, area);
+        else _renderFallback(area, 'SalesOrders');
+        break;
+      case 'invoices':
+        if (window.SalesInvoices) window.SalesInvoices._renderList(toolbar, area);
+        else _renderFallback(area, 'SalesInvoices');
+        break;
+      case 'receipts':
+        if (window.SalesOrders) window.SalesOrders._renderReceiptsList(toolbar, area);
+        else _renderFallback(area, 'SalesOrders');
+        break;
+      case 'sales-report':
+        if (window.SalesReport) window.SalesReport._renderReport(toolbar, area);
+        else _renderFallback(area, 'SalesReport');
+        break;
+      case 'doc-params':   _renderDocParams(toolbar, area);                       break;
       default:
         area.innerHTML = `
           <div class="table-empty">
             <div class="empty-icon">🛒</div>
             <p>Vue Ventes "${_esc(viewId)}" inconnue.</p>
           </div>`;
+    }
+
+    function _renderFallback(area, moduleName) {
+      area.innerHTML = `<div style="padding:24px;color:var(--accent-red,#ff6b6b);">
+        Module <strong>${moduleName}</strong> non chargé — vérifiez la console.</div>`;
+      console.error('[Sales.init] module manquant :', moduleName, '— Vérifiez que le fichier est bien déployé sur le serveur.');
     }
   }
 
@@ -4661,6 +1995,618 @@ const Sales = (() => {
       }
     });
   }
+
+  /* ================================================================
+     MOCKUP PROJET — upload, aperçu, auto-récup MockupForge
+     ================================================================ */
+
+  /* Compresse un File image en DataURL JPEG (max maxPx px) */
+  function _imgToDataUrl(file, maxPx) {
+    maxPx = maxPx || 800;
+    return new Promise(function(resolve) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          let w = img.width, h = img.height;
+          if (w > maxPx || h > maxPx) {
+            if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+            else       { w = Math.round(w * maxPx / h); h = maxPx; }
+          }
+          const cvs = document.createElement('canvas');
+          cvs.width = w; cvs.height = h;
+          cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(cvs.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /* Redessine la grille de thumbnails dans #mockup-preview-zone */
+  /* Lightbox plein écran pour les vignettes mockup */
+  function _openMockupLightbox(idx) {
+    const urls = _mockupUrls;
+    if (!urls || !urls[idx]) return;
+    let current = idx;
+
+    /* Overlay */
+    const overlay = document.createElement('div');
+    overlay.id = 'mockup-lightbox';
+    overlay.style.cssText = [
+      'position:fixed;inset:0;z-index:10100;',
+      'background:rgba(0,0,0,.92);',
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;',
+      'cursor:zoom-out;'
+    ].join('');
+
+    function render() {
+      const m = urls[current];
+      overlay.innerHTML = `
+        <!-- Fermer -->
+        <button id="lb-close"
+          style="position:fixed;top:16px;right:20px;background:none;border:none;
+                 color:#fff;font-size:28px;cursor:pointer;line-height:1;z-index:1;">✕</button>
+
+        <!-- Navigation gauche -->
+        ${urls.length > 1 ? `
+        <button id="lb-prev"
+          style="position:fixed;left:12px;top:50%;transform:translateY(-50%);
+                 background:rgba(255,255,255,.15);border:none;color:#fff;font-size:28px;
+                 width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:1;">‹</button>` : ''}
+
+        <!-- Image principale -->
+        <img src="${m.dataUrl}"
+             style="max-width:92vw;max-height:82vh;object-fit:contain;
+                    border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6);
+                    transition:opacity .15s;" />
+
+        <!-- Navigation droite -->
+        ${urls.length > 1 ? `
+        <button id="lb-next"
+          style="position:fixed;right:12px;top:50%;transform:translateY(-50%);
+                 background:rgba(255,255,255,.15);border:none;color:#fff;font-size:28px;
+                 width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:1;">›</button>` : ''}
+
+        <!-- Légende -->
+        <div style="margin-top:12px;color:rgba(255,255,255,.7);font-size:12px;text-align:center;">
+          ${_esc(m.nom || '')}
+          ${m.source ? ' — ' + _esc(m.source) : ''}
+          ${m.date   ? ' — ' + _esc(m.date)   : ''}
+          ${urls.length > 1 ? `<span style="margin-left:12px;opacity:.5;">${current+1} / ${urls.length}</span>` : ''}
+        </div>
+
+        <!-- Miniatures -->
+        ${urls.length > 1 ? `
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;justify-content:center;">
+          ${urls.map((u, i) => `
+            <img src="${u.dataUrl}"
+                 data-lb-thumb="${i}"
+                 style="width:52px;height:52px;object-fit:cover;border-radius:4px;cursor:pointer;
+                        opacity:${i === current ? '1' : '.45'};
+                        border:2px solid ${i === current ? 'var(--caramel,#c4813a)' : 'transparent'};
+                        transition:opacity .15s,border-color .15s;" />`).join('')}
+        </div>` : ''}`;
+
+      /* Événements boutons */
+      overlay.querySelector('#lb-close')?.addEventListener('click', e => { e.stopPropagation(); overlay.remove(); });
+      overlay.querySelector('#lb-prev')?.addEventListener('click',  e => { e.stopPropagation(); current = (current - 1 + urls.length) % urls.length; render(); });
+      overlay.querySelector('#lb-next')?.addEventListener('click',  e => { e.stopPropagation(); current = (current + 1) % urls.length; render(); });
+      overlay.querySelectorAll('[data-lb-thumb]').forEach(th => {
+        th.addEventListener('click', e => { e.stopPropagation(); current = parseInt(th.dataset.lbThumb, 10); render(); });
+      });
+    }
+
+    render();
+
+    /* Fermer en cliquant sur le fond */
+    overlay.addEventListener('click', () => overlay.remove());
+
+    /* Fermer avec Échap, naviguer avec flèches clavier */
+    function onKey(e) {
+      if (e.key === 'Escape')      { overlay.remove(); document.removeEventListener('keydown', onKey); }
+      if (e.key === 'ArrowRight')  { current = (current + 1) % urls.length; render(); }
+      if (e.key === 'ArrowLeft')   { current = (current - 1 + urls.length) % urls.length; render(); }
+    }
+    document.addEventListener('keydown', onKey);
+    overlay.addEventListener('remove', () => document.removeEventListener('keydown', onKey));
+
+    document.body.appendChild(overlay);
+  }
+
+  function _refreshMockupZone() {
+    const zone = document.getElementById('mockup-preview-zone');
+    if (!zone) return;
+    const urls = _mockupUrls;
+    if (!urls || urls.length === 0) {
+      zone.innerHTML = '<span style="color:var(--text-muted);font-size:12px;padding:8px;">Aucun mockup</span>';
+      return;
+    }
+    zone.innerHTML = urls.map((m, i) => `
+      <div style="position:relative;display:inline-block;margin:4px;">
+        <img src="${m.dataUrl}" alt="${_esc(m.nom||'')}"
+             style="width:88px;height:88px;object-fit:cover;border-radius:6px;
+                    border:2px solid transparent;cursor:zoom-in;transition:border-color .15s,transform .15s;"
+             title="Cliquer pour zoomer"
+             data-mockup-zoom="${i}"
+             onmouseover="this.style.borderColor='var(--caramel,#c4813a)';this.style.transform='scale(1.06)'"
+             onmouseout="this.style.borderColor='transparent';this.style.transform='scale(1)'" />
+        <button type="button"
+                style="position:absolute;top:2px;right:2px;background:#e63946;color:#fff;
+                       border:none;border-radius:50%;width:18px;height:18px;font-size:10px;
+                       line-height:18px;text-align:center;cursor:pointer;padding:0;"
+                data-mockup-del="${i}" title="Supprimer">✕</button>
+        <div style="font-size:9px;color:var(--text-muted);text-align:center;max-width:88px;
+                    overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${_esc(m.nom||m.source||'')}</div>
+      </div>`).join('');
+
+    /* Zoom au clic */
+    zone.querySelectorAll('[data-mockup-zoom]').forEach(img => {
+      img.addEventListener('click', function() {
+        _openMockupLightbox(parseInt(this.dataset.mockupZoom, 10));
+      });
+    });
+
+    /* Supprimer */
+    zone.querySelectorAll('[data-mockup-del]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const idx = parseInt(this.dataset.mockupDel, 10);
+        _mockupUrls = _mockupUrls.filter((_, j) => j !== idx);
+        _refreshMockupZone();
+      });
+    });
+  }
+
+  /* Noms lisibles des produits MockupForge */
+  const _MFW_PROD_NAMES = {
+    tshirt: 'T-Shirt 👕', polo: 'Polo 👔', hoodie: 'Hoodie 🧥',
+    casquette: 'Casquette 🧢', bonnet: 'Bonnet 🎩', totebag: 'Tote Bag 👜',
+    mug: 'Mug ☕', sticker: 'Sticker 🏷️', affiche: 'Affiche 🖼️',
+    sweat: 'Sweat 👕', veste: 'Veste 🧥', short: 'Short 🩳',
+  };
+
+  /* Picker collections MockupForge depuis localStorage mfw_collections_v1 */
+  function _showMockupCollectionPicker() {
+    let collections = [];
+    try {
+      collections = JSON.parse(localStorage.getItem('mfw_collections_v1') || '[]');
+    } catch (_) {}
+
+    /* ── Overlay ── */
+    const dlg = document.createElement('div');
+    dlg.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);' +
+      'display:flex;align-items:center;justify-content:center;';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--surface,#1e1008);border:1px solid var(--border,#3b1f0e);' +
+      'border-radius:12px;width:min(480px,95vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;';
+    dlg.appendChild(box);
+    document.body.appendChild(dlg);
+    dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
+
+    /* ── Étape 1 : grille des collections ── */
+    function showCollections() {
+      if (collections.length === 0) {
+        box.innerHTML = `
+          <div style="padding:24px;text-align:center;">
+            <div style="font-size:36px;margin-bottom:12px;">🛍️</div>
+            <div style="font-size:15px;font-weight:700;color:var(--cream,#f5ede0);margin-bottom:6px;">
+              Aucune collection MockupForge</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+              Créez des collections dans MockupForge v12 (Mode Admin).</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+              <button id="mf-upload-direct" class="btn btn-primary btn-sm">📤 Upload direct</button>
+              <button id="mf-close" class="btn btn-ghost btn-sm">Fermer</button>
+            </div>
+          </div>`;
+        box.querySelector('#mf-close')?.addEventListener('click', () => dlg.remove());
+        box.querySelector('#mf-upload-direct')?.addEventListener('click', () => {
+          dlg.remove();
+          document.getElementById('mockup-file-input')?.click();
+        });
+        return;
+      }
+
+      box.innerHTML = `
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border,#3b1f0e);
+                    display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:14px;font-weight:700;color:var(--cream,#f5ede0);">
+            🔍 MockupForge — Collections</div>
+          <button id="mf-close"
+            style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;">✕</button>
+        </div>
+        <div style="padding:12px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          ${collections.map(c => {
+            const nb = (c.products || []).length;
+            const col = c.color || '#c4813a';
+            return `
+              <div data-coll-id="${_esc(c.id)}"
+                   style="background:var(--bg-elevated,#2a1508);border:2px solid ${col}33;
+                          border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s;"
+                   onmouseover="this.style.borderColor='${col}'"
+                   onmouseout="this.style.borderColor='${col}33'">
+                <div style="font-size:24px;margin-bottom:6px;">${c.icon || '📦'}</div>
+                <div style="font-size:13px;font-weight:700;color:var(--cream,#f5ede0);
+                            margin-bottom:3px;">${_esc(c.name || 'Collection')}</div>
+                <div style="font-size:11px;color:var(--text-muted);">
+                  ${nb} produit${nb > 1 ? 's' : ''}</div>
+              </div>`;
+          }).join('')}
+        </div>
+        <div style="padding:10px 16px;border-top:1px solid var(--border,#3b1f0e);
+                    display:flex;justify-content:flex-end;gap:8px;">
+          <button id="mf-upload-direct" class="btn btn-ghost btn-sm">📤 Upload direct</button>
+        </div>`;
+
+      box.querySelector('#mf-close')?.addEventListener('click', () => dlg.remove());
+      box.querySelector('#mf-upload-direct')?.addEventListener('click', () => {
+        dlg.remove();
+        document.getElementById('mockup-file-input')?.click();
+      });
+      box.querySelectorAll('[data-coll-id]').forEach(card => {
+        card.addEventListener('click', () => {
+          const coll = collections.find(c => c.id === card.dataset.collId);
+          if (coll) showProducts(coll);
+        });
+      });
+    }
+
+    /* ── Étape 2 : produits d'une collection + file pick ── */
+    function showProducts(coll) {
+      const prods = coll.products || [];
+      box.innerHTML = `
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border,#3b1f0e);
+                    display:flex;align-items:center;gap:10px;">
+          <button id="mf-back"
+            style="background:none;border:none;color:var(--caramel,#c4813a);font-size:18px;cursor:pointer;">‹</button>
+          <div style="font-size:14px;font-weight:700;color:var(--cream,#f5ede0);flex:1;">
+            ${coll.icon || '📦'} ${_esc(coll.name)}</div>
+          <button id="mf-close"
+            style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;">✕</button>
+        </div>
+        <div style="padding:12px;overflow-y:auto;">
+          ${prods.length === 0 ? '<div style="color:var(--text-muted);padding:16px;text-align:center;">Aucun produit dans cette collection.</div>' : ''}
+          <div id="mf-prod-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+            ${prods.map(p => {
+              const nom = _MFW_PROD_NAMES[p.prodId] || (_esc(p.prodId) || 'Produit');
+              return `
+                <label data-prod-id="${_esc(p.prodId)}"
+                       style="display:flex;align-items:center;gap:8px;padding:10px;
+                              background:var(--bg-elevated,#2a1508);border:2px solid transparent;
+                              border-radius:8px;cursor:pointer;transition:border-color .15s;"
+                       onmouseover="this.style.borderColor='var(--caramel,#c4813a)'"
+                       onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='transparent'">
+                  <input type="radio" name="mf-prod" value="${_esc(p.prodId)}"
+                         style="accent-color:var(--caramel,#c4813a);" />
+                  <span style="font-size:13px;color:var(--cream,#f5ede0);">${nom}</span>
+                </label>`;
+            }).join('')}
+          </div>
+          <div style="background:var(--bg-elevated,#2a1508);border-radius:8px;padding:12px;">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+              📂 Sélectionner le fichier PNG archivé dans Dropbox :</div>
+            <input type="file" id="mf-file-pick" accept="image/*"
+                   style="width:100%;font-size:12px;" />
+          </div>
+        </div>
+        <div style="padding:10px 16px;border-top:1px solid var(--border,#3b1f0e);
+                    display:flex;justify-content:flex-end;gap:8px;">
+          <button id="mf-attach" class="btn btn-primary btn-sm">📎 Attacher au devis</button>
+        </div>`;
+
+      /* Mettre en valeur le produit sélectionné */
+      box.querySelectorAll('input[name="mf-prod"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          box.querySelectorAll('[data-prod-id]').forEach(lbl => {
+            lbl.style.borderColor = lbl.querySelector('input')?.checked
+              ? 'var(--caramel,#c4813a)' : 'transparent';
+          });
+        });
+      });
+
+      box.querySelector('#mf-back')?.addEventListener('click', showCollections);
+      box.querySelector('#mf-close')?.addEventListener('click', () => dlg.remove());
+      box.querySelector('#mf-attach')?.addEventListener('click', async () => {
+        const checked = box.querySelector('input[name="mf-prod"]:checked');
+        const fileInp = box.querySelector('#mf-file-pick');
+        if (!fileInp || !fileInp.files.length) {
+          toast('Choisissez le fichier PNG du mockup archivé.', 'warning'); return;
+        }
+        const prodId  = checked ? checked.value : '';
+        const prodNom = (prodId && _MFW_PROD_NAMES[prodId]) || prodId || coll.name;
+        const dataUrl = await _imgToDataUrl(fileInp.files[0]);
+        _mockupUrls = [..._mockupUrls, {
+          dataUrl,
+          nom:    `${_esc(coll.name)} — ${prodNom}`,
+          date:   new Date().toISOString().slice(0, 10),
+          source: 'MockupForge'
+        }];
+        _refreshMockupZone();
+        dlg.remove();
+        toast('Mockup attaché au devis.', 'success');
+      });
+    }
+
+    showCollections();
+  }
+
+  /* Attache les événements de la zone mockup (upload + MockupForge + init) */
+  function _bindMockupEvents(doc) {
+    /* Initialiser l'état depuis le document en cours */
+    _mockupUrls = Array.isArray(doc?.mockupUrls) ? [...doc.mockupUrls] : [];
+    _refreshMockupZone();
+
+    /* Bouton Upload */
+    document.getElementById('btn-mockup-upload')?.addEventListener('click', () => {
+      document.getElementById('mockup-file-input')?.click();
+    });
+
+    /* Sélection de fichier(s) */
+    document.getElementById('mockup-file-input')?.addEventListener('change', async function() {
+      const files = Array.from(this.files || []);
+      for (const file of files) {
+        const dataUrl = await _imgToDataUrl(file);
+        _mockupUrls = [..._mockupUrls, {
+          dataUrl,
+          nom:    file.name,
+          date:   new Date().toISOString().slice(0, 10),
+          source: 'Upload'
+        }];
+      }
+      _refreshMockupZone();
+      this.value = '';
+    });
+
+    /* Bouton MockupForge — collections enregistrées */
+    document.getElementById('btn-mockup-auto')?.addEventListener('click', () => {
+      _showMockupCollectionPicker();
+    });
+  }
+
+  /* ================================================================
+     DÉTECTION TYPE DE PRODUCTION
+     Analyse les lignes d'un devis pour déterminer la technique dominante
+     ================================================================ */
+  function _detectTypeProduction(lignes) {
+    if (!Array.isArray(lignes) || lignes.length === 0) return 'Production';
+    const scores = { DTF: 0, Vinyle: 0, Flock: 0, Sticker: 0, Broderie: 0, Sublimation: 0 };
+    const patterns = {
+      DTF:         /\bdtf\b|transfert|film|gang\s*sheet/i,
+      Vinyle:      /\bvinyle\b|vinyl|oracal|flex|signe|covering|d[ée]coupe/i,
+      Flock:       /\bflock\b|velour|velvet/i,
+      Sticker:     /\bsticker\b|autocollant|[ée]tiquette|label/i,
+      Broderie:    /\bbroderie\b|broder|embroid/i,
+      Sublimation: /\bsublimation\b|sublim/i,
+    };
+    lignes.forEach(l => {
+      const texte = ((l.produit || '') + ' ' + (l.description || '') + ' ' + (l.technique || '')).toLowerCase();
+      for (const [type, re] of Object.entries(patterns)) {
+        if (re.test(texte)) scores[type] += (l.qte || 1);
+      }
+    });
+    const max = Math.max(...Object.values(scores));
+    if (max === 0) return 'Production';
+    const dominant = Object.entries(scores).find(([, v]) => v === max);
+    /* Vérifier si plusieurs techniques ont le même score → "Mixte" */
+    const nbMax = Object.values(scores).filter(v => v === max).length;
+    return nbMax > 1 ? 'Mixte' : dominant[0];
+  }
+
+  /* ================================================================
+     PUSH PLANNING CARD
+     Crée un Ordre de Fabrication depuis un devis / commande confirmé
+     ================================================================ */
+  function _pushPlanningCard(doc, ref) {
+    if (!doc) return;
+    try {
+      const typeProduction = _detectTypeProduction(doc.lignes);
+      /* Utilise le même compteur que Manufacturing._genRefOF() */
+      const annee = new Date().getFullYear();
+      const refOF = `OF-${annee}-${String(Store.nextCounter('of')).padStart(5, '0')}`;
+
+      /* Postes par défaut selon le type détecté */
+      const posteMap = {
+        DTF:         'Atelier DTF USA',
+        Vinyle:      'Découpe SignMaster',
+        Flock:       'Presse Transfert',
+        Sticker:     'Découpe SignMaster',
+        Broderie:    'Broderie',
+        Sublimation: 'Presse Sublimation',
+        Mixte:       'BN20 Yannick',
+        Production:  'BN20 Yannick',
+      };
+      const posteNom = posteMap[typeProduction] || 'BN20 Yannick';
+      const postes   = Store.getAll('postes');
+      const poste    = postes.find(p => p.nom === posteNom) || postes[0] || null;
+
+      /* Résumé lisible du produit principal + quantité totale */
+      const lignes = doc.lignes || [];
+      const produitLabel = lignes.length > 0
+        ? (lignes[0].produit || lignes[0].description || 'Production')
+          + (lignes.length > 1 ? ` (+${lignes.length - 1} art.)` : '')
+        : (typeProduction + ' — ' + (doc.client || ''));
+      const quantiteTotale = lignes.reduce((s, l) => s + (Number(l.qte) || 0), 0) || 1;
+
+      const mockupUrls = Array.isArray(doc.mockupUrls) ? doc.mockupUrls : [];
+      const dateFin    = doc.dateLivraison || doc.dateExpiration || '';
+
+      Store.create('ordresFab', {
+        reference:       refOF,
+        devisOrigineRef: ref || doc.ref || '',
+        devisOrigineId:  doc.id || '',
+        client:          doc.client || '',
+        typeProduction,
+        /* Champs attendus par Manufacturing */
+        produit:         produitLabel,
+        quantite:        quantiteTotale,
+        posteId:         poste ? poste.id : '',
+        poste:           poste ? poste.nom : posteNom,
+        statut:          'Prêt',
+        priorite:        'Moyenne',
+        progression:     0,
+        assigneA:        '',
+        dateDebut:       new Date().toISOString().slice(0, 10),
+        dateFin,
+        lignes,
+        mockupUrls,
+        totalTTC:        doc.totalTTC || 0,
+        notes:           `OF généré depuis ${doc.ref || ref || 'devis'} — Client : ${doc.client || ''}`,
+      });
+
+      /* ── Carte planning-dashboard (hcs_planning) ── */
+      try {
+        const typeMap = {
+          DTF: 'dtf', Vinyle: 'vinyle', Flock: 'vinyle', Sticker: 'vinyle',
+          Broderie: 'casquette', Sublimation: 'dtf', Mixte: 'multi', Production: 'dtf'
+        };
+        const planLignes = lignes.map(l => ({
+          qte:         Number(l.qte)  || 1,
+          produit:     l.produit || l.description || '',
+          technique:   l.technique   || typeProduction,
+          notesDesign: l.notesDesign || ''
+        }));
+        /* Priorité selon le délai restant */
+        const msDeadline = dateFin ? new Date(dateFin).getTime() - Date.now() : Infinity;
+        const priority   = msDeadline < 48 * 3600 * 1000 ? 'urgent' : 'normal';
+
+        const planCard = {
+          id:        'erp-' + refOF,
+          client:    doc.client || '',
+          ref:       doc.ref || ref || refOF,
+          canal:     'ERP',
+          desc:      produitLabel + (doc.client ? ' — ' + doc.client : ''),
+          type:      typeMap[typeProduction] || 'dtf',
+          machine:   posteNom,
+          qty:       quantiteTotale,
+          deadline:  dateFin ? new Date(dateFin).toISOString() : new Date(Date.now() + 7 * 86400000).toISOString(),
+          priority,
+          notes:     doc.notes || '',
+          col:       'attente',
+          createdAt: new Date().toISOString(),
+          mockupUrls,
+          lignes:    planLignes,
+        };
+        const planning = JSON.parse(localStorage.getItem('hcs_planning') || '[]');
+        /* Éviter les doublons si le devis est re-confirmé */
+        const existIdx = planning.findIndex(p => p.id === planCard.id);
+        if (existIdx >= 0) { planning[existIdx] = { ...planning[existIdx], ...planCard }; }
+        else               { planning.push(planCard); }
+        localStorage.setItem('hcs_planning', JSON.stringify(planning));
+
+        /* Sync MySQL si disponible (non-bloquant) */
+        if (window.MYSQL) {
+          const mysqlPayload = {
+            store_id:       planCard.id,
+            client:         planCard.client   || '',
+            ref:            planCard.ref      || '',
+            canal:          planCard.canal    || '',
+            desc:           planCard.desc     || '',
+            type:           planCard.type     || 'dtf',
+            machine:        planCard.machine  || '',
+            qty:            planCard.qty      || 1,
+            deadline:       planCard.deadline || null,
+            priority:       planCard.priority || 'normal',
+            notes:          planCard.notes    || '',
+            col:            planCard.col      || 'attente',
+            lignes:         JSON.stringify(planCard.lignes     || []),
+            mockup_urls:    JSON.stringify(planCard.mockupUrls || []),
+            checklist_prod: JSON.stringify([]),
+            reservation:    JSON.stringify(null),
+          };
+          const existMysqlId = existIdx >= 0 ? planning[existIdx]._mysql_id : null;
+          const mysqlOp = existMysqlId
+            ? window.MYSQL.update('planning_commandes', existMysqlId, mysqlPayload)
+            : window.MYSQL.create('planning_commandes', mysqlPayload);
+          mysqlOp.then(res => {
+            if (res && res.id) {
+              const pl = JSON.parse(localStorage.getItem('hcs_planning') || '[]');
+              const i  = pl.findIndex(p => p.id === planCard.id);
+              if (i >= 0) { pl[i]._mysql_id = res.id; localStorage.setItem('hcs_planning', JSON.stringify(pl)); }
+            }
+          }).catch(() => {});
+        }
+      } catch(ePlan) {
+        console.warn('[_pushPlanningCard] hcs_planning write error:', ePlan);
+      }
+
+      toast(`🏭 OF ${refOF} créé — carte ajoutée au planning`, 'info', 5000);
+    } catch (e) {
+      console.warn('[_pushPlanningCard] erreur création OF :', e);
+    }
+  }
+
+  /* ================================================================
+     BRIDGE — expose les fonctions partagées aux modules compagnons
+     (sales-quotes.js, sales-orders.js, sales-invoices.js, sales-report.js)
+     ================================================================ */
+  window._SalesCore = {
+    /* État interne partagé */
+    _state,
+    get _paiementsDevis()  { return _paiementsDevis; },
+    set _paiementsDevis(v) { _paiementsDevis = v; },
+    get _mockupUrls()      { return _mockupUrls; },
+    set _mockupUrls(v)     { _mockupUrls = v; },
+
+    /* Constantes métier */
+    STATUTS_DEVIS, BADGE_DEVIS,
+    STATUTS_CMD,   BADGE_CMD,
+    STATUTS_FAC,   BADGE_FAC,
+    STATUTS_BL,    BADGE_BL,
+    REG_MODES,     REG_ICONS,
+    METHODES_PAIEMENT, TYPES_PAIEMENT,
+    CLIENT_TYPES,  ILES_PF,
+
+    /* Utilitaires */
+    _esc,
+    _badge,
+    _fmt,
+    _fmtDate,
+    _calcTotaux,
+    _totalPaiements,
+    _genRef,
+    _safeFilename,
+    _sauverDocDropbox,
+    _contactNom,
+    _produitOptions,
+    _goList,
+    _goForm,
+    _getDocParams,
+    _detectTypeProduction,
+    _pushPlanningCard,
+    _creerReservationFournisseur,
+
+    /* Table de lignes */
+    _renderLineTable,
+    _bindLineTableEvents,
+    _refreshLineTable,
+    _renderTotalsBlock,
+    _applyRemiseClient,
+    _applyPalierPrix,
+    _calcTVAParTaux,
+
+    /* Kanban générique */
+    _drawKanban,
+    _renderKanbanCard,
+
+    /* Suivi BDC + header formulaire */
+    _renderSuiviBDC,
+    _renderFormHeader,
+
+    /* Mockup */
+    _bindMockupEvents,
+    _refreshMockupZone,
+
+    /* Création rapide client */
+    _bindClientSelectCreation,
+    _openQuickClientModal,
+
+    /* Déduction stock */
+    _deductStockFromLines,
+
+    /* Accès au module Sales principal (résolu après init) */
+    Sales: () => window.Sales,
+  };
 
   return { init };
 
