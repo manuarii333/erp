@@ -573,6 +573,105 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-prim
   padding: 6px 14px; cursor: pointer; z-index: 9997; transition: all 0.15s; text-transform: uppercase;
 }
 #btn-hcs-camp-history:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ══ MODAL GÉNÉRIQUE — verticals 3-7 ═══════════════════ */
+#gen-flow-modal { display:none; position:fixed; inset:0; z-index:8600; background:rgba(0,0,0,0.88); align-items:center; justify-content:center; padding:12px; }
+#gen-flow-modal.open { display:flex; }
+.gen-box { background:var(--bg-secondary); border:1px solid var(--border); border-radius:18px; width:100%; max-width:520px; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,0.7); }
+.gen-head { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.gen-head-icon { font-size:1.3rem; }
+.gen-head-title { font-size:0.9rem; font-weight:800; flex:1; }
+.gen-head-close { background:none; border:none; color:var(--text-secondary); font-size:1.1rem; cursor:pointer; padding:4px 8px; border-radius:6px; transition:background 0.15s; }
+.gen-head-close:hover { background:rgba(255,255,255,0.07); }
+/* Barre de progression générique */
+.gen-step-bar { display:flex; align-items:flex-start; justify-content:center; padding:10px 16px 8px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.gen-step-item { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.gen-step-dot { width:28px; height:28px; border-radius:50%; border:2px solid var(--border); background:var(--bg-panel); color:var(--text-secondary); font-size:0.65rem; font-weight:800; display:flex; align-items:center; justify-content:center; transition:all 0.25s; flex-shrink:0; }
+.gen-step-dot.active { background:var(--gen-color,#6c63ff); border-color:var(--gen-color,#6c63ff); color:white; box-shadow:0 0 12px rgba(108,99,255,0.35); }
+.gen-step-dot.done { background:#43e97b; border-color:#43e97b; color:white; }
+.gen-step-label { font-size:0.58rem; color:var(--text-secondary); text-align:center; max-width:70px; line-height:1.2; }
+.gen-step-label.active { color:var(--gen-color,#6c63ff); font-weight:700; }
+.gen-step-connector { width:28px; height:2px; background:var(--border); border-radius:1px; margin:14px 2px 0; flex-shrink:0; }
+.gen-step-connector.done { background:#43e97b; }
+/* Body scrollable */
+.gen-body { flex:1; overflow-y:auto; padding:16px; }
+/* Récapitulatif flottant */
+.gen-recap { background:var(--bg-panel); border-top:2px solid var(--border); padding:10px 16px; flex-shrink:0; }
+.gen-recap-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.gen-recap-icon { font-size:1.2rem; flex-shrink:0; }
+.gen-recap-info { flex:1; min-width:0; }
+.gen-recap-name { font-size:0.78rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gen-recap-opts { font-size:0.62rem; color:var(--text-secondary); margin-top:2px; min-height:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gen-recap-price { font-size:1rem; font-weight:900; color:var(--gen-color,#6c63ff); white-space:nowrap; flex-shrink:0; }
+.gen-recap-foot { display:flex; gap:8px; align-items:center; }
+.gen-btn-prev { padding:9px 13px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--text-primary); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
+.gen-btn-prev:hover { background:var(--bg-card); }
+.gen-btn-next { flex:1; padding:10px 14px; border-radius:10px; border:none; background:var(--gen-color,#6c63ff); color:white; font-size:0.82rem; font-weight:800; cursor:pointer; transition:all 0.2s; }
+.gen-btn-next:hover:not(:disabled) { filter:brightness(1.1); transform:translateY(-1px); }
+.gen-btn-next:disabled { opacity:0.4; transform:none; cursor:not-allowed; }
+.gen-qty-btn { width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--bg-panel); color:var(--text-primary); font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; }
+/* Swatches couleur */
+.gen-color-grid { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+.gen-color-wrap { display:flex; flex-direction:column; align-items:center; cursor:pointer; }
+.gen-color-swatch { width:36px; height:36px; border-radius:50%; border:3px solid var(--border); cursor:pointer; transition:all 0.15s; }
+.gen-color-swatch.selected { border-color:white; box-shadow:0 0 0 3px var(--gen-color,#6c63ff); }
+.gen-color-label { font-size:0.58rem; text-align:center; margin-top:3px; color:var(--text-secondary); max-width:48px; }
+/* Boutons format / taille */
+.gen-format-grid { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+.gen-format-btn { padding:8px 13px; border:2px solid var(--border); border-radius:10px; background:var(--bg-panel); color:var(--text-secondary); font-size:0.75rem; font-weight:700; cursor:pointer; transition:all 0.15s; }
+.gen-format-btn.selected { border-color:var(--gen-color,#6c63ff); color:var(--gen-color,#6c63ff); background:rgba(108,99,255,0.08); }
+/* Upload preview */
+.gen-upload-preview { width:100%; aspect-ratio:16/9; border-radius:10px; border:2px dashed var(--border); background:var(--bg-panel); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:8px; cursor:pointer; position:relative; transition:border-color 0.2s; }
+.gen-upload-preview.has-file { border-style:solid; border-color:var(--gen-color,#6c63ff); }
+.gen-upload-preview img { width:100%; height:100%; object-fit:contain; }
+.gen-upload-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s; }
+.gen-upload-preview:hover .gen-upload-overlay { opacity:1; }
+/* Cards plan / service */
+.gen-plan-card { border:2px solid var(--border); border-radius:12px; padding:11px 14px; cursor:pointer; transition:all 0.2s; margin-bottom:8px; background:var(--bg-card); }
+.gen-plan-card.selected { border-color:var(--gen-color,#6c63ff); background:rgba(108,99,255,0.06); box-shadow:0 0 0 3px rgba(108,99,255,0.12); }
+.gen-plan-head { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+.gen-plan-emoji { font-size:1.2rem; }
+.gen-plan-name { font-size:0.82rem; font-weight:800; flex:1; }
+.gen-plan-price { font-size:0.78rem; font-weight:900; color:var(--gen-color,#6c63ff); white-space:nowrap; }
+.gen-plan-avantages { font-size:0.63rem; color:var(--text-secondary); line-height:1.6; }
+.gen-service-card { display:flex; align-items:center; gap:10px; padding:10px 12px; border:2px solid var(--border); border-radius:10px; cursor:pointer; transition:all 0.2s; margin-bottom:7px; background:var(--bg-card); }
+.gen-service-card.selected { border-color:var(--gen-color,#6c63ff); background:rgba(108,99,255,0.06); }
+.gen-service-icon { font-size:1.3rem; flex-shrink:0; }
+.gen-service-label { font-size:0.78rem; font-weight:700; flex:1; }
+.gen-service-price { font-size:0.75rem; font-weight:800; color:var(--gen-color,#6c63ff); white-space:nowrap; }
+/* Dates formation */
+.gen-date-grid { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+.gen-date-pill { padding:7px 14px; border:2px solid var(--border); border-radius:20px; font-size:0.72rem; font-weight:600; cursor:pointer; transition:all 0.15s; background:var(--bg-panel); color:var(--text-secondary); }
+.gen-date-pill.selected { border-color:var(--gen-color,#6c63ff); color:var(--gen-color,#6c63ff); background:rgba(108,99,255,0.08); }
+/* Validation & qualité */
+.gen-error { font-size:0.72rem; color:#ff6b6b; background:rgba(255,107,107,0.1); border:1px solid rgba(255,107,107,0.3); border-radius:8px; padding:8px 12px; margin-top:8px; display:none; }
+.gen-error.visible { display:block; }
+.gen-file-quality { padding:8px 12px; border-radius:8px; font-size:0.72rem; font-weight:700; margin-top:8px; }
+.gen-file-quality.ok   { background:rgba(67,233,123,0.12); border:1px solid rgba(67,233,123,0.35); color:#43e97b; }
+.gen-file-quality.warn { background:rgba(240,160,48,0.12); border:1px solid rgba(240,160,48,0.35); color:#f0a030; }
+.gen-file-quality.bad  { background:rgba(255,107,107,0.12); border:1px solid rgba(255,107,107,0.35); color:#ff6b6b; }
+/* Indicateur stock/urgence */
+.lp-stock-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border-radius:20px; font-size:0.65rem; font-weight:700; margin-top:6px; }
+.lp-stock-urgency { background:rgba(255,101,84,0.15); border:1px solid rgba(255,101,84,0.4); color:#ff6554; }
+.lp-stock-social  { background:rgba(79,172,254,0.15); border:1px solid rgba(79,172,254,0.4); color:#4facfe; }
+/* Calculateur prix dynamique */
+.gen-price-calc-box { background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+.gen-price-calc-label { font-size:0.72rem; color:var(--text-secondary); }
+.gen-price-calc-val { font-size:1.1rem; font-weight:900; color:var(--gen-color,#6c63ff); }
+
+/* ── Vehicle Mockup Studio — overlay intégré ─────────── */
+#vms-modal { display:none; position:fixed; inset:0; z-index:9500; background:rgba(0,0,0,0.95); flex-direction:column; }
+#vms-modal.open { display:flex; }
+.vms-modal-bar { background:#1a0e07; border-bottom:1px solid rgba(196,129,58,0.35); padding:10px 16px; display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.vms-modal-title { font-size:0.85rem; font-weight:800; color:#e09a4f; flex:1; letter-spacing:1px; }
+.vms-modal-hint { font-size:0.65rem; color:rgba(255,255,255,0.4); }
+.vms-modal-close { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.7); border-radius:8px; padding:6px 14px; font-size:0.75rem; font-weight:700; cursor:pointer; transition:all 0.2s; }
+.vms-modal-close:hover { background:rgba(255,255,255,0.14); color:#fff; }
+.vms-modal-body { flex:1; overflow:hidden; }
+.vms-modal-body iframe { width:100%; height:100%; border:none; display:block; }
+/* Bouton "Visualiser véhicule" dans le footer sticker */
+.stk-cl-btn-vms { width:100%; padding:10px; margin-bottom:8px; background:rgba(196,129,58,0.12); border:1px solid rgba(196,129,58,0.4); border-radius:10px; color:#e09a4f; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.2s; }
+.stk-cl-btn-vms:hover { background:rgba(196,129,58,0.22); border-color:#c4813a; }
 </style>
 <script src="hcs-api-shared.js"></script>
 </head>
@@ -1202,6 +1301,399 @@ function render(id) {
             </div>
           </div>
         </div>
+        ` : c.id === 3 ? `
+        <div class="ep-section">
+          <div class="ep-label" style="color:#a78bfa">🎯 Parcours Client — DTF Originals</div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📦 Étapes du parcours</div>
+            <div class="pcfg-body">
+              <div class="pcfg-toggle-row">
+                <span class="pcfg-toggle-lbl">① Choix design logo <span style="font-size:0.58rem;color:var(--text-secondary)">toujours actif</span></span>
+                <label class="pcfg-toggle"><input type="checkbox" checked disabled><span class="pcfg-toggle-slider"></span></label>
+              </div>
+              <div class="pcfg-toggle-row">
+                <span class="pcfg-toggle-lbl">② Placement logo (studio)</span>
+                <label class="pcfg-toggle"><input type="checkbox" checked
+                  onchange="tshSetParcours(${id},'showStep2',this.checked)"><span class="pcfg-toggle-slider"></span></label>
+              </div>
+              <div class="pcfg-toggle-row">
+                <span class="pcfg-toggle-lbl">③ Taille &amp; Couleur T-shirt</span>
+                <label class="pcfg-toggle"><input type="checkbox" checked
+                  onchange="tshSetParcours(${id},'requireSize',this.checked)"><span class="pcfg-toggle-slider"></span></label>
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🎨 Couleurs T-shirts proposées</div>
+            <div class="pcfg-body">
+              <div class="pcfg-checks">
+                ${[
+                  {val:'Blanc',hex:'#f5f5f5',border:true},{val:'Noir',hex:'#111111'},
+                  {val:'Gris chiné',hex:'#9e9e9e'},{val:'Marine',hex:'#1a237e'},
+                  {val:'Vert forêt',hex:'#2e7d32'},{val:'Rouge',hex:'#c62828'}
+                ].map(col=>`
+                <label class="pcfg-chk">
+                  <input type="checkbox" checked
+                    onchange="toggleParcoursCfg(${id},'tshirtColors','${col.val}',this.checked)">
+                  <span class="pcfg-color-dot" style="background:${col.hex}${col.border?';border-color:#aaa':''}"></span> ${col.val}
+                </label>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📏 Tailles proposées au client</div>
+            <div class="pcfg-body">
+              <div class="pcfg-size-grid">
+                ${['XS','S','M','L','XL','2XL','3XL','4XL'].map(s=>`
+                <label class="pcfg-size-btn">
+                  <input type="checkbox" checked onchange="tshToggleSize(${id},'${s}',this.checked)"> ${s}
+                </label>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🔄 Faces proposées</div>
+            <div class="pcfg-body">
+              <div class="pcfg-toggle-row">
+                <span class="pcfg-toggle-lbl">Avant <span style="font-size:0.58rem;color:var(--text-secondary)">toujours actif</span></span>
+                <label class="pcfg-toggle"><input type="checkbox" checked disabled><span class="pcfg-toggle-slider"></span></label>
+              </div>
+              <div class="pcfg-toggle-row">
+                <span class="pcfg-toggle-lbl">Dos</span>
+                <label class="pcfg-toggle"><input type="checkbox"
+                  onchange="tshSetFace(${id},'back',this.checked)"><span class="pcfg-toggle-slider"></span></label>
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🖼 Visuels design par logo</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:10px">
+              ${c.products.map((p,i)=>`
+              <div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+                <div style="font-size:0.72rem;font-weight:700;margin-bottom:6px">${p.e} ${p.n}</div>
+                <label style="display:block;cursor:pointer">
+                  <div class="tsh-face-img-thumb" id="tsh-${id}-fi-front-${i}">
+                    <span style="padding:4px;text-align:center;font-size:0.62rem">+ Importer visuel design</span>
+                  </div>
+                  <input type="file" accept="image/*" style="display:none" onchange="tshLoadFaceImg(event,${id},${i},'front')">
+                </label>
+              </div>`).join('')}
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🏷️ Titres des étapes</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:6px">
+              <div class="frow"><label class="flabel">Étape 1</label>
+                <input class="finput" value="Choisir le design" oninput="setParcoursCfg(${id},'label1',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 2</label>
+                <input class="finput" value="Placer le logo" oninput="setParcoursCfg(${id},'label2',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 3</label>
+                <input class="finput" value="Taille, Couleur &amp; Commander" oninput="setParcoursCfg(${id},'label3',this.value)"></div>
+            </div>
+          </div>
+        </div>
+        ` : c.id === 4 ? `
+        <div class="ep-section">
+          <div class="ep-label" style="color:#a78bfa">🎯 Parcours Client — Grille DTF 3×3</div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📐 Formats gang sheet proposés</div>
+            <div class="pcfg-body">
+              <div class="pcfg-checks">
+                ${[
+                  {val:'22x30cm',label:'22" × 30 cm',def:true},
+                  {val:'22x60cm',label:'22" × 60 cm',def:true},
+                  {val:'22x90cm',label:'22" × 90 cm',def:false},
+                  {val:'A3',    label:'A3 (30 × 42 cm)',def:false},
+                  {val:'A2',    label:'A2 (42 × 60 cm)',def:false}
+                ].map(f=>`
+                <label class="pcfg-chk">
+                  <input type="checkbox" ${f.def?'checked':''}
+                    onchange="toggleParcoursCfg(${id},'formats','${f.val}',this.checked)">
+                  ${f.label}
+                </label>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🖨️ Résolution fichier requise</div>
+            <div class="pcfg-body">
+              <div class="pcfg-checks">
+                <label class="pcfg-chk"><input type="radio" name="dtf4-res-${id}" value="150"
+                  onchange="setParcoursCfg(${id},'resolution','150')"> 150 DPI</label>
+                <label class="pcfg-chk"><input type="radio" name="dtf4-res-${id}" value="300" checked
+                  onchange="setParcoursCfg(${id},'resolution','300')"> 300 DPI <span style="color:#43e97b;font-size:0.6rem">recommandé</span></label>
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📎 Formats source acceptés</div>
+            <div class="pcfg-body">
+              <div class="pcfg-checks">
+                ${['PNG','JPG','PDF','PSD','AI','EPS'].map(f=>`
+                <label class="pcfg-chk">
+                  <input type="checkbox" ${['PNG','PDF','PSD'].includes(f)?'checked':''}
+                    onchange="toggleParcoursCfg(${id},'fileFormats','${f}',this.checked)">
+                  .${f.toLowerCase()}
+                </label>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📦 Quantité</div>
+            <div class="pcfg-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div class="frow"><label class="flabel">Min</label>
+                <input class="finput" type="number" min="1" value="1" oninput="setParcoursCfg(${id},'qtyMin',+this.value)"></div>
+              <div class="frow"><label class="flabel">Max</label>
+                <input class="finput" type="number" min="1" value="50" oninput="setParcoursCfg(${id},'qtyMax',+this.value)"></div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📤 Upload fichier client</div>
+            <div class="pcfg-body">
+              <div class="pcfg-toggle-row">
+                <span class="pcfg-toggle-lbl">Permettre l'upload print-ready</span>
+                <label class="pcfg-toggle"><input type="checkbox" checked
+                  onchange="setParcoursCfg(${id},'allowUpload',this.checked)"><span class="pcfg-toggle-slider"></span></label>
+              </div>
+              <div class="frow" style="margin-top:8px"><label class="flabel">Instruction upload</label>
+                <input class="finput" value="Fichier PNG ou PDF 300 DPI, fond transparent"
+                  oninput="setParcoursCfg(${id},'uploadHint',this.value)"></div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🏷️ Titres des étapes</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:6px">
+              <div class="frow"><label class="flabel">Étape 1</label>
+                <input class="finput" value="Choisir le format" oninput="setParcoursCfg(${id},'label1',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 2</label>
+                <input class="finput" value="Uploader le fichier" oninput="setParcoursCfg(${id},'label2',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 3</label>
+                <input class="finput" value="Quantité &amp; Commander" oninput="setParcoursCfg(${id},'label3',this.value)"></div>
+            </div>
+          </div>
+        </div>
+        ` : c.id === 5 ? `
+        <div class="ep-section">
+          <div class="ep-label" style="color:#a78bfa">🎯 Parcours Client — Formation Textile</div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📚 Modules disponibles</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:10px">
+              ${[
+                {val:'debutant',label:'Débutant',price:'15 000 XPF',desc:'Bases DTF, manipulation, entretien'},
+                {val:'avance',  label:'Avancé',  price:'25 000 XPF',desc:'Techniques pro, couleurs, sérigraphie'},
+                {val:'complet', label:'Complet', price:'35 000 XPF',desc:'Programme intégral débutant → expert'}
+              ].map(m=>`
+              <div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--bg-panel)">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <label class="pcfg-toggle" style="flex-shrink:0">
+                    <input type="checkbox" checked
+                      onchange="toggleParcoursCfg(${id},'modules','${m.val}',this.checked)">
+                    <span class="pcfg-toggle-slider"></span>
+                  </label>
+                  <div style="flex:1">
+                    <div style="font-size:0.75rem;font-weight:700">${m.label}</div>
+                    <div style="font-size:0.6rem;color:var(--text-secondary)">${m.desc}</div>
+                  </div>
+                  <span style="font-size:0.7rem;color:#f093fb;font-weight:800;white-space:nowrap">${m.price}</span>
+                </div>
+                <div class="frow"><label class="flabel">Prix personnalisé (XPF)</label>
+                  <input class="finput" type="number" placeholder="${m.price.replace(' XPF','').replace(/ /g,'')}"
+                    oninput="setParcoursCfg(${id},'price_${m.val}',this.value||null)"></div>
+              </div>`).join('')}
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📅 Dates de sessions disponibles</div>
+            <div class="pcfg-body">
+              <textarea class="finput" rows="4" placeholder="15 juin 2026&#10;28 juin 2026&#10;12 juillet 2026"
+                style="resize:vertical;font-size:0.72rem;line-height:1.6"
+                oninput="setParcoursCfg(${id},'dates',this.value)"></textarea>
+              <div style="font-size:0.6rem;color:var(--text-secondary);margin-top:4px">Une date par ligne</div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🏫 Format &amp; Lieu</div>
+            <div class="pcfg-body">
+              <div class="pcfg-checks">
+                <label class="pcfg-chk"><input type="checkbox" checked
+                  onchange="toggleParcoursCfg(${id},'formats','atelier',this.checked)"> En atelier (Papeete)</label>
+                <label class="pcfg-chk"><input type="checkbox"
+                  onchange="toggleParcoursCfg(${id},'formats','enligne',this.checked)"> En ligne (visio)</label>
+              </div>
+              <div class="frow" style="margin-top:8px"><label class="flabel">Adresse atelier</label>
+                <input class="finput" placeholder="HCS Atelier — Papeete, Tahiti"
+                  oninput="setParcoursCfg(${id},'adresse',this.value)"></div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">👥 Jauge par session</div>
+            <div class="pcfg-body">
+              <div class="frow"><label class="flabel">Nombre de places max</label>
+                <input class="finput" type="number" min="1" value="8"
+                  oninput="setParcoursCfg(${id},'maxPlaces',+this.value)"></div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🏷️ Titres des étapes</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:6px">
+              <div class="frow"><label class="flabel">Étape 1</label>
+                <input class="finput" value="Choisir le module" oninput="setParcoursCfg(${id},'label1',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 2</label>
+                <input class="finput" value="Choisir la date" oninput="setParcoursCfg(${id},'label2',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 3</label>
+                <input class="finput" value="Confirmer &amp; Payer" oninput="setParcoursCfg(${id},'label3',this.value)"></div>
+            </div>
+          </div>
+        </div>
+        ` : c.id === 6 ? `
+        <div class="ep-section">
+          <div class="ep-label" style="color:#a78bfa">🎯 Parcours Client — Abonnements</div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">⭐ Plans disponibles</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:10px">
+              ${[
+                {val:'starter', label:'Starter', emoji:'🌱', priceM:'1 800', priceA:'18 000', color:'#30cfd0'},
+                {val:'pro',     label:'Pro',     emoji:'⚡', priceM:'3 500', priceA:'35 000', color:'#a18cd1'},
+                {val:'premium', label:'Premium', emoji:'👑', priceM:'5 500', priceA:'55 000', color:'#f6d365'}
+              ].map(p=>`
+              <div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--bg-panel)">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <label class="pcfg-toggle" style="flex-shrink:0">
+                    <input type="checkbox" checked
+                      onchange="toggleParcoursCfg(${id},'plans','${p.val}',this.checked)">
+                    <span class="pcfg-toggle-slider"></span>
+                  </label>
+                  <span style="font-size:1rem">${p.emoji}</span>
+                  <span style="font-size:0.8rem;font-weight:800;color:${p.color}">${p.label}</span>
+                  <span style="font-size:0.62rem;color:var(--text-secondary);margin-left:auto">${p.priceM} XPF/mois · ${p.priceA}/an</span>
+                </div>
+                <div class="frow"><label class="flabel">Avantages (une ligne par avantage)</label>
+                  <textarea class="finput" rows="2" placeholder="Avantage 1&#10;Avantage 2"
+                    style="resize:vertical;font-size:0.68rem;line-height:1.5"
+                    oninput="setParcoursCfg(${id},'avantages_${p.val}',this.value)"></textarea></div>
+              </div>`).join('')}
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">⏱️ Durées proposées</div>
+            <div class="pcfg-body">
+              <div class="pcfg-checks">
+                <label class="pcfg-chk"><input type="checkbox" checked
+                  onchange="toggleParcoursCfg(${id},'durees','mensuel',this.checked)"> Mensuel</label>
+                <label class="pcfg-chk"><input type="checkbox"
+                  onchange="toggleParcoursCfg(${id},'durees','trimestriel',this.checked)"> Trimestriel <span style="color:#43e97b;font-size:0.6rem">−5%</span></label>
+                <label class="pcfg-chk"><input type="checkbox" checked
+                  onchange="toggleParcoursCfg(${id},'durees','annuel',this.checked)"> Annuel <span style="color:#43e97b;font-size:0.6rem">−15%</span></label>
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🔄 Renouvellement auto</div>
+            <div class="pcfg-body">
+              <div class="pcfg-toggle-row">
+                <span class="pcfg-toggle-lbl">Proposer le renouvellement automatique</span>
+                <label class="pcfg-toggle"><input type="checkbox" checked
+                  onchange="setParcoursCfg(${id},'autoRenew',this.checked)"><span class="pcfg-toggle-slider"></span></label>
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🏷️ Titres des étapes</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:6px">
+              <div class="frow"><label class="flabel">Étape 1</label>
+                <input class="finput" value="Choisir le plan" oninput="setParcoursCfg(${id},'label1',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 2</label>
+                <input class="finput" value="Choisir la durée" oninput="setParcoursCfg(${id},'label2',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 3</label>
+                <input class="finput" value="Confirmer &amp; Payer" oninput="setParcoursCfg(${id},'label3',this.value)"></div>
+            </div>
+          </div>
+        </div>
+        ` : c.id === 7 ? `
+        <div class="ep-section">
+          <div class="ep-label" style="color:#a78bfa">🎯 Parcours Client — Graphiques / Vecto IA</div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🔧 Services proposés</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:7px">
+              ${[
+                {val:'vecto',  label:'Vectorisation SVG/AI',          price:'2 500 XPF', icon:'📐'},
+                {val:'detour', label:'Détourage IA (fond transparent)',price:'1 500 XPF', icon:'✂️'},
+                {val:'logo',   label:'Création logo complet',          price:'8 000 XPF', icon:'🎨'},
+                {val:'pack',   label:'Pack graphique (3 services)',     price:'8 000 XPF', icon:'📦'}
+              ].map(s=>`
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-panel)">
+                <label class="pcfg-toggle" style="flex-shrink:0">
+                  <input type="checkbox" checked
+                    onchange="toggleParcoursCfg(${id},'services','${s.val}',this.checked)">
+                  <span class="pcfg-toggle-slider"></span>
+                </label>
+                <span>${s.icon}</span>
+                <span style="font-size:0.72rem;font-weight:600;flex:1">${s.label}</span>
+                <span style="font-size:0.68rem;color:#f6d365;font-weight:700;white-space:nowrap">${s.price}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📎 Formats source acceptés</div>
+            <div class="pcfg-body">
+              <div class="pcfg-checks">
+                ${['PNG','JPG','PDF','AI','PSD','EPS'].map(f=>`
+                <label class="pcfg-chk">
+                  <input type="checkbox" ${['PNG','JPG','PDF'].includes(f)?'checked':''}
+                    onchange="toggleParcoursCfg(${id},'fileFormats','${f}',this.checked)">
+                  .${f.toLowerCase()}
+                </label>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">⚡ Délais de livraison</div>
+            <div class="pcfg-body">
+              <div class="pcfg-checks">
+                ${[
+                  {val:'24h',  label:'24h'},
+                  {val:'48h',  label:'48h',def:true},
+                  {val:'72h',  label:'72h'},
+                  {val:'devis',label:'Sur devis',def:true}
+                ].map(d=>`
+                <label class="pcfg-chk">
+                  <input type="checkbox" ${d.def?'checked':''}
+                    onchange="toggleParcoursCfg(${id},'delais','${d.val}',this.checked)">
+                  ${d.label}
+                </label>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">📤 Champs client activés</div>
+            <div class="pcfg-body">
+              <div class="pcfg-toggle-row">
+                <span class="pcfg-toggle-lbl">Upload fichier source</span>
+                <label class="pcfg-toggle"><input type="checkbox" checked
+                  onchange="setParcoursCfg(${id},'allowUpload',this.checked)"><span class="pcfg-toggle-slider"></span></label>
+              </div>
+              <div class="pcfg-toggle-row" style="margin-top:6px">
+                <span class="pcfg-toggle-lbl">Champ description du besoin</span>
+                <label class="pcfg-toggle"><input type="checkbox" checked
+                  onchange="setParcoursCfg(${id},'allowDesc',this.checked)"><span class="pcfg-toggle-slider"></span></label>
+              </div>
+              <div class="frow" style="margin-top:8px"><label class="flabel">Placeholder description</label>
+                <input class="finput" value="Décrivez votre besoin (couleurs, style, références...)"
+                  oninput="setParcoursCfg(${id},'descPlaceholder',this.value)"></div>
+            </div>
+          </div>
+          <div class="pcfg-section">
+            <div class="pcfg-title">🏷️ Titres des étapes</div>
+            <div class="pcfg-body" style="display:flex;flex-direction:column;gap:6px">
+              <div class="frow"><label class="flabel">Étape 1</label>
+                <input class="finput" value="Choisir le service" oninput="setParcoursCfg(${id},'label1',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 2</label>
+                <input class="finput" value="Envoyer le fichier source" oninput="setParcoursCfg(${id},'label2',this.value)"></div>
+              <div class="frow"><label class="flabel">Étape 3</label>
+                <input class="finput" value="Description &amp; Valider" oninput="setParcoursCfg(${id},'label3',this.value)"></div>
+            </div>
+          </div>
+        </div>
         ` : ''}
 
         <div class="ep-section">
@@ -1697,22 +2189,69 @@ function loadLogoCell(e, campId, cellIdx) {
   r.readAsDataURL(f);
 }
 
+function showPublishProgress(step, total, label) {
+  let modal = document.getElementById('publish-progress-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'publish-progress-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9998;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)';
+    modal.innerHTML = `
+      <div style="background:#1a0e07;border:1px solid rgba(196,129,58,.35);border-radius:18px;padding:32px 28px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="font-size:2.2rem;margin-bottom:14px" id="pprog-icon">🚀</div>
+        <div style="font-size:.95rem;font-weight:800;color:#f5ede0;margin-bottom:6px" id="pprog-label">Publication en cours…</div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:18px" id="pprog-step">Étape 1 / 3</div>
+        <div style="background:rgba(255,255,255,.08);border-radius:99px;height:10px;overflow:hidden;margin-bottom:10px">
+          <div id="pprog-bar" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#c4813a,#e09a4f,#43e97b);background-size:200% 100%;transition:width .45s cubic-bezier(.4,0,.2,1);width:0%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:0 2px">
+          <span id="pprog-s1" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">📄 HTML</span>
+          <span id="pprog-s2" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">☁️ Upload</span>
+          <span id="pprog-s3" style="font-size:.6rem;font-weight:700;color:rgba(255,255,255,.25)">🖼️ Vignette</span>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  const pct = Math.round((step / total) * 100);
+  document.getElementById('pprog-bar').style.width = pct + '%';
+  document.getElementById('pprog-label').textContent = label;
+  document.getElementById('pprog-step').textContent = `Étape ${step} / ${total}`;
+  [1,2,3].forEach(n => {
+    const el = document.getElementById('pprog-s'+n);
+    if (!el) return;
+    el.style.color = n <= step ? '#c4813a' : 'rgba(255,255,255,.25)';
+    el.style.fontWeight = n === step ? '900' : '700';
+  });
+}
+
+function hidePublishProgress() {
+  const modal = document.getElementById('publish-progress-modal');
+  if (modal) { modal.style.opacity = '0'; modal.style.transition = 'opacity .25s'; setTimeout(() => modal.remove(), 260); }
+}
+
 async function publishLP(id) {
   if (!adminSecret) {
     showToast('🔐 Connecte-toi en admin pour publier (section Commandes)', true);
     return;
   }
   const c = CAMPS[id];
-  showToast('⏳ Génération et publication en cours…');
 
-  // Génère le HTML via le même mécanisme que previewLP
+  /* Étape 1 — Génération HTML */
+  showPublishProgress(1, 3, '📄 Génération du HTML…');
+
   let generatedHtml = null;
   const _orig = window._dl_override;
   window._dl_override = (name, content) => { generatedHtml = content; };
   exportLP(id);
   window._dl_override = _orig;
 
-  if (!generatedHtml) { showToast('❌ Erreur génération HTML', true); return; }
+  if (!generatedHtml) {
+    hidePublishProgress();
+    showToast('❌ Erreur génération HTML', true);
+    return;
+  }
+
+  /* Étape 2 — Upload Worker */
+  showPublishProgress(2, 3, '☁️ Upload vers Cloudflare…');
 
   const slug = `${c.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${id}`;
 
@@ -1720,30 +2259,24 @@ async function publishLP(id) {
     const res = await fetch(`${WORKER_BASE}/lp/publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': adminSecret },
-      body: JSON.stringify({ slug, html: generatedHtml, campaignName: c.name }),
+      body: JSON.stringify({ slug, html: generatedHtml, campaignName: c.name, campaignId: id }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erreur serveur');
 
-    // Sauvegarde l'URL publiée pour cette campagne
     const urls = JSON.parse(localStorage.getItem('hcs_published_urls') || '{}');
     urls[id] = data.url;
     localStorage.setItem('hcs_published_urls', JSON.stringify(urls));
 
-    showToast(`✅ Publié ! ${data.url}`);
+    /* Étape 3 — Vignette */
+    showPublishProgress(3, 3, '🖼️ Génération de la vignette…');
 
-    // Génère et sauvegarde la vignette depuis le canvas de prévisualisation
     try {
       const cv = document.getElementById('cv-' + id);
       if (cv) {
         const canvas = document.createElement('canvas');
         canvas.width = 300; canvas.height = 300;
         const ctx = canvas.getContext('2d');
-        // Copie le style background du canvas source
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        const bg = cv.style.background;
-        // Dessine un fond coloré + nom campagne comme fallback
         ctx.fillStyle = c.colors?.primary || '#1a1a2e';
         ctx.fillRect(0, 0, 300, 300);
         ctx.fillStyle = '#fff';
@@ -1762,8 +2295,10 @@ async function publishLP(id) {
       }
     } catch(_) { /* non-bloquant */ }
 
+    hidePublishProgress();
     showPublishSuccess(c.name, data.url);
   } catch(e) {
+    hidePublishProgress();
     showToast('❌ Erreur publication : ' + e.message, true);
   }
 }
@@ -1847,14 +2382,15 @@ function exportLPTshirt(id) {
   const lbl3     = pcfg.labels[3] || 'Taille & Commander';
   const emoji    = isCap ? '🧢' : '👕';
 
-  const faceImagesJson = JSON.stringify(
-    c.products.map((_, pi) => ({
-      front: tshGetFaceImg(id, pi, 'front'),
-      back:  tshGetFaceImg(id, pi, 'back') || tshGetFaceImg(id, pi, 'front')
-    }))
-  );
+  // Images par face — injectées dans des <img> cachées (évite un énorme JSON dans le <script>)
+  const faceImgHtml = c.products.map((_, pi) => {
+    const front = tshGetFaceImg(id, pi, 'front') || '';
+    const back  = tshGetFaceImg(id, pi, 'back') || front;
+    return `<img id="fi-${pi}-f" src="${front}"><img id="fi-${pi}-b" src="${back}">`;
+  }).join('');
   const prodsJson  = JSON.stringify(c.products.map(p => ({ e:p.e, n:p.n, p:p.p, price:parseInt(p.p.replace(/[^\d]/g,''))||0 })));
   const sizesJson  = JSON.stringify(sizes);
+  const lpSlug     = `${c.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${id}`;
 
   const html = `<!DOCTYPE html>
 <html lang="fr"><head>
@@ -1999,21 +2535,15 @@ footer{text-align:center;padding:28px;color:rgba(255,255,255,.4);font-size:.82re
 <div class="section" id="produits">
   <div class="section-title">${lbl1}</div>
   <div class="prods" id="prods-grid">
-    ${c.products.map((p,i)=>`
-    <div class="prod" onclick="openFlow(${i})">
-      <div class="prod-img">
-        <span>${p.e}</span>
-      </div>
-      <div class="prod-info">
-        <div class="prod-name">${p.n}</div>
-        <div class="prod-price">${p.p}</div>
-      </div>
-    </div>`).join('')}
+    ${c.products.map((p,i)=>{const fi=tshGetFaceImg(id,i,'front');const imgH=fi?`<img src="${fi}">`:`<span>${p.e}</span>`;return`<div class="prod" onclick="openFlow(${i})"><div class="prod-img">${imgH}</div><div class="prod-info"><div class="prod-name">${p.n}</div><div class="prod-price">${p.p}</div></div></div>`;}).join('')}
   </div>
   <button class="btn-order-main" onclick="openFlow(0)">${emoji} Commander — Personnaliser mon logo</button>
 </div>
 
 <footer>© 2026 HCS Tahiti — ${domain}</footer>
+
+<!-- Cache images produits (base64 dans HTML, pas dans le script) -->
+<div style="display:none" id="fi-cache">${faceImgHtml}</div>
 
 <!-- FLOW MODAL -->
 <div class="fl-overlay" id="fl-overlay">
@@ -2052,9 +2582,10 @@ footer{text-align:center;padding:28px;color:rgba(255,255,255,.4);font-size:.82re
 
 <script>
 const PRODUCTS     = ${prodsJson};
-const FACE_IMAGES  = ${faceImagesJson};
 const SIZES        = ${sizesJson};
 const SHOW_BACK    = ${showBack};
+const SHOW_STEP2   = ${pcfg.showStep2};
+const REQUIRE_SIZE = ${pcfg.requireSize};
 const WORKER_URL   = '${workerUrl}';
 const WORKER_SECRET= '${workerSecret}';
 const WORKER_MODE  = '${workerMode}';
@@ -2064,17 +2595,13 @@ const EMOJI        = '${emoji}';
 const PICWISH_URL  = 'https://hcs-proxy.highcoffeeshirt.workers.dev/api/picwish';
 const PICWISH_SECRET = 'hcs-proxy-2026';
 const LBL1='${lbl1.replace(/'/g,"\\'")}', LBL2='${lbl2.replace(/'/g,"\\'")}', LBL3='${lbl3.replace(/'/g,"\\'")}';
+const LP_SLUG='${lpSlug}';
 
-// Lazy load product images from base64
-window.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.prod').forEach((el,i) => {
-    const imgDiv = el.querySelector('.prod-img');
-    const fi = FACE_IMAGES[i];
-    if (fi && fi.front) {
-      imgDiv.innerHTML = \`<img src="\${fi.front}">\`;
-    }
-  });
-});
+// Charge les images depuis les éléments <img> cachés dans le HTML (pas de gros JSON dans le script)
+const FACE_IMAGES = Array.from({length:${c.products.length}}, (_,i) => ({
+  front: document.getElementById('fi-'+i+'-f')?.getAttribute('src') || '',
+  back:  document.getElementById('fi-'+i+'-b')?.getAttribute('src') || ''
+}));
 
 let flow = { step:1, prodIdx:0, face:'front', logoUrl:null, logoOrigUrl:null, logoName:'', logoDpi:0, logoPwDone:false, logoPwLoading:false, size:'', qty:1, logoPos:{xPct:50,yPct:47,wPct:44} };
 let ckContact = {}, ckDelivery = { type:'pickup' }, ckStep = 1;
@@ -2082,10 +2609,17 @@ let _dh = {};
 
 // ── Flow ─────────────────────────────────────────────────
 function openFlow(i) {
-  flow = { step:1, prodIdx:i, face:'front', logoUrl:null, logoOrigUrl:null, logoName:'', logoDpi:0, logoPwDone:false, logoPwLoading:false, size:'', qty:1, logoPos:{xPct:50,yPct:47,wPct:44} };
-  document.getElementById('fl-overlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  flRender();
+  try {
+    flow = { step:1, prodIdx:i, face:'front', logoUrl:null, logoOrigUrl:null, logoName:'', logoDpi:0, logoPwDone:false, logoPwLoading:false, size: REQUIRE_SIZE ? '' : 'M', qty:1, logoPos:{xPct:50,yPct:47,wPct:44} };
+    document.getElementById('fl-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    flRender();
+  } catch(err) {
+    console.error('openFlow error:', err);
+    document.getElementById('fl-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+    alert('Erreur parcours: '+err.message);
+  }
 }
 function closeFlow() {
   document.getElementById('fl-overlay').classList.remove('open');
@@ -2094,24 +2628,32 @@ function closeFlow() {
 function flRender() {
   const titles = ['', LBL1, LBL2, '🖱 Positionner le logo', LBL3];
   document.getElementById('fl-title').textContent = titles[flow.step];
+  const d2 = document.getElementById('fd2');
+  if (d2) { d2.style.display = SHOW_STEP2 ? '' : 'none'; const l2 = d2.previousElementSibling; if (l2) l2.style.display = SHOW_STEP2 ? '' : 'none'; }
   [1,2,3,4].forEach(n => {
     const d = document.getElementById('fd'+n);
+    if (!d) return;
     d.className = 'fl-dot' + (n < flow.step ? ' done' : n === flow.step ? ' active' : '');
   });
   const prev = document.getElementById('fl-foot');
   const body = document.getElementById('fl-body');
-  if (flow.step === 1) { body.innerHTML = flStep1(); prev.innerHTML = \`<button class="btn-fl-next" onclick="flNext()">Suivant →</button>\`; }
+  if (flow.step === 1) { body.innerHTML = flStep1(); PRODUCTS.forEach(function(_,i){var el=document.getElementById('fl-pi-'+i);var cs=document.getElementById('fi-'+i+'-f');if(el&&cs)el.src=cs.src;}); prev.innerHTML = \`<button class="btn-fl-next" onclick="flNext()">Suivant →</button>\`; }
   else if (flow.step === 2) { body.innerHTML = flStep2(); prev.innerHTML = \`<button class="btn-fl-prev" onclick="flBack()">← Retour</button><button class="btn-fl-next" onclick="flNext()">Suivant →</button>\`; }
   else if (flow.step === 3) { body.innerHTML = flStep3(); initDrag(); prev.innerHTML = \`<button class="btn-fl-prev" onclick="flBack()">← Retour</button><button class="btn-fl-next" onclick="flNext()" style="background:linear-gradient(135deg,#6c63ff,#4facfe)">Valider ce placement →</button>\`; }
   else { body.innerHTML = flStep4(); prev.innerHTML = \`<button class="btn-fl-prev" onclick="flBack()">← Retour</button><button class="btn-fl-next" onclick="flConfirm()" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#0f0f1a">🛒 Commander & Payer</button>\`; }
 }
-function flBack() { flow.step--; flRender(); }
+function flBack() {
+  if (flow.step === 3 && !SHOW_STEP2) { flow.step = 1; }
+  else if (flow.step === 4 && !SHOW_STEP2) { flow.step = 3; }
+  else if (flow.step > 1) { flow.step--; }
+  flRender();
+}
 function flNext() {
-  if (flow.step === 1) { flow.step = 2; flRender(); }
+  if (flow.step === 1) { flow.step = SHOW_STEP2 ? 2 : 3; flRender(); }
   else if (flow.step === 2) {
     if (!flow.logoUrl) { alert('Veuillez uploader votre logo.'); return; }
     if (flow.logoPwLoading) { alert('Détourage en cours, veuillez patienter quelques secondes.'); return; }
-    if (!flow.logoPwDone && flow.logoDpi < 150 && !confirm(\`Résolution faible (\${flow.logoDpi} DPI). Continuer quand même ?\`)) return;
+    if (!flow.logoPwDone && flow.logoDpi < 150 && !confirm(\`⚠️ Résolution insuffisante — \${flow.logoDpi} DPI estimés (minimum 150 DPI recommandé).\n\nEn cliquant sur OK, vous acceptez et reconnaissez que la qualité d'impression ne sera pas optimale en raison de la résolution insuffisante de votre logo. HCS ne pourra être tenu responsable du résultat obtenu.\n\nVoulez-vous continuer malgré tout ?\`)) return;
     flow.step = 3; flRender();
   } else if (flow.step === 3) { flow.step = 4; flRender(); }
 }
@@ -2119,8 +2661,8 @@ function flNext() {
 // ── Step 1 : Produit ─────────────────────────────────────
 function flStep1() {
   return \`<div class="fl-prod-cards">\${PRODUCTS.map((p,i) => {
-    const fi = FACE_IMAGES[i];
-    const imgEl = fi && fi.front ? \`<img src="\${fi.front}">\` : \`<span>\${p.e}</span>\`;
+    const hasFace = FACE_IMAGES[i] && FACE_IMAGES[i].front;
+    const imgEl = hasFace ? '<img id="fl-pi-'+i+'" src="">' : '<span>'+p.e+'</span>';
     return \`<div class="fl-pc\${i===flow.prodIdx?' active':''}" onclick="flPickProd(\${i})">
       <div class="fl-pc-img">\${imgEl}<div class="fl-pc-check">✓</div></div>
       <div class="fl-pc-info"><div class="fl-pc-name">\${p.n}</div><div class="fl-pc-price">\${p.p}</div></div>
@@ -2143,6 +2685,9 @@ function flStep2() {
       <div style="font-size:.75rem;font-weight:700;color:#ff6b6b;margin-bottom:6px">⚠️ Résolution trop faible pour la DTF</div>
       <div style="font-size:.68rem;color:rgba(255,255,255,.6);line-height:1.5;margin-bottom:8px">Votre logo est à \${logoDpi} DPI — minimum recommandé 150 DPI.</div>
       <div style="font-size:.68rem;color:#4facfe;font-weight:700">💡 Nos Services IA HCS peuvent vectoriser votre logo pour un rendu parfait.</div>
+      <div style="margin-top:10px;background:rgba(255,80,80,.15);border-radius:8px;padding:8px 10px;font-size:.67rem;color:#ffb3b3;line-height:1.55;text-align:left">
+        ⚠️ <strong>En cliquant sur "Suivant" vous acceptez et reconnaissez</strong> que la qualité d'impression ne sera pas optimale en raison de la résolution insuffisante de votre logo. HCS ne pourra être tenu responsable du résultat obtenu.
+      </div>
     </div>\` : '';
   const pwSection = logoUrl ? (logoPwLoading ? \`
     <div style="text-align:center;padding:8px">
@@ -2172,7 +2717,7 @@ function flStep2() {
     \${dpiCls?'<div class="fl-dpi-badge '+dpiCls+'">'+dpiTxt+'</div>':''}
     \${pwSection}
     \${lowDpiWarning}
-    <label class="fl-upload-btn">📁 \${logoUrl?'Changer':'Choisir un fichier'}
+    <label class="fl-upload-btn">📁 \${logoUrl?'Changer le logo':'Uploader ton logo'}
       <input type="file" accept="image/*,.svg" style="display:none" onchange="logoLoad(event)">
     </label>
     <div style="font-size:.62rem;color:#6060a0;text-align:center;max-width:280px;line-height:1.5">Pour un rendu optimal en DTF, utilisez un PNG haute résolution ou un SVG vectoriel.</div>
@@ -2304,11 +2849,14 @@ function flStep4() {
   const logoEl  = flow.logoUrl ? \`<div style="position:absolute;left:\${pos.xPct}%;top:\${pos.yPct}%;transform:translate(-50%,-50%);width:\${pos.wPct}%;z-index:2;pointer-events:none"><img src="\${flow.logoUrl}" style="width:100%;height:auto;filter:drop-shadow(0 1px 4px rgba(0,0,0,.6))"></div>\` : '';
   const szBtns = SIZES.map(s => \`<button class="fl-sz-btn\${s===flow.size?' sel':''}" onclick="flPickSz('\${s}')">\${s}</button>\`).join('');
   const total = p.price * flow.qty;
+  const sizeSection = REQUIRE_SIZE ? \`
+      <div style="font-size:.7rem;font-weight:700;color:#9090b0;margin-bottom:6px">Taille\${!flow.size?' <span style="color:#ff6b6b;font-size:.62rem">— requis ✱</span>':''}</div>
+      <div class="fl-size-grid">\${szBtns}</div>\` : '';
+  const sizeRecap = REQUIRE_SIZE ? \`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#9090b0">Taille</span><span style="font-weight:700">\${flow.size||'—'}</span></div>\` : '';
   return \`<div style="display:flex;gap:14px;align-items:flex-start">
     <div style="flex:0 0 140px;aspect-ratio:2/3;border-radius:10px;overflow:hidden;position:relative;background:#16213e;border:1px solid #2a2a4a">\${shirtEl}\${logoEl}</div>
     <div style="flex:1">
-      <div style="font-size:.7rem;font-weight:700;color:#9090b0;margin-bottom:6px">Taille</div>
-      <div class="fl-size-grid">\${szBtns}</div>
+      \${sizeSection}
       <div style="font-size:.7rem;font-weight:700;color:#9090b0;margin:12px 0 6px">Quantité</div>
       <div class="fl-qty-row">
         <button class="fl-qty-btn" onclick="flQty(-1)">−</button>
@@ -2318,7 +2866,7 @@ function flStep4() {
       <div style="margin-top:14px;padding:10px;background:rgba(79,172,254,.07);border:1px solid rgba(79,172,254,.2);border-radius:8px;font-size:.72rem">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#9090b0">Produit</span><span style="font-weight:700">\${p.n}</span></div>
         <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#9090b0">Logo</span><span style="font-weight:700">\${flow.logoName||'—'}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#9090b0">Taille</span><span style="font-weight:700">\${flow.size||'—'}</span></div>
+        \${sizeRecap}
         <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid rgba(79,172,254,.2)"><span style="font-weight:800">Total</span><span style="font-weight:900;color:\${ACCENT};font-size:.9rem">\${total.toLocaleString('fr-FR')} XPF</span></div>
       </div>
     </div>
@@ -2334,7 +2882,7 @@ function flQty(d) {
   const el = document.getElementById('fl-qty-val'); if (el) el.textContent = flow.qty;
 }
 function flConfirm() {
-  if (!flow.size) { alert('Veuillez choisir une taille.'); return; }
+  if (REQUIRE_SIZE && !flow.size) { alert('Veuillez choisir une taille.'); return; }
   closeFlow();
   ckStep = 1;
   document.getElementById('ck-overlay').classList.add('open');
@@ -2352,6 +2900,14 @@ function ckRender() {
   else if (ckStep===2) ckDelivery1();
   else ckPayment();
 }
+function normalizePhone(raw) {
+  if (!raw) return '';
+  let p = raw.replace(/[\s\-\.]/g, '');
+  if (p.startsWith('+')) return p;
+  if (p.startsWith('00')) return '+' + p.slice(2);
+  if (/^\d{8}$/.test(p)) return '+689' + p;
+  return '+689' + p;
+}
 function ckContact1() {
   const s = ckContact;
   document.getElementById('ck-body').innerHTML = \`
@@ -2365,7 +2921,7 @@ function ckSaveContact() {
   const name=document.getElementById('ck-name')?.value.trim(), email=document.getElementById('ck-email')?.value.trim();
   if(!name){alert('Saisissez votre nom.');return;}
   if(!email||!email.includes('@')){alert('Email invalide.');return;}
-  ckContact={name,email,phone:document.getElementById('ck-phone')?.value.trim(),note:document.getElementById('ck-note')?.value.trim()};
+  ckContact={name,email,phone:normalizePhone(document.getElementById('ck-phone')?.value),note:document.getElementById('ck-note')?.value.trim()};
   ckStep=2; ckRender();
 }
 function ckDelivery1() {
@@ -2415,7 +2971,8 @@ async function ckPayment() {
       \${ckDelivery.address?'<div class="recap-row"><span>Adresse</span><span>'+ckDelivery.address+'</span></div>':''}
       <div class="recap-row"><span style="font-weight:700">Total</span><span style="font-weight:900;color:\${ACCENT};font-size:1.1rem">\${total.toLocaleString('fr-FR')} XPF</span></div>
     </div>
-    \${location.protocol==='file:'?\`<div style="background:rgba(246,211,101,.12);border:2px solid #f6d365;border-radius:12px;padding:20px;text-align:center"><div style="font-size:1.8rem;margin-bottom:8px">⚠️</div><div style="font-weight:800;color:#f6d365;margin-bottom:8px">Fichier ouvert en local</div><div style="font-size:.8rem;color:rgba(255,255,255,.8);line-height:1.8">Le paiement OSB nécessite une URL https://.<br>Publie cette LP via le bouton <strong style="color:#43e97b">🌐 Publier</strong>.</div></div>\`:\`<div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
+    \${location.protocol==='file:'?\`<div style="background:rgba(246,211,101,.12);border:2px solid #f6d365;border-radius:12px;padding:20px;text-align:center"><div style="font-size:1.8rem;margin-bottom:8px">⚠️</div><div style="font-weight:800;color:#f6d365;margin-bottom:8px">Fichier ouvert en local</div><div style="font-size:.8rem;color:rgba(255,255,255,.8);line-height:1.8">Le paiement OSB nécessite une URL https://.<br>Publie cette LP via le bouton <strong style="color:#43e97b">🌐 Publier</strong>.</div></div>\`:\`<div style="display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap"><span style="font-size:.68rem;color:#9090b0;margin-right:3px">Nous acceptons</span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#1A1F71;border-radius:3px;font-size:8px;font-weight:900;color:#fff;letter-spacing:1px;font-family:Arial,sans-serif">VISA</span><span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;border-radius:3px;background:#1a1a1a;overflow:hidden"><span style="position:absolute;left:4px;width:18px;height:18px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:4px;width:18px;height:18px;background:#F79E1B;border-radius:50%;opacity:.9"></span></span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#005EB8;border-radius:3px;font-size:11px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span></div>
+<div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
     <div class="kr-embedded" id="pz-kr-form" style="display:none"></div>
     <div class="pz-error" id="pz-error"></div>
     <div class="pz-ok" id="pz-ok" style="display:none"><h3 style="font-size:1.2rem;margin-bottom:8px">✅ Paiement accepté !</h3><p style="font-size:.82rem;color:#9090b0;line-height:1.6">Merci <strong>\${ckContact.name}</strong>.<br>Commande <strong>\${orderId}</strong> confirmée.</p></div>\`}\`;
@@ -2428,12 +2985,11 @@ async function ckPayment() {
     if(!res.ok){const e=await res.json();throw new Error(e.error||'Erreur serveur');}
     const {formToken,publicKey} = await res.json();
     if(!document.getElementById('pz-css1')){const c1=document.createElement('link');c1.id='pz-css1';c1.rel='stylesheet';c1.href='https://static.osb.pf/static/js/krypton-client/V4.0/stable/classic-reset.min.css';document.head.appendChild(c1);const c2=document.createElement('link');c2.id='pz-css2';c2.rel='stylesheet';c2.href='https://static.osb.pf/static/js/krypton-client/V4.0/stable/classic.min.css';document.head.appendChild(c2);}
-    await new Promise((resolve,reject)=>{
-      if(window.KR){KR.setFormConfig({'kr-public-key':publicKey,'kr-language':'fr-FR'}).then(()=>KR.setFormToken(formToken)).then(resolve).catch(reject);}
-      else{const s=document.createElement('script');s.id='pz-sdk';s.src='https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';s.setAttribute('kr-public-key',publicKey);s.setAttribute('kr-language','fr-FR');s.onload=()=>KR.setFormToken(formToken).then(resolve);s.onerror=()=>reject(new Error('SDK OSB indisponible'));document.head.appendChild(s);}
-    });
     document.getElementById('pz-loading').style.display='none';
     document.getElementById('pz-kr-form').style.display='block';
+    if(!window.KR){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.id='pz-sdk';s.src='https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';s.setAttribute('kr-public-key',publicKey);s.setAttribute('kr-language','fr-FR');s.onload=resolve;s.onerror=()=>reject(new Error('SDK OSB indisponible'));document.head.appendChild(s);});}
+    await KR.setFormConfig({'kr-public-key':publicKey,'kr-language':'fr-FR'});
+    await KR.setFormToken(formToken);
     function showSuccess(){
       document.getElementById('pz-kr-form').style.display='none';
       const ok=document.getElementById('pz-ok'); if(ok){ok.removeAttribute('style');ok.style.cssText='display:block!important';}
@@ -2443,6 +2999,10 @@ async function ckPayment() {
         body:JSON.stringify({
           orderId, status:'paid', amount:total, currency:'XPF',
           campaignName:CAMP_NAME, product:p.n,
+          lpSlug:LP_SLUG,
+          size:flow.size, qty:flow.qty,
+          logoName:flow.logoName,
+          logoPlacement:'x='+Math.round(flow.logoPos.xPct)+'%,y='+Math.round(flow.logoPos.yPct)+'%,w='+Math.round(flow.logoPos.wPct)+'%',
           client:{name:ckContact.name,email:ckContact.email,phone:ckContact.phone||''},
           delivery:{type:ckDelivery.type,address:ckDelivery.address||'',pickupDate:ckDelivery.pickupDate||'',deliveryDelay:3},
           note: [ckContact.note||'', 'Taille:'+flow.size, 'Logo:'+flow.logoName, 'Face:'+flow.face, 'Placement:x='+Math.round(flow.logoPos.xPct)+'%,y='+Math.round(flow.logoPos.yPct)+'%,w='+Math.round(flow.logoPos.wPct)+'%'].filter(Boolean).join(' | ')
@@ -2469,6 +3029,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape'){closeFlow();clo
 function exportLP(id) {
   const c = CAMPS[id];
   if (c.id === 1 || c.id === 2) { exportLPTshirt(id); return; }
+  if (c.id >= 3) { exportLPGeneric(id); return; }
   const g = el => document.getElementById(el);
 
   const headline  = g('hl-'+id)?.textContent || c.headline;
@@ -2829,7 +3390,7 @@ function saveContact() {
   const email = document.getElementById('ck-email')?.value.trim();
   if (!name)  { alert('Veuillez saisir votre nom.'); return; }
   if (!email || !email.includes('@')) { alert('Email invalide.'); return; }
-  ckContact = { name, email, phone:document.getElementById('ck-phone')?.value.trim(), note:document.getElementById('ck-note')?.value.trim() };
+  ckContact = { name, email, phone:normalizePhone(document.getElementById('ck-phone')?.value), note:document.getElementById('ck-note')?.value.trim() };
   ckStep=3; renderCkStep();
 }
 
@@ -2918,7 +3479,8 @@ async function renderStep4() {
       <div style="font-size:.8rem;color:rgba(255,255,255,.85);line-height:1.8">Le formulaire de paiement OSB nécessite<br>une URL <strong style="color:#fff">https://</strong> ou <strong style="color:#fff">http://</strong>.<br><br>
       Publie cette LP via le bouton<br><strong style="color:#43e97b">🌐 Publier</strong> dans Andromeda.</div>
     </div>\` : \`
-    <div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
+    <div style="display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap"><span style="font-size:.68rem;color:#9090b0;margin-right:3px">Nous acceptons</span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#1A1F71;border-radius:3px;font-size:8px;font-weight:900;color:#fff;letter-spacing:1px;font-family:Arial,sans-serif">VISA</span><span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;border-radius:3px;background:#1a1a1a;overflow:hidden"><span style="position:absolute;left:4px;width:18px;height:18px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:4px;width:18px;height:18px;background:#F79E1B;border-radius:50%;opacity:.9"></span></span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#005EB8;border-radius:3px;font-size:11px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span></div>
+<div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
     <div class="kr-embedded" id="pz-kr-form" style="display:none"></div>
     <div class="pz-error" id="pz-error"></div>
     <div class="pz-ok" id="pz-ok" style="display:none">
@@ -2951,24 +3513,21 @@ async function renderStep4() {
       c2.href='https://static.osb.pf/static/js/krypton-client/V4.0/stable/classic.min.css';
       document.head.appendChild(c2);
     }
-    await new Promise((resolve,reject) => {
-      if (window.KR) {
-        KR.setFormConfig({'kr-public-key': publicKey, 'kr-language': 'fr-FR'})
-          .then(() => KR.setFormToken(formToken))
-          .then(resolve).catch(reject);
-      } else {
+    document.getElementById('pz-loading').style.display = 'none';
+    document.getElementById('pz-kr-form').style.display = 'block';
+    if (!window.KR) {
+      await new Promise((resolve,reject) => {
         const s = document.createElement('script'); s.id='pz-sdk';
         s.src='https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';
         s.setAttribute('kr-public-key', publicKey);
         s.setAttribute('kr-language','fr-FR');
-        s.onload = () => KR.setFormToken(formToken).then(resolve);
+        s.onload = resolve;
         s.onerror = () => reject(new Error('SDK OSB indisponible'));
         document.head.appendChild(s);
-      }
-    });
-
-    document.getElementById('pz-loading').style.display = 'none';
-    document.getElementById('pz-kr-form').style.display = 'block';
+      });
+    }
+    await KR.setFormConfig({'kr-public-key': publicKey, 'kr-language': 'fr-FR'});
+    await KR.setFormToken(formToken);
 
     function showPzSuccess() {
       document.getElementById('pz-kr-form').style.display = 'none';
@@ -3032,6 +3591,535 @@ document.getElementById('modal-overlay').addEventListener('click', e => { if (e.
 </body></html>`;
   dl(`andromeda-lp-${c.id}-${c.name.replace(/[^\w]/g,'-').toLowerCase()}.html`, html);
   // Sauvegarde dans HCS ERP
+  hcsSaveCampaign(id);
+}
+
+function exportLPGeneric(id) {
+  const c  = CAMPS[id];
+  const g  = el => document.getElementById(el);
+  const headline  = g('hl-'+id)?.textContent || c.headline;
+  const subline   = g('sl-'+id)?.textContent || c.subline;
+  const badge     = g('bd-'+id)?.textContent || c.badge;
+  const cta       = g('ct-'+id)?.textContent || c.cta;
+  const cv        = g('cv-'+id);
+  const cvBg      = cv?.style.background || '';
+  const heroBg    = cvBg.includes('url(') ? cvBg : (cvBg || c.heroGrad);
+  const logoEl    = cv?.querySelector('.logo-overlay');
+  const logoSrc   = logoEl?.src || '';
+  const workerUrl = g('pz-worker-'+id)?.value || 'https://payzen-hcs.highcoffeeshirt.workers.dev/payzen-token';
+  const workerSec = g('pz-secret-'+id)?.value || 'hcs-payzen-2026';
+  const mode      = g('pz-mode-'+id)?.value   || 'TEST';
+  const publicKey = mode === 'PRODUCTION'
+    ? '41545085:publickey_IzNDzp5XcAadriFpCh08meZmg8Ri6WbYIG6TIQ9mpu2NA'
+    : '41545085:testpublickey_HJw0fXMbbvOAzJuN1BXImXIu5U16qkSHv2eQVjSu0YftA';
+  const prodsJson    = JSON.stringify(c.products);
+  const cfgJson      = JSON.stringify(getParcoursCfg(id));
+  const faceImgsJson = id === 3 ? JSON.stringify(tshFaceImages[id] || {}) : '{}';
+  const tshSizesJson = id === 3 ? JSON.stringify(tshGetParcours(id).sizes) : '[]';
+  const primary      = GEN_COLORS[id] || '#6c63ff';
+  const lpSlug       = `${c.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${id}`;
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${headline}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f1a;color:#f5ede0;min-height:100vh}
+.hero{position:relative;min-height:58vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;background:${heroBg};background-size:cover;background-position:center}
+.hero::before{content:'';position:absolute;inset:0;background:rgba(10,6,3,.55)}
+.hero-content{position:relative;z-index:2}
+.hero-badge{display:inline-block;padding:5px 14px;border-radius:30px;background:${primary};color:#fff;font-size:.72rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-size:clamp(1.6rem,5vw,2.8rem);font-weight:900;line-height:1.15;margin-bottom:10px;color:#fff}
+.hero p{font-size:clamp(.85rem,2.5vw,1.05rem);color:rgba(255,255,255,.82);max-width:520px;margin:0 auto 22px}
+.hero-cta{display:inline-block;padding:13px 32px;border-radius:50px;background:${primary};color:#fff;font-size:1rem;font-weight:800;cursor:pointer;border:none;box-shadow:0 4px 20px rgba(0,0,0,.35);transition:transform .15s}
+.hero-cta:hover{transform:translateY(-2px)}
+.prods-section{padding:40px 20px;max-width:900px;margin:0 auto}
+.prods-section h2{font-size:1.1rem;font-weight:800;margin-bottom:20px;text-align:center}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+.prod-card{background:#1a0e07;border:2px solid rgba(255,255,255,.07);border-radius:14px;overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s}
+.prod-card.selected,.prod-card:hover{border-color:${primary};transform:translateY(-3px)}
+.prod-img{aspect-ratio:4/3;background:#2a1508;display:flex;align-items:center;justify-content:center;font-size:3rem}
+.prod-img img{width:100%;height:100%;object-fit:contain}
+.prod-info{padding:12px 14px}
+.prod-name{font-size:.85rem;font-weight:700;margin-bottom:4px}
+.prod-price{font-size:.95rem;font-weight:900;color:${primary}}
+.prod-desc{font-size:.7rem;color:rgba(255,255,255,.45);margin-top:4px}
+.cta-bar{position:sticky;bottom:0;z-index:50;padding:12px 20px;background:rgba(15,15,26,.95);backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cta-bar-label{font-size:.78rem;color:rgba(255,255,255,.55)}
+.cta-bar-price{font-size:1rem;font-weight:900;color:${primary}}
+.cta-bar-btn{padding:11px 28px;border-radius:50px;background:${primary};color:#fff;border:none;font-size:.9rem;font-weight:800;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.cta-bar-btn:hover{opacity:.88}
+.fl-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center}
+.fl-overlay.open{display:flex}
+.fl-box{background:#1a0e07;border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.09);border-bottom:none}
+.fl-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.fl-head-left{display:flex;align-items:center;gap:8px}
+.fl-head-icon{font-size:1.4rem}
+.fl-head-title{font-size:.88rem;font-weight:800}
+.fl-close{background:none;border:none;color:rgba(255,255,255,.5);font-size:1.3rem;cursor:pointer;padding:4px 8px;border-radius:6px}
+.fl-close:hover{background:rgba(255,255,255,.08)}
+.fl-step-bar{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.fl-step-item{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.fl-step-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;background:rgba(255,255,255,.08);color:rgba(255,255,255,.4);transition:.2s}
+.fl-step-dot.active{background:${primary};color:#fff}
+.fl-step-dot.done{background:#43e97b;color:#0f0f1a}
+.fl-step-label{font-size:.6rem;color:rgba(255,255,255,.4);font-weight:600}
+.fl-step-label.active{color:${primary}}
+.fl-step-conn{flex:1;height:2px;background:rgba(255,255,255,.07);margin-top:-10px}
+.fl-step-conn.done{background:#43e97b}
+.fl-body{flex:1;overflow-y:auto;padding:14px 16px}
+.fl-recap{padding:10px 16px;border-top:1px solid rgba(255,255,255,.06);background:rgba(26,14,7,.5);display:flex;align-items:center;gap:8px}
+.fl-recap-info{flex:1;min-width:0}
+.fl-recap-name{font-size:.75rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-recap-opts{font-size:.62rem;color:rgba(255,255,255,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-recap-price{font-size:.9rem;font-weight:900;color:${primary};white-space:nowrap}
+.fl-btns{display:flex;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.06)}
+.fl-btn-prev{flex:0 0 auto;padding:10px 18px;border-radius:50px;background:rgba(255,255,255,.07);color:#f5ede0;border:none;font-size:.82rem;font-weight:700;cursor:pointer}
+.fl-btn-next{flex:1;padding:11px;border-radius:50px;background:${primary};color:#fff;border:none;font-size:.88rem;font-weight:800;cursor:pointer;transition:opacity .15s}
+.fl-btn-next:hover{opacity:.88}
+.fl-btn-next:disabled{opacity:.45}
+.fl-lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.45);margin:12px 0 6px}
+.fl-lbl:first-child{margin-top:0}
+.fl-color-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.fl-color-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.fl-color-swatch{width:32px;height:32px;border-radius:50%;border:2px solid rgba(255,255,255,.15);transition:.15s}
+.fl-color-swatch.selected{border-color:${primary};box-shadow:0 0 0 2px ${primary}}
+.fl-color-label{font-size:.58rem;color:rgba(255,255,255,.6);text-align:center;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl-fmt-grid{display:flex;flex-wrap:wrap;gap:8px}
+.fl-fmt-btn{padding:7px 13px;border-radius:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);color:#f5ede0;font-size:.75rem;font-weight:700;cursor:pointer;transition:.15s}
+.fl-fmt-btn.selected{background:${primary}22;border-color:${primary};color:${primary}}
+.fl-plan-card{border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer;transition:.2s}
+.fl-plan-card.selected{border-color:${primary};background:${primary}12}
+.fl-plan-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.fl-plan-emoji{font-size:1.2rem}
+.fl-plan-name{font-size:.82rem;font-weight:800;flex:1}
+.fl-plan-price{font-size:.78rem;font-weight:900;color:${primary}}
+.fl-plan-av{font-size:.65rem;color:rgba(255,255,255,.5);line-height:1.6}
+.fl-svc-card{display:flex;align-items:center;gap:10px;border:1.5px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:.2s}
+.fl-svc-card.selected{border-color:${primary};background:${primary}12}
+.fl-svc-icon{font-size:1.3rem}
+.fl-svc-label{font-size:.8rem;font-weight:700;flex:1}
+.fl-svc-price{font-size:.78rem;font-weight:900;color:${primary};white-space:nowrap}
+.fl-upload-zone{border:1.5px dashed rgba(255,255,255,.2);border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:rgba(255,255,255,.03);transition:.15s;margin-bottom:8px}
+.fl-upload-zone:hover,.fl-upload-zone.has-file{border-color:${primary};background:${primary}0a}
+.fl-upload-zone img{max-width:100%;max-height:120px;border-radius:8px;object-fit:contain}
+.fl-date-grid{display:flex;flex-wrap:wrap;gap:8px}
+.fl-date-pill{padding:7px 14px;border-radius:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);color:#f5ede0;font-size:.73rem;font-weight:700;cursor:pointer;transition:.15s}
+.fl-date-pill.selected{background:${primary}22;border-color:${primary};color:${primary}}
+.fl-qty-row{display:flex;align-items:center;gap:12px;margin:8px 0}
+.fl-qty-btn{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:#f5ede0;font-size:1.1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.fl-qty-val{font-size:1rem;font-weight:800;min-width:28px;text-align:center}
+.fl-price-row{font-size:1rem;font-weight:900;color:${primary};flex:1;text-align:right}
+.fl-finput{width:100%;padding:9px 12px;border-radius:9px;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);color:#f5ede0;font-size:.8rem;font-family:inherit;outline:none}
+.fl-finput:focus{border-color:${primary};background:rgba(255,255,255,.07)}
+.fl-coords{display:flex;flex-direction:column;gap:8px}
+.fl-field label{font-size:.65rem;color:rgba(255,255,255,.45);display:block;margin-bottom:3px}
+.fl-prod-line{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;margin-bottom:14px}
+.fl-error{background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.25);border-radius:8px;padding:8px 12px;color:#ff6b6b;font-size:.73rem;margin-top:8px;display:none}
+.fl-error.visible{display:block}
+.fl-https-warn{background:rgba(255,180,0,.1);border:1px solid rgba(255,180,0,.3);border-radius:8px;padding:14px;color:#ffc107;font-size:.75rem;text-align:center;line-height:1.6}
+.fl-pz-price{text-align:center;margin-bottom:14px}
+.fl-pz-price-val{font-size:1.6rem;font-weight:900;color:${primary}}
+.fl-pz-price-lbl{font-size:.72rem;color:rgba(255,255,255,.45);margin-top:4px}
+.fl-pz-badges{display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div style="position:absolute;inset:0;background:rgba(10,6,3,.55)"></div>
+  ${logoSrc ? `<img src="${logoSrc}" style="position:absolute;bottom:20px;right:20px;width:72px;height:72px;object-fit:contain;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.6);z-index:5">` : ''}
+  <div class="hero-content">
+    ${badge ? `<div class="hero-badge">${badge}</div>` : ''}
+    <h1>${headline}</h1>
+    <p>${subline}</p>
+    <button class="hero-cta" onclick="openFlow(0)">${cta}</button>
+  </div>
+</div>
+<div class="prods-section">
+  <h2>${c.icon} ${c.name}</h2>
+  <div class="prod-grid" id="prod-grid"></div>
+</div>
+<div class="cta-bar">
+  <div><div class="cta-bar-label">Produit sélectionné</div><div class="cta-bar-price" id="cta-price"></div></div>
+  <button class="cta-bar-btn" onclick="openFlow(_s.prodIdx)">${cta}</button>
+</div>
+<div class="fl-overlay" id="fl-overlay">
+  <div class="fl-box">
+    <div class="fl-head">
+      <div class="fl-head-left"><span class="fl-head-icon">${c.icon}</span><span class="fl-head-title">${c.name}</span></div>
+      <button class="fl-close" onclick="closeFlow()">✕</button>
+    </div>
+    <div class="fl-step-bar" id="fl-step-bar"></div>
+    <div class="fl-body" id="fl-body"></div>
+    <div class="fl-recap">
+      <span style="font-size:1.2rem" id="fl-recap-icon">${c.products[0]?.e||'📦'}</span>
+      <div class="fl-recap-info">
+        <div class="fl-recap-name" id="fl-recap-name">${c.products[0]?.n||''}</div>
+        <div class="fl-recap-opts" id="fl-recap-opts">Aucune option sélectionnée</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:.7rem;color:rgba(255,255,255,.4)" id="fl-recap-qty"></div>
+        <div class="fl-recap-price" id="fl-recap-price">— XPF</div>
+      </div>
+    </div>
+    <div class="fl-btns">
+      <button class="fl-btn-prev" id="fl-btn-prev" onclick="gfPrev()" style="display:none">← Retour</button>
+      <button class="fl-btn-next" id="fl-btn-next" onclick="gfNext()">Suivant →</button>
+    </div>
+  </div>
+</div>
+<script>
+var CAMP_ID    = ${id};
+var PRODS      = ${prodsJson};
+var CFG        = ${cfgJson};
+var FACE_IMGS  = ${faceImgsJson};
+var TSH_SIZES  = ${tshSizesJson};
+var WORKER_URL = '${workerUrl.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}';
+var WORKER_SEC = '${workerSec.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}';
+var WORKER_MODE = '${mode}';
+var PUBLIC_KEY  = '${publicKey}';
+var PRIMARY    = '${primary}';
+var LP_SLUG    = '${lpSlug}';
+var CAMP_NAME  = '${c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}';
+var CAMP_ICON  = '${c.icon||''}';
+
+var _s = { prodIdx:0, step:1, color:null, size:null, qty:1, format:null,
+  fileB64:null, fileName:null, date:null, sessFmt:null, module:null,
+  plan:null, duree:'mensuel', service:null, description:'',
+  name:'', email:'', phone:'', note:'' };
+
+(function initProds() {
+  var grid = document.getElementById('prod-grid');
+  grid.innerHTML = PRODS.map(function(p,i) {
+    var img = (CAMP_ID===3 && FACE_IMGS[i] && FACE_IMGS[i].front)
+      ? '<img src="'+FACE_IMGS[i].front+'" alt="">'
+      : '<span style="font-size:2.5rem">'+(p.e||'📦')+'</span>';
+    return '<div class="prod-card" id="pc-'+i+'" onclick="selectProd('+i+')">'
+      +'<div class="prod-img">'+img+'</div>'
+      +'<div class="prod-info"><div class="prod-name">'+p.n+'</div>'
+      +'<div class="prod-price">'+p.p+'</div>'
+      +(p.d?'<div class="prod-desc">'+p.d+'</div>':'')
+      +'</div></div>';
+  }).join('');
+  selectProd(0);
+})();
+
+function selectProd(idx) {
+  _s.prodIdx = idx;
+  document.querySelectorAll('.prod-card').forEach(function(el,i){ el.classList.toggle('selected',i===idx); });
+  document.getElementById('cta-price').textContent = PRODS[idx]?PRODS[idx].p:'';
+  document.getElementById('fl-recap-icon').textContent = PRODS[idx]?(PRODS[idx].e||'📦'):'';
+  document.getElementById('fl-recap-name').textContent = PRODS[idx]?PRODS[idx].n:'';
+}
+
+function openFlow(idx) {
+  selectProd(idx);
+  _s = { prodIdx:idx, step:1, color:null, size:null, qty:1, format:null,
+    fileB64:null, fileName:null, date:null, sessFmt:null, module:null,
+    plan:null, duree:'mensuel', service:null, description:'',
+    name:'', email:'', phone:'', note:'' };
+  document.getElementById('fl-overlay').classList.add('open');
+  gfRender();
+}
+
+function closeFlow() { document.getElementById('fl-overlay').classList.remove('open'); }
+
+function gfStepLabels() {
+  return [CFG.label1||'Options', CFG.label2||'Coordonnées', CFG.label3||'Paiement'];
+}
+
+function gfRender() {
+  var labels = gfStepLabels();
+  var step = _s.step;
+  var barHtml = '';
+  for (var i=0;i<labels.length;i++) {
+    var n=i+1;
+    var dc=n<step?'done':n===step?'active':'';
+    var lc=n===step?'active':'';
+    var conn=i<labels.length-1?'<div class="fl-step-conn'+(n<step?' done':'')+'"></div>':'';
+    barHtml+='<div class="fl-step-item"><div class="fl-step-dot '+dc+'">'+(n<step?'✓':n)+'</div><div class="fl-step-label '+lc+'">'+labels[i]+'</div></div>'+conn;
+  }
+  document.getElementById('fl-step-bar').innerHTML = barHtml;
+  var bodyEl = document.getElementById('fl-body');
+  if (step===1) bodyEl.innerHTML=gfStep1HTML();
+  else if (step===2) bodyEl.innerHTML=gfStep2HTML();
+  else { bodyEl.innerHTML=gfStep3HTML(); setTimeout(function(){ gfInitKrypton(gfGetPrice()); },80); }
+  var prevBtn=document.getElementById('fl-btn-prev');
+  var nextBtn=document.getElementById('fl-btn-next');
+  prevBtn.style.display=step>1?'':'none';
+  if (step===labels.length) {
+    nextBtn.style.display='none';
+  } else {
+    nextBtn.style.display='';
+    nextBtn.textContent=step===labels.length-1?'Confirmer →':'Suivant →';
+    nextBtn.disabled=false;
+  }
+  gfUpdateRecap();
+}
+
+function gfNext() { if(!gfValidate()) return; var l=gfStepLabels(); if(_s.step<l.length){_s.step++;gfRender();} }
+function gfPrev() { if(_s.step>1){_s.step--;gfRender();} }
+
+function gfValidate() {
+  var msg='';
+  if (_s.step===1) {
+    if (CAMP_ID===3&&!_s.color)   msg='Veuillez choisir une couleur de T-shirt.';
+    if (CAMP_ID===4&&!_s.format)  msg='Veuillez choisir un format gang sheet.';
+    if (CAMP_ID===5&&!_s.module)  msg='Veuillez choisir un module de formation.';
+    if (CAMP_ID===6&&!_s.plan)    msg='Veuillez choisir un plan.';
+    if (CAMP_ID===7&&!_s.service) msg='Veuillez choisir un service.';
+  }
+  if (_s.step===2) {
+    var n=document.getElementById('gf-name')?document.getElementById('gf-name').value.trim():'';
+    var e=document.getElementById('gf-email')?document.getElementById('gf-email').value.trim():'';
+    if (!n||!e) msg='Prénom / Nom et email sont obligatoires.';
+    else { _s.name=n; _s.email=e;
+      _s.phone=document.getElementById('gf-phone')?document.getElementById('gf-phone').value.trim():'';
+      _s.note=document.getElementById('gf-note')?document.getElementById('gf-note').value.trim():''; }
+  }
+  var errEl=document.getElementById('fl-inline-err');
+  if (msg) {
+    if (!errEl){ errEl=document.createElement('div'); errEl.id='fl-inline-err'; errEl.className='fl-error'; document.getElementById('fl-body').appendChild(errEl); }
+    errEl.textContent=msg; errEl.classList.add('visible'); return false;
+  }
+  if (errEl) errEl.classList.remove('visible');
+  return true;
+}
+
+function gfStep1HTML() {
+  var prod=PRODS[_s.prodIdx]||{};
+  var prodLine='<div class="fl-prod-line"><span style="font-size:1.4rem">'+(prod.e||'📦')+'</span><span style="font-size:.82rem;font-weight:700;flex:1">'+prod.n+'</span><span style="font-size:.82rem;font-weight:900;color:'+PRIMARY+'">'+prod.p+'</span></div>';
+  var lbl=function(t){return '<div class="fl-lbl">'+t+'</div>';};
+  if (CAMP_ID===3) {
+    var colors=CFG.tshirtColors||['Blanc','Noir','Gris chiné','Marine','Vert forêt','Rouge'];
+    var HEX={Blanc:'#f5f5f5',Noir:'#111','Gris chiné':'#9e9e9e',Marine:'#1a237e','Vert forêt':'#2e7d32',Rouge:'#c62828'};
+    var sizes=TSH_SIZES.length?TSH_SIZES:['XS','S','M','L','XL','2XL','3XL','4XL'];
+    var sw=colors.map(function(c){return '<div class="fl-color-wrap" onclick="gfSetColor(\''+c+'\')"><div class="fl-color-swatch'+(_s.color===c?' selected':'')+'" style="background:'+(HEX[c]||'#888')+(c==='Blanc'?';border-color:#ccc':'')+'"></div><div class="fl-color-label">'+c+'</div></div>';}).join('');
+    var sz=sizes.map(function(s){return '<div class="fl-fmt-btn'+(_s.size===s?' selected':'')+'" onclick="gfSetSize(\''+s+'\')">'+s+'</div>';}).join('');
+    var hasImgs=Object.keys(FACE_IMGS).length>0;
+    var gallery='';
+    if(hasImgs){var imgs=PRODS.map(function(p,i){var fi=FACE_IMGS[i]&&FACE_IMGS[i].front;return fi?'<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid '+(_s.prodIdx===i?PRIMARY:'rgba(255,255,255,.1)')+';cursor:pointer" onclick="gfSelProd('+i+')"><img src="'+fi+'" style="width:100%;height:100%;object-fit:contain"></div>':'';}).filter(Boolean).join('');if(imgs)gallery=lbl('Visuels')+'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px">'+imgs+'</div>';}
+    return prodLine+gallery+lbl('Couleur du T-shirt')+'<div class="fl-color-grid">'+sw+'</div>'+lbl('Taille')+'<div class="fl-fmt-grid">'+sz+'</div>';
+  }
+  if (CAMP_ID===4) {
+    var fmtMap={'22x30cm':'22&Prime; × 30 cm','22x60cm':'22&Prime; × 60 cm','22x90cm':'22&Prime; × 90 cm','A3':'A3 (30×42 cm)','A2':'A2 (42×60 cm)'};
+    var fmtP={'22x30cm':8500,'22x60cm':12000,'22x90cm':15000,'A3':9000,'A2':14000};
+    var formats=CFG.formats||['22x30cm','22x60cm'];
+    var fb=formats.map(function(f){return '<div class="fl-fmt-btn'+(_s.format===f?' selected':'')+'" onclick="gfSetFormat(\''+f+'\')">'+( fmtMap[f]||f)+'</div>';}).join('');
+    var pb=_s.format?'<div style="display:flex;justify-content:space-between;padding:8px 0"><span style="font-size:.7rem;color:rgba(255,255,255,.45)">Prix estimé</span><span class="fl-price-row" id="fl-price-row">'+((fmtP[_s.format]||0)*(_s.qty||1)).toLocaleString('fr-FR')+' XPF</span></div>':'';
+    var hint=CFG.uploadHint||'PNG ou PDF 300 DPI, fond transparent';
+    var hasF=!!_s.fileB64;
+    return prodLine+lbl('Format gang sheet')+'<div class="fl-fmt-grid">'+fb+'</div>'+pb+lbl('Fichier print-ready')+'<label><div class="fl-upload-zone'+(hasF?' has-file':'')+'" id="gf-uzone">'+(hasF?'<img src="'+_s.fileB64+'" alt="">':'<div style="color:rgba(255,255,255,.4);font-size:.72rem;padding:8px">📎 '+hint+'</div>')+'</div><input type="file" accept="image/*,.pdf,.ai,.psd" style="display:none" onchange="gfFileLoad(event)"></label>';
+  }
+  if (CAMP_ID===5) {
+    var mods=CFG.modules||['debutant','avance','complet'];
+    var MOD={debutant:{label:'Débutant',emoji:'📗',price:CFG.price_debutant||15000,desc:'Bases DTF, manipulation, entretien'},avance:{label:'Avancé',emoji:'📘',price:CFG.price_avance||25000,desc:'Techniques pro, couleurs, sérigraphie'},complet:{label:'Complet',emoji:'🏆',price:CFG.price_complet||35000,desc:'Programme intégral débutant → expert'}};
+    var mc=mods.filter(function(m){return MOD[m];}).map(function(m){return '<div class="fl-plan-card'+(_s.module===m?' selected':'')+'" onclick="gfSetModule(\''+m+'\')"><div class="fl-plan-head"><span class="fl-plan-emoji">'+MOD[m].emoji+'</span><span class="fl-plan-name">'+MOD[m].label+'</span><span class="fl-plan-price">'+Number(MOD[m].price).toLocaleString('fr-FR')+' XPF</span></div><div class="fl-plan-av">'+MOD[m].desc+'</div></div>';}).join('');
+    return prodLine+lbl('Choisir le module')+mc;
+  }
+  if (CAMP_ID===6) {
+    var plans=CFG.plans||['starter','pro','premium'];
+    var PLAN={starter:{label:'Starter',emoji:'🌱',priceM:1800,priceA:18000,color:'#30cfd0',av:'Points bonus HCS\nAccès offres prioritaires'},pro:{label:'Pro',emoji:'⚡',priceM:3500,priceA:35000,color:'#a18cd1',av:'Points bonus ×2\nLogos offerts (2/mois)\nRemise 10%'},premium:{label:'Premium',emoji:'👑',priceM:5500,priceA:55000,color:'#f6d365',av:'Points bonus ×3\nLogos offerts (5/mois)\nRemise 20%\nConseil personnalisé'}};
+    var pc=plans.filter(function(p){return PLAN[p];}).map(function(p){var av=(CFG['avantages_'+p]||PLAN[p].av).split('\n').filter(Boolean).map(function(a){return '✓ '+a;}).join('<br>');return '<div class="fl-plan-card'+(_s.plan===p?' selected':'')+'" onclick="gfSetPlan(\''+p+'\')"><div class="fl-plan-head"><span class="fl-plan-emoji">'+PLAN[p].emoji+'</span><span class="fl-plan-name" style="color:'+PLAN[p].color+'">'+PLAN[p].label+'</span><span class="fl-plan-price" style="color:'+PLAN[p].color+'">'+PLAN[p].priceM.toLocaleString('fr-FR')+' XPF/mois</span></div><div class="fl-plan-av">'+av+'</div></div>';}).join('');
+    return lbl('Choisir votre plan')+pc;
+  }
+  if (CAMP_ID===7) {
+    var svcs=CFG.services||['vecto','detour','logo','pack'];
+    var SVC={vecto:{label:'Vectorisation SVG/AI',icon:'📐',price:2500,desc:'Conversion vectoriel haute qualité'},detour:{label:'Détourage IA',icon:'✂️',price:1500,desc:'Fond transparent — PNG optimisé'},logo:{label:'Création logo complet',icon:'🎨',price:8000,desc:'Logo pro livré en vectoriel'},pack:{label:'Pack graphique',icon:'📦',price:8000,desc:'Vectorisation + Détourage + Retouches'}};
+    var sc=svcs.filter(function(s){return SVC[s];}).map(function(s){return '<div class="fl-svc-card'+(_s.service===s?' selected':'')+'" onclick="gfSetService(\''+s+'\')"><span class="fl-svc-icon">'+SVC[s].icon+'</span><div style="flex:1"><div class="fl-svc-label">'+SVC[s].label+'</div><div style="font-size:.62rem;color:rgba(255,255,255,.4);margin-top:2px">'+SVC[s].desc+'</div></div><span class="fl-svc-price">'+SVC[s].price.toLocaleString('fr-FR')+' XPF</span></div>';}).join('');
+    return prodLine+lbl('Choisir le service')+sc;
+  }
+  return '';
+}
+
+function gfStep2HTML() {
+  var lbl=function(t){return '<div class="fl-lbl">'+t+'</div>';};
+  var extra='';
+  if (CAMP_ID===3) {
+    extra='<div style="margin-bottom:14px">'+lbl('Quantité')+'<div class="fl-qty-row"><button class="fl-qty-btn" onclick="gfChgQty(-1)">−</button><span class="fl-qty-val" id="gf-qty-val">'+_s.qty+'</span><button class="fl-qty-btn" onclick="gfChgQty(1)">+</button></div></div>';
+  }
+  if (CAMP_ID===4) {
+    var fP={'22x30cm':8500,'22x60cm':12000,'22x90cm':15000,'A3':9000,'A2':14000};
+    var base=fP[_s.format]||8500;
+    extra='<div style="margin-bottom:14px">'+lbl('Quantité de feuilles')+'<div class="fl-qty-row"><button class="fl-qty-btn" onclick="gfChgQty(-1)">−</button><span class="fl-qty-val" id="gf-qty-val">'+_s.qty+'</span><button class="fl-qty-btn" onclick="gfChgQty(1)">+</button><span class="fl-price-row" id="fl-price-row">'+(base*_s.qty).toLocaleString('fr-FR')+' XPF</span></div></div>';
+  }
+  if (CAMP_ID===5) {
+    var dates=(CFG.dates||'').split('\n').filter(function(d){return d.trim();});
+    var dp=dates.length?dates.map(function(d){return '<div class="fl-date-pill'+(_s.date===d.trim()?' selected':'')+'" onclick="gfSetDate(\''+d.trim().replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',this)" data-date="'+d.trim()+'">'+d.trim()+'</div>';}).join(''):'<div style="font-size:.72rem;color:rgba(255,255,255,.4)">Contactez-nous pour les dates.</div>';
+    var fmts=CFG.formats||['atelier'];
+    var fmtL={atelier:'🏫 En atelier',enligne:'💻 En ligne'};
+    var fb=fmts.map(function(f){return '<div class="fl-fmt-btn'+(_s.sessFmt===f?' selected':'')+'" onclick="gfSetSF(\''+f+'\')">'+( fmtL[f]||f)+'</div>';}).join('');
+    extra='<div style="margin-bottom:14px">'+lbl('Date de session')+'<div class="fl-date-grid">'+dp+'</div></div>'+(fmts.length>1?'<div style="margin-bottom:14px">'+lbl('Format')+'<div class="fl-fmt-grid">'+fb+'</div></div>':'');
+  }
+  if (CAMP_ID===6) {
+    var PL2={starter:{priceM:1800,priceA:18000},pro:{priceM:3500,priceA:35000},premium:{priceM:5500,priceA:55000}};
+    var inf=PL2[_s.plan]||{priceM:0,priceA:0};
+    var dur=CFG.durees||['mensuel','annuel'];
+    var pm={mensuel:inf.priceM.toLocaleString('fr-FR')+' XPF/mois',trimestriel:Math.round(inf.priceM*3*.95).toLocaleString('fr-FR')+' XPF/trim.',annuel:inf.priceA.toLocaleString('fr-FR')+' XPF/an'};
+    var dc=dur.map(function(d){return '<div class="fl-plan-card'+(_s.duree===d?' selected':'')+'" onclick="gfSetDuree(\''+d+'\')"><div class="fl-plan-head"><span class="fl-plan-name" style="text-transform:capitalize">'+d+'</span><span class="fl-plan-price">'+(pm[d]||'')+'</span></div>'+(d!=='mensuel'?'<div class="fl-plan-av" style="color:#43e97b">'+(d==='trimestriel'?'✓ Économisez 5%':'✓ Économisez 15%')+'</div>':'')+'</div>';}).join('');
+    extra='<div style="margin-bottom:14px">'+lbl('Durée')+dc+'</div>';
+  }
+  if (CAMP_ID===7&&CFG.allowUpload!==false) {
+    var hasF=!!_s.fileB64;
+    extra='<div style="margin-bottom:14px">'+lbl('Fichier source (optionnel)')+'<label><div class="fl-upload-zone'+(hasF?' has-file':'')+'" id="gf-uzone">'+(hasF?'<img src="'+_s.fileB64+'" alt="">':'<div style="color:rgba(255,255,255,.4)"><div style="font-size:1.8rem">📁</div><div style="font-size:.7rem;margin-top:4px">PNG · JPG · PDF · AI · PSD</div></div>')+'</div><input type="file" accept="image/*,.pdf,.ai,.psd,.eps" style="display:none" onchange="gfFileLoad(event)"></label></div>'+(CFG.allowDesc!==false?'<div style="margin-bottom:14px">'+lbl('Description du besoin')+'<textarea class="fl-finput" rows="3" placeholder="'+(CFG.descPlaceholder||'Décrivez votre besoin...')+'" oninput="_s.description=this.value">'+(_s.description||'')+'</textarea></div>':'');
+  }
+  return extra
+    +lbl('Vos coordonnées')
+    +'<div class="fl-coords">'
+    +'<div class="fl-field"><label>Prénom &amp; Nom *</label><input class="fl-finput" id="gf-name" placeholder="Jean Dupont" value="'+(_s.name||'')+'"></div>'
+    +'<div class="fl-field"><label>Email *</label><input class="fl-finput" id="gf-email" type="email" placeholder="jean@mail.com" value="'+(_s.email||'')+'"></div>'
+    +'<div class="fl-field"><label>Téléphone</label><input class="fl-finput" id="gf-phone" type="tel" placeholder="87 00 00 00" value="'+(_s.phone||'')+'"></div>'
+    +'<div class="fl-field"><label>Note</label><textarea class="fl-finput" id="gf-note" rows="2" style="resize:none" placeholder="Informations complémentaires...">'+(_s.note||'')+'</textarea></div>'
+    +'</div>';
+}
+
+function gfStep3HTML() {
+  var prod=PRODS[_s.prodIdx]||{};
+  var price=gfGetPrice();
+  if (location.protocol!=='https:') {
+    return '<div class="fl-https-warn"><div style="font-size:1.2rem;margin-bottom:6px">⚠️</div><strong>HTTPS requis pour le paiement.</strong><br>Cette page doit être servie en HTTPS pour activer le paiement sécurisé OSB.<br><span style="font-size:.65rem;opacity:.7">Publiez via le Worker pour obtenir l\'URL sécurisée.</span></div>';
+  }
+  return '<div class="fl-pz-price"><div class="fl-pz-price-val">'+price.toLocaleString('fr-FR')+' XPF</div><div class="fl-pz-price-lbl">'+prod.n+' — paiement sécurisé OSB</div></div>'
+    +'<div class="fl-pz-badges"><div style="padding:4px 9px;border-radius:5px;background:#1A1F71"><span style="color:#fff;font-weight:900;font-size:.7rem;letter-spacing:1px">VISA</span></div>'
+    +'<div style="position:relative;width:34px;height:22px"><div style="width:20px;height:20px;border-radius:50%;background:#EB001B;position:absolute;left:0;top:1px"></div><div style="width:20px;height:20px;border-radius:50%;background:#F79E1B;position:absolute;right:0;top:1px;opacity:.9"></div></div>'
+    +'<div style="padding:4px 9px;border-radius:5px;background:#005EB8"><span style="color:#fff;font-weight:900;font-size:.7rem;letter-spacing:1px">CB</span></div></div>'
+    +'<div id="gf-pz-loading" style="text-align:center;color:rgba(255,255,255,.5);font-size:.78rem;padding:12px">⏳ Connexion à OSB…</div>'
+    +'<div id="gf-pz-error" style="display:none;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.25);border-radius:8px;padding:10px;color:#ff6b6b;font-size:.75rem;text-align:center"></div>'
+    +'<div id="gf-pz-kr-form" style="display:none"><div class="kr-embedded"></div></div>';
+}
+
+async function gfInitKrypton(amount) {
+  try {
+    var resp = await fetch(WORKER_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Worker-Secret':WORKER_SEC},
+      body:JSON.stringify({amount:amount*100,currency:'953',mode:WORKER_MODE})
+    });
+    var data; try { data=await resp.json(); } catch(e){ throw new Error(await resp.text()); }
+    if (!data.formToken) throw new Error(data.errorMessage||'Token introuvable');
+    document.getElementById('gf-pz-loading').style.display='none';
+    document.getElementById('gf-pz-kr-form').style.display='block';
+    if (!window.KR) {
+      await new Promise(function(resolve,reject){
+        if (document.getElementById('pz-sdk')){resolve();return;}
+        var s=document.createElement('script'); s.id='pz-sdk';
+        s.src='https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';
+        s.setAttribute('kr-public-key',PUBLIC_KEY); s.setAttribute('kr-language','fr-FR');
+        s.onload=resolve; s.onerror=function(){reject(new Error('SDK OSB indisponible'));};
+        document.head.appendChild(s);
+      });
+    }
+    await KR.setFormConfig({'kr-public-key':PUBLIC_KEY,'kr-language':'fr-FR'});
+    await KR.setFormToken(data.formToken);
+    KR.onSubmit(function(r){
+      if (r.clientAnswer&&(r.clientAnswer.orderStatus==='PAID'||r.clientAnswer.orderStatus==='AUTHORISED')) {
+        var orderId='ORD-'+Date.now();
+        var prod=PRODS[_s.prodIdx]||{};
+        var total=gfGetPrice();
+        var optParts=[];
+        if(_s.color)  optParts.push('Couleur: '+_s.color);
+        if(_s.size)   optParts.push('Taille: '+_s.size);
+        if(_s.format) optParts.push('Format: '+_s.format);
+        if(_s.module) optParts.push('Module: '+_s.module);
+        if(_s.plan)   optParts.push('Plan: '+_s.plan);
+        if(_s.duree&&_s.duree!=='mensuel') optParts.push('Durée: '+_s.duree);
+        if(_s.service) optParts.push('Service: '+_s.service);
+        if(_s.date)   optParts.push('Date: '+_s.date);
+        if(_s.sessFmt) optParts.push('Format session: '+_s.sessFmt);
+        if(_s.fileName) optParts.push('Fichier: '+_s.fileName);
+        if(_s.description) optParts.push(_s.description);
+        if(_s.note)   optParts.push(_s.note);
+        var sizeField=_s.size||_s.format||_s.module||_s.plan||_s.service||'';
+        fetch(WORKER_URL.replace('/payzen-token','/order/save'),{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Worker-Secret':WORKER_SEC},
+          body:JSON.stringify({
+            orderId:orderId,status:'paid',amount:total,currency:'XPF',
+            campaignName:CAMP_NAME,product:prod.n,
+            lpSlug:LP_SLUG,
+            size:sizeField,qty:_s.qty||1,
+            logoName:_s.fileName||'',
+            logoPlacement:'',
+            client:{name:_s.name,email:_s.email,phone:_s.phone||''},
+            delivery:{type:'pickup',address:'',pickupDate:_s.date||'',deliveryDelay:0},
+            note:optParts.join(' | ')
+          })
+        }).catch(function(e){console.warn('Ordre non sauvegardé:',e);});
+        document.getElementById('gf-pz-kr-form').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:2.5rem;margin-bottom:8px">✅</div><div style="font-size:1rem;font-weight:800;color:#43e97b">Paiement confirmé !</div><div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:6px">Merci '+(_s.name?_s.name.split(' ')[0]:'')+(', votre commande est enregistrée.')+'</div></div>';
+        setTimeout(closeFlow,2800);
+      }
+      return true;
+    });
+  } catch(err) {
+    var ld=document.getElementById('gf-pz-loading'); if(ld)ld.style.display='none';
+    var er=document.getElementById('gf-pz-error'); if(er){er.style.display='block';er.textContent='Erreur : '+err.message;}
+  }
+}
+
+function gfGetPrice() {
+  var prod=PRODS[_s.prodIdx]||{};
+  var base=parseInt((prod.p||'0').replace(/[^0-9]/g,''))||0;
+  if (CAMP_ID===4){var F={'22x30cm':8500,'22x60cm':12000,'22x90cm':15000,'A3':9000,'A2':14000};return(F[_s.format]||base)*(_s.qty||1);}
+  if (CAMP_ID===5){var M={debutant:+(CFG.price_debutant||15000),avance:+(CFG.price_avance||25000),complet:+(CFG.price_complet||35000)};return M[_s.module]||base;}
+  if (CAMP_ID===6){var PL={starter:{priceM:1800,priceA:18000},pro:{priceM:3500,priceA:35000},premium:{priceM:5500,priceA:55000}};var inf=PL[_s.plan]||{priceM:base,priceA:base*10};if(_s.duree==='annuel')return inf.priceA;if(_s.duree==='trimestriel')return Math.round(inf.priceM*3*.95);return inf.priceM;}
+  if (CAMP_ID===7){var SV={vecto:2500,detour:1500,logo:8000,pack:8000};return SV[_s.service]||base;}
+  return base*(_s.qty||1);
+}
+
+function gfUpdateRecap() {
+  var price=gfGetPrice();
+  var opts=[];
+  if(_s.color) opts.push(_s.color);
+  if(_s.size) opts.push(_s.size);
+  if(_s.format) opts.push(_s.format.replace('x','×'));
+  if(_s.module) opts.push({debutant:'Débutant',avance:'Avancé',complet:'Complet'}[_s.module]||_s.module);
+  if(_s.plan) opts.push({starter:'Starter',pro:'Pro',premium:'Premium'}[_s.plan]||_s.plan);
+  if(_s.duree&&_s.duree!=='mensuel') opts.push(_s.duree);
+  if(_s.service) opts.push({vecto:'Vectorisation',detour:'Détourage IA',logo:'Logo',pack:'Pack'}[_s.service]||_s.service);
+  if(_s.date) opts.push(_s.date);
+  if(_s.fileName) opts.push('📎 '+_s.fileName.slice(0,20));
+  document.getElementById('fl-recap-opts').textContent=opts.length?opts.join(' · '):'Aucune option sélectionnée';
+  document.getElementById('fl-recap-price').textContent=price.toLocaleString('fr-FR')+' XPF';
+  document.getElementById('fl-recap-qty').textContent=(_s.qty||1)>1?'×'+(_s.qty||1):'';
+}
+
+function gfSetColor(v) { _s.color=v; gfRender(); }
+function gfSetSize(v)  { _s.size=v;  gfRender(); }
+function gfSetFormat(v){ _s.format=v; gfRender(); }
+function gfSetModule(v){ _s.module=v; gfRender(); }
+function gfSetPlan(v)  { _s.plan=v;  gfRender(); }
+function gfSetDuree(v) { _s.duree=v; gfRender(); }
+function gfSetService(v){_s.service=v;gfRender();}
+function gfSelProd(i)  { _s.prodIdx=i; selectProd(i); gfRender(); }
+function gfSetDate(v,el) { _s.date=v; document.querySelectorAll('.fl-date-pill').forEach(function(p){p.classList.toggle('selected',p.dataset.date===v);}); gfUpdateRecap(); }
+function gfSetSF(v) { _s.sessFmt=v; document.querySelectorAll('#fl-body .fl-fmt-btn').forEach(function(b){b.classList.toggle('selected',b.textContent.trim().includes(v));}); gfUpdateRecap(); }
+function gfChgQty(d) {
+  _s.qty=Math.min(CFG.qtyMax||99,Math.max(CFG.qtyMin||1,(_s.qty||1)+d));
+  var qEl=document.getElementById('gf-qty-val'); if(qEl) qEl.textContent=_s.qty;
+  var cEl=document.getElementById('fl-price-row'); if(cEl) cEl.textContent=gfGetPrice().toLocaleString('fr-FR')+' XPF';
+  gfUpdateRecap();
+}
+function gfFileLoad(e) {
+  var file=e.target.files[0]; if(!file) return;
+  _s.fileName=file.name;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    _s.fileB64=ev.target.result;
+    var zone=document.getElementById('gf-uzone');
+    if(zone){zone.classList.add('has-file');zone.innerHTML='<img src="'+ev.target.result+'" style="max-width:100%;max-height:120px;border-radius:8px;object-fit:contain">';}
+    gfUpdateRecap();
+  };
+  reader.readAsDataURL(file);
+}
+document.getElementById('fl-overlay').addEventListener('click',function(e){if(e.target===e.currentTarget)closeFlow();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeFlow();});
+<\/script>
+</body>
+</html>`;
+
+  dl(`andromeda-lp-${c.id}-${c.name.replace(/[^\w]/g,'-').toLowerCase()}.html`, html);
   hcsSaveCampaign(id);
 }
 
@@ -3401,7 +4489,7 @@ function saveContact() {
   const email = document.getElementById('ck-email')?.value.trim();
   if (!name)  { alert('Veuillez saisir votre nom.'); return; }
   if (!email || !email.includes('@')) { alert('Email invalide.'); return; }
-  ckContact = { name, email, phone:document.getElementById('ck-phone')?.value.trim(), note:document.getElementById('ck-note')?.value.trim() };
+  ckContact = { name, email, phone:normalizePhone(document.getElementById('ck-phone')?.value), note:document.getElementById('ck-note')?.value.trim() };
   ckStep=3; renderCkStep();
 }
 
@@ -3484,7 +4572,8 @@ async function renderStep4() {
       <div style="font-size:.8rem;color:rgba(255,255,255,.85);line-height:1.8">Le formulaire de paiement OSB nécessite<br>une URL <strong style="color:#fff">https://</strong> ou <strong style="color:#fff">http://</strong>.<br><br>
       Publie cette LP via le bouton<br><strong style="color:#43e97b">🌐 Publier</strong> dans Andromeda.</div>
     </div>\` : \`
-    <div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
+    <div style="display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap"><span style="font-size:.68rem;color:#9090b0;margin-right:3px">Nous acceptons</span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#1A1F71;border-radius:3px;font-size:8px;font-weight:900;color:#fff;letter-spacing:1px;font-family:Arial,sans-serif">VISA</span><span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;border-radius:3px;background:#1a1a1a;overflow:hidden"><span style="position:absolute;left:4px;width:18px;height:18px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:4px;width:18px;height:18px;background:#F79E1B;border-radius:50%;opacity:.9"></span></span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#005EB8;border-radius:3px;font-size:11px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span></div>
+<div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
     <div class="kr-embedded" id="pz-kr-form" style="display:none"></div>
     <div class="pz-error" id="pz-error"></div>
     <div class="pz-ok" id="pz-ok" style="display:none">
@@ -3517,24 +4606,21 @@ async function renderStep4() {
       c2.href='https://static.osb.pf/static/js/krypton-client/V4.0/stable/classic.min.css';
       document.head.appendChild(c2);
     }
-    await new Promise((resolve,reject) => {
-      if (window.KR) {
-        KR.setFormConfig({'kr-public-key': publicKey, 'kr-language': 'fr-FR'})
-          .then(() => KR.setFormToken(formToken))
-          .then(resolve).catch(reject);
-      } else {
+    document.getElementById('pz-loading').style.display = 'none';
+    document.getElementById('pz-kr-form').style.display = 'block';
+    if (!window.KR) {
+      await new Promise((resolve,reject) => {
         const s = document.createElement('script'); s.id='pz-sdk';
         s.src='https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';
         s.setAttribute('kr-public-key', publicKey);
         s.setAttribute('kr-language','fr-FR');
-        s.onload = () => KR.setFormToken(formToken).then(resolve);
+        s.onload = resolve;
         s.onerror = () => reject(new Error('SDK OSB indisponible'));
         document.head.appendChild(s);
-      }
-    });
-
-    document.getElementById('pz-loading').style.display = 'none';
-    document.getElementById('pz-kr-form').style.display = 'block';
+      });
+    }
+    await KR.setFormConfig({'kr-public-key': publicKey, 'kr-language': 'fr-FR'});
+    await KR.setFormToken(formToken);
 
     function showPzSuccess() {
       document.getElementById('pz-kr-form').style.display = 'none';
@@ -3735,10 +4821,10 @@ function selectProd(campId, prodIdx) {
 }
 
 function goToCheckout(campId) {
-  // T-Shirt (id=1) → parcours séquentiel 3 étapes
   if (campId === 1 || campId === 2) { tshOpenBuyFlow(campId); return; }
   const prodIdx = _selectedProd[campId];
   if (prodIdx === undefined) { alert('Sélectionnez un produit.'); return; }
+  if (campId >= 3) { openGenericFlow(campId, prodIdx); return; }
   _ckCampId = campId;
   CART = [];
   addToCart(campId, prodIdx);
@@ -3871,7 +4957,7 @@ function saveContact() {
   if (!email || !email.includes('@')) { alert('Email invalide.'); return; }
   window._ckContact = {
     name, email,
-    phone: document.getElementById('ck-phone')?.value.trim(),
+    phone: normalizePhone(document.getElementById('ck-phone')?.value),
     note:  document.getElementById('ck-note')?.value.trim()
   };
   goStep(3);
@@ -3968,7 +5054,8 @@ async function renderStep4() {
         <span style="font-weight:900;color:var(--accent-3)">${total.toLocaleString('fr-FR')} XPF</span>
       </div>
     </div>
-    <div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
+    <div style="display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0 8px;flex-wrap:wrap"><span style="font-size:.68rem;color:#9090b0;margin-right:3px">Nous acceptons</span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#1A1F71;border-radius:3px;font-size:8px;font-weight:900;color:#fff;letter-spacing:1px;font-family:Arial,sans-serif">VISA</span><span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;border-radius:3px;background:#1a1a1a;overflow:hidden"><span style="position:absolute;left:4px;width:18px;height:18px;background:#EB001B;border-radius:50%"></span><span style="position:absolute;right:4px;width:18px;height:18px;background:#F79E1B;border-radius:50%;opacity:.9"></span></span><span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:22px;background:#005EB8;border-radius:3px;font-size:11px;font-weight:900;color:#fff;font-family:Arial,sans-serif">CB</span></div>
+<div id="pz-loading" class="pz-loading">🔒 Connexion sécurisée à OSB Polynésie…</div>
     <div class="kr-embedded" id="pz-kr-form" style="display:none"></div>
     <div class="pz-error" id="pz-error"></div>
     <div class="pz-ok" id="pz-ok" style="display:none">
@@ -4054,7 +5141,9 @@ async function renderStep4() {
 // ═══════════════════════════════════════════════════════
 // GESTION COMMANDES
 // ═══════════════════════════════════════════════════════
-const WORKER_BASE = 'https://payzen-hcs.highcoffeeshirt.workers.dev';
+const WORKER_BASE   = 'https://payzen-hcs.highcoffeeshirt.workers.dev';
+const HCS_API_BASE  = 'https://highcoffeeshirts.com/erp/api';
+const HCS_API_KEY   = 'hcs-erp-2026';
 let adminSecret = sessionStorage.getItem('hcs_admin_secret') || '';
 let ordersFilter = 'all';
 let ordersData = [];
@@ -4134,6 +5223,7 @@ function renderOrdersView(orders, archived=false) {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${!archived?`<button class="btn btn-outline" style="font-size:0.72rem" onclick="showArchive()">🗃️ Archives</button>`:''}
+          <button class="btn btn-outline" style="font-size:0.72rem;background:rgba(79,172,254,.12);border-color:#4facfe;color:#4facfe" onclick="showMysqlOrders()">📊 ERP MySQL</button>
           <button class="btn btn-outline" style="font-size:0.72rem" onclick="loadOrders(${archived})">🔄 Rafraîchir</button>
           <button class="btn btn-outline" style="font-size:0.72rem;color:#ff6b6b" onclick="adminSecret='';sessionStorage.removeItem('hcs_admin_secret');showOrders()">Déconnexion</button>
           <button class="btn btn-primary" style="font-size:0.72rem" onclick="exportOrdersCSV()">⬇️ CSV</button>
@@ -4270,6 +5360,7 @@ function renderLPs(pages) {
         <div class="orders-title">🌐 LPs publiées</div>
         <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">${pages.length} page${pages.length>1?'s':''} en ligne · Worker HCS</div>
       </div>
+      <button class="btn btn-outline" style="font-size:0.72rem;background:rgba(79,172,254,.12);border-color:#4facfe;color:#4facfe" onclick="showMysqlLPs()">📊 ERP MySQL</button>
       <button class="btn btn-outline" style="font-size:0.72rem" onclick="loadLPs()">🔄 Rafraîchir</button>
     </div>
     ${pages.length === 0
@@ -4550,6 +5641,109 @@ function startOrderPolling() {
 }
 
 // ═══════════════════════════════════════════════════════
+// MYSQL ERP SYNC — Commandes & LPs via API HCS
+// ═══════════════════════════════════════════════════════
+async function showMysqlOrders() {
+  setNavActive('nav-orders');
+  const ws = document.getElementById('workspace');
+  ws.innerHTML = `<div class="orders-view"><div style="color:var(--text-secondary);padding:40px;text-align:center">Chargement depuis MySQL ERP…</div></div>`;
+  try {
+    const res = await fetch(`${HCS_API_BASE}/lp_commandes?sort=id&order=DESC&limit=200`, {
+      headers: { 'x-api-key': HCS_API_KEY }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderMysqlOrdersView(data.items || []);
+  } catch(e) {
+    ws.innerHTML = `<div class="orders-view"><div style="color:#ff6b6b;padding:40px;text-align:center">Erreur MySQL : ${e.message}</div></div>`;
+  }
+}
+
+function renderMysqlOrdersView(orders) {
+  const ws = document.getElementById('workspace');
+  const statusColor = {en_attente:'#f0a030',payee:'#43e97b',en_cours:'#4facfe',livree:'#a78bfa',annulee:'#ff6b6b'};
+  const rows = orders.map(o => `
+    <tr>
+      <td><code style="font-size:0.65rem;color:var(--accent)">${o.order_id||'—'}</code></td>
+      <td style="font-size:0.72rem">${o.created_at?o.created_at.slice(0,10):'—'}</td>
+      <td style="font-size:0.72rem">${o.campaign_name||'—'}</td>
+      <td style="font-size:0.72rem">${o.product||'—'}${o.size?' · '+o.size:''}</td>
+      <td style="font-size:0.72rem">${o.customer_name||'—'}<br><span style="color:var(--text-secondary);font-size:0.62rem">${o.customer_email||''}</span></td>
+      <td style="font-weight:700;color:var(--accent-3)">${(o.amount||0).toLocaleString('fr-FR')} XPF</td>
+      <td><span style="padding:2px 8px;border-radius:10px;font-size:0.65rem;font-weight:700;background:${statusColor[o.status]||'#2a2a4a'}22;color:${statusColor[o.status]||'#9090b0'};border:1px solid ${statusColor[o.status]||'#2a2a4a'}44">${o.status||'?'}</span></td>
+      <td style="font-size:0.68rem;color:var(--text-secondary)">${o.delivery_type==='pickup'?'🏪 Retrait':'🚚 Livraison'}</td>
+    </tr>`).join('');
+
+  ws.innerHTML = `<div class="orders-view">
+    <div class="orders-head">
+      <div>
+        <div class="orders-title">📊 Commandes — ERP MySQL</div>
+        <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">${orders.length} commande${orders.length!==1?'s':''} · Base MySQL HCS</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="font-size:0.72rem" onclick="showMysqlOrders()">🔄 Rafraîchir</button>
+        <button class="btn btn-outline" style="font-size:0.72rem" onclick="loadOrders(false)">← Worker KV</button>
+      </div>
+    </div>
+    ${orders.length===0
+      ? `<div style="text-align:center;color:var(--text-secondary);padding:60px">Aucune commande dans MySQL. Les commandes apparaissent ici après paiement via LP.</div>`
+      : `<table class="order-table">
+        <thead><tr>
+          <th>Référence</th><th>Date</th><th>Campagne</th><th>Produit</th><th>Client</th><th>Montant</th><th>Statut</th><th>Livraison</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`}
+  </div>`;
+}
+
+async function showMysqlLPs() {
+  setNavActive('nav-lps');
+  const ws = document.getElementById('workspace');
+  ws.innerHTML = `<div class="orders-view"><div style="color:var(--text-secondary);padding:40px;text-align:center">Chargement LPs depuis MySQL…</div></div>`;
+  try {
+    const res = await fetch(`${HCS_API_BASE}/lp_publiees?sort=id&order=DESC&limit=100`, {
+      headers: { 'x-api-key': HCS_API_KEY }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderMysqlLPsView(data.items || []);
+  } catch(e) {
+    ws.innerHTML = `<div class="orders-view"><div style="color:#ff6b6b;padding:40px;text-align:center">Erreur MySQL LPs : ${e.message}</div></div>`;
+  }
+}
+
+function renderMysqlLPsView(lps) {
+  const ws = document.getElementById('workspace');
+  const rows = lps.map(lp => `
+    <div style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#43e97b,#4facfe);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🌐</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:0.85rem">${lp.campaign_name||lp.slug}</div>
+        <code style="font-size:0.62rem;color:#43e97b">${lp.url||'—'}</code>
+        <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:2px">Publié : ${lp.published_at?lp.published_at.slice(0,16):'—'} · ${lp.html_size?(lp.html_size/1024).toFixed(0)+' Ko':'—'}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        ${lp.url?`<a href="${lp.url}" target="_blank" style="padding:5px 10px;background:#6c63ff;color:white;border-radius:6px;font-size:0.68rem;font-weight:700;text-decoration:none">🌐</a>`:''}
+        <span style="padding:4px 8px;border-radius:8px;font-size:0.65rem;font-weight:700;background:${lp.status==='active'?'rgba(67,233,123,.15)':'rgba(255,107,107,.15)'};color:${lp.status==='active'?'#43e97b':'#ff6b6b'};border:1px solid ${lp.status==='active'?'#43e97b44':'#ff6b6b44'}">${lp.status||'—'}</span>
+      </div>
+    </div>`).join('');
+
+  ws.innerHTML = `<div class="orders-view">
+    <div class="orders-head">
+      <div>
+        <div class="orders-title">📊 LPs publiées — ERP MySQL</div>
+        <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">${lps.length} LP${lps.length!==1?'s':''} · Base MySQL HCS</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="font-size:0.72rem" onclick="showMysqlLPs()">🔄 Rafraîchir</button>
+        <button class="btn btn-outline" style="font-size:0.72rem" onclick="loadLPs()">← Worker KV</button>
+      </div>
+    </div>
+    ${lps.length===0
+      ? `<div style="text-align:center;color:var(--text-secondary);padding:60px">Aucune LP dans MySQL. Les LPs apparaissent ici après publication via 🚀 Publier.</div>`
+      : `<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0">${rows}</div>`}
+  </div>`;
+}
 
 // ═══════════════════════════════════════════════════════
 // PERSISTANCE IMAGES (localStorage)
@@ -5372,6 +6566,33 @@ function tshToggleSize(campId, size, checked) {
 }
 
 // ═══════════════════════════════════════════════════════
+// CONFIG GÉNÉRIQUE — verticals 3 (DTF Originals), 4 (Grille), 5 (Formation), 6 (Abo), 7 (Graphique)
+// ═══════════════════════════════════════════════════════
+const parcoursCfg = {};
+function getParcoursCfg(campId) {
+  if (!parcoursCfg[campId]) {
+    const defaults = {
+      3: { tshirtColors:['Blanc','Noir','Gris chiné','Marine','Vert forêt','Rouge'] },
+      4: { formats:['22x30cm','22x60cm'], resolution:'300', fileFormats:['PNG','PDF','PSD'], qtyMin:1, qtyMax:50, allowUpload:true, uploadHint:'Fichier PNG ou PDF 300 DPI, fond transparent' },
+      5: { modules:['debutant','avance','complet'], formats:['atelier'], dates:'', maxPlaces:8, adresse:'' },
+      6: { plans:['starter','pro','premium'], durees:['mensuel','annuel'], autoRenew:true },
+      7: { services:['vecto','detour','logo','pack'], fileFormats:['PNG','JPG','PDF'], delais:['48h','devis'], allowUpload:true, allowDesc:true, descPlaceholder:'Décrivez votre besoin (couleurs, style, références...)' }
+    };
+    parcoursCfg[campId] = defaults[campId] ? { ...defaults[campId] } : {};
+  }
+  return parcoursCfg[campId];
+}
+function setParcoursCfg(campId, key, val) {
+  getParcoursCfg(campId)[key] = val;
+}
+function toggleParcoursCfg(campId, key, val, checked) {
+  const cfg = getParcoursCfg(campId);
+  if (!Array.isArray(cfg[key])) cfg[key] = [];
+  if (checked && !cfg[key].includes(val)) cfg[key].push(val);
+  else if (!checked) cfg[key] = cfg[key].filter(v => v !== val);
+}
+
+// ═══════════════════════════════════════════════════════
 // PARCOURS CLIENT STICKER AUTO — Personnalisation produit
 // ═══════════════════════════════════════════════════════
 let stkCl = { campId: 0, prodIdx: 0 };
@@ -5574,10 +6795,13 @@ function stkClientConfirm() {
 // ① Produit  ② Votre logo (300 DPI)  ③ Aperçu  ④ Taille & Commander
 // ═══════════════════════════════════════════════════════
 const TSH_SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
-let tshBuy = { campId:null, step:1, prodIdx:0, clientLogoUrl:null, clientLogoName:'', clientLogoDpi:0, size:'M', qty:1 };
+let tshBuy = { campId:null, step:1, prodIdx:0, clientLogoUrl:null, clientLogoName:'', clientLogoDpi:0, logoBackUrl:null, logoBackName:'', logoBackDpi:0, logoFrontPos:null, logoBackPos:null, logoPos:null, faceSubstep:'front', size:'M', qty:1 };
 
 function tshOpenBuyFlow(campId) {
-  tshBuy = { campId, step:1, prodIdx: _selectedProd[campId] ?? 0, clientLogoUrl:null, clientLogoName:'', clientLogoDpi:0, size:'M', qty:1 };
+  const _pcfg0 = tshGetParcours(campId);
+  // Si taille obligatoire : pas de pré-sélection (force le choix explicite)
+  const _initSize = _pcfg0.requireSize ? null : 'M';
+  tshBuy = { campId, step:1, prodIdx: _selectedProd[campId] ?? 0, clientLogoUrl:null, clientLogoName:'', clientLogoDpi:0, logoBackUrl:null, logoBackName:'', logoBackDpi:0, logoFrontPos:null, logoBackPos:null, logoPos:null, faceSubstep:'front', size:_initSize, qty:1 };
   document.getElementById('tsh-buy-modal').classList.add('open');
   tshBuyRender();
 }
@@ -5586,27 +6810,61 @@ function tshCloseBuyFlow() {
 }
 
 function tshBuyRender() {
-  const { step } = tshBuy;
+  const { step, faceSubstep } = tshBuy;
+  const pcfg = tshGetParcours(tshBuy.campId);
+  const is2face = (pcfg.faces || ['front']).length > 1;
+
+  // Masquer dot 2 et son connecteur si l'étape logo est désactivée
+  const _dot2 = document.getElementById('tsh-bdot-2');
+  if (_dot2) {
+    const _hide2 = !pcfg.showStep2;
+    _dot2.style.display = _hide2 ? 'none' : '';
+    const _line2 = _dot2.previousElementSibling;
+    if (_line2 && _line2.classList.contains('tsh-buy-step-line')) _line2.style.display = _hide2 ? 'none' : '';
+  }
   [1,2,3,4].forEach(n => {
     const d = document.getElementById(`tsh-bdot-${n}`);
     if (!d) return;
     d.classList.toggle('active', n === step);
     d.classList.toggle('done', n < step);
   });
-  const pcfg = tshGetParcours(tshBuy.campId);
+
+  // Titre dynamique selon sous-étape step 3
+  let step3Title = '③ ' + (pcfg.labels[3] || 'Taille & Commander');
+  if (step === 3 && is2face) {
+    if (faceSubstep === 'front')   step3Title = '③ Placement — Avant';
+    else if (faceSubstep === 'back')    step3Title = '③ Placement — Dos';
+    else                               step3Title = '③ Aperçu recto/verso';
+  } else if (step === 3) {
+    step3Title = '③ Aperçu & Placement';
+  }
+
   const titles = ['',
     '① ' + (pcfg.labels[1] || 'Choisir le produit'),
-    '② ' + (pcfg.labels[2] || 'Choisir le logo'),
-    '③ ' + (pcfg.labels[3] || 'Taille & Commander')
+    '② Vos logos',
+    step3Title
   ];
   const titleEl = document.getElementById('tsh-buy-title');
-  if (titleEl) titleEl.textContent = titles[step];
+  if (titleEl) titleEl.textContent = titles[Math.min(step, 3)];
+
   const prev = document.getElementById('tsh-buy-prev');
   const next = document.getElementById('tsh-buy-next');
   if (prev) prev.style.display = step > 1 ? '' : 'none';
   if (next) {
     if (step === 4) {
       next.textContent = '🛒 Commander & Payer';
+      next.style.background = 'linear-gradient(135deg,#43e97b,#38f9d7)';
+      next.style.color = '#0f0f1a';
+    } else if (step === 3 && is2face && faceSubstep === 'front') {
+      next.textContent = 'Positionner dos →';
+      next.style.background = 'linear-gradient(135deg,#6c63ff,#4facfe)';
+      next.style.color = 'white';
+    } else if (step === 3 && is2face && faceSubstep === 'back') {
+      next.textContent = 'Voir l\'aperçu →';
+      next.style.background = 'linear-gradient(135deg,#6c63ff,#4facfe)';
+      next.style.color = 'white';
+    } else if (step === 3 && is2face && faceSubstep === 'preview') {
+      next.textContent = 'Valider l\'aperçu →';
       next.style.background = 'linear-gradient(135deg,#43e97b,#38f9d7)';
       next.style.color = '#0f0f1a';
     } else if (step === 3) {
@@ -5619,12 +6877,16 @@ function tshBuyRender() {
       next.style.color = 'white';
     }
   }
+
   const body = document.getElementById('tsh-buy-body');
   if (!body) return;
   if      (step === 1) body.innerHTML = tshBuyStep1HTML();
   else if (step === 2) body.innerHTML = tshBuyStep2HTML();
-  else if (step === 3) { body.innerHTML = tshBuyStep3HTML(); tshInitLogoDrag(); }
-  else                  body.innerHTML = tshBuyStep4HTML();
+  else if (step === 3) {
+    body.innerHTML = tshBuyStep3HTML();
+    if (!(is2face && faceSubstep === 'preview')) tshInitLogoDrag();
+  }
+  else                 body.innerHTML = tshBuyStep4HTML();
 }
 
 // ── Étape 1 : Choisir le produit ──────────────────────
@@ -5651,9 +6913,52 @@ function tshBuyStep1HTML() {
   <p style="font-size:0.68rem;color:var(--text-secondary);text-align:center;margin-top:12px">Sélectionnez votre t-shirt puis appuyez sur Suivant</p>`;
 }
 
-// ── Étape 2 : Upload logo client + vérification qualité ─
+// ── Étape 2 : Upload logo(s) client + vérification qualité ─
 function tshBuyStep2HTML() {
-  const { clientLogoUrl, clientLogoDpi, clientLogoName } = tshBuy;
+  const { clientLogoUrl, clientLogoDpi, clientLogoName, logoBackUrl, logoBackName, logoBackDpi } = tshBuy;
+  const pcfg = tshGetParcours(tshBuy.campId);
+  const is2face = (pcfg.faces || ['front']).length > 1;
+
+  // Carte upload pour une face
+  const uploadCard = (url, dpi, name, face) => {
+    const cls = dpi >= 300 ? 'tsh-dpi-ok' : dpi >= 150 ? 'tsh-dpi-warn' : dpi > 0 ? 'tsh-dpi-bad' : '';
+    const lbl = dpi >= 300 ? `✅ ${dpi} DPI` : dpi >= 150 ? `⚠️ ${dpi} DPI` : dpi > 0 ? `❌ ${dpi} DPI` : '';
+    const prevEl = url
+      ? `<div style="width:90px;aspect-ratio:1;background:var(--bg-panel);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:2px solid var(--border)"><img src="${url}" style="max-width:90%;max-height:90%;object-fit:contain"></div>
+         <div style="font-size:0.56rem;color:var(--text-secondary);text-align:center;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>`
+      : `<div style="width:90px;aspect-ratio:1;background:var(--bg-panel);border-radius:8px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:0.55"><span style="font-size:1.5rem">🖼️</span><span style="font-size:0.58rem;color:var(--text-secondary)">Aucun logo</span></div>`;
+    const handler = face === 'front' ? 'tshClientLogoLoad(event)' : 'tshClientLogoBackLoad(event)';
+    const dpiWarn = (dpi > 0 && dpi < 150) ? `<div style="font-size:0.58rem;color:#ffb3b3;background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.3);border-radius:6px;padding:4px 8px;text-align:center;max-width:130px;line-height:1.4">⚠️ En validant, vous acceptez une qualité d'impression non optimale.</div>` : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:7px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 10px;min-width:140px">
+      <div style="font-size:0.72rem;font-weight:800;color:${face==='front'?'#4facfe':'#ff6b6b'}">${face==='front'?'🔵 Avant':'🔴 Dos'}</div>
+      ${prevEl}
+      ${cls ? `<div class="tsh-dpi-badge ${cls}" style="font-size:0.58rem;padding:3px 8px">${lbl}</div>` : ''}
+      ${dpiWarn}
+      <label style="cursor:pointer;padding:6px 14px;background:linear-gradient(135deg,#4facfe,#00f2fe);border-radius:8px;font-weight:700;font-size:0.7rem;color:#0f0f1a;display:inline-block;text-align:center">
+        📁 ${url ? 'Changer' : 'Uploader ton logo'}
+        <input type="file" accept="image/*,.pdf,.ai,.eps,.svg" style="display:none" onchange="${handler}">
+      </label>
+    </div>`;
+  };
+
+  if (is2face) {
+    const backNote = !logoBackUrl
+      ? `<div style="font-size:0.6rem;color:var(--text-secondary);text-align:center;line-height:1.5;max-width:280px">💡 Sans logo dos, le logo avant sera utilisé pour les deux faces.</div>`
+      : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:4px 0">
+      <div style="text-align:center">
+        <div style="font-size:0.8rem;font-weight:800;margin-bottom:4px">Vos logos avant &amp; dos</div>
+        <div style="font-size:0.66rem;color:var(--text-secondary)">Format PNG ou PDF vectoriel — 300 DPI recommandé</div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap">
+        ${uploadCard(clientLogoUrl, clientLogoDpi, clientLogoName, 'front')}
+        ${uploadCard(logoBackUrl, logoBackDpi, logoBackName, 'back')}
+      </div>
+      ${backNote}
+    </div>`;
+  }
+
+  // Parcours 1 face — comportement original
   const dpiClass = clientLogoDpi >= 300 ? 'tsh-dpi-ok' : clientLogoDpi >= 150 ? 'tsh-dpi-warn' : clientLogoDpi > 0 ? 'tsh-dpi-bad' : '';
   const dpiLabel = clientLogoDpi >= 300
     ? `✅ Excellente qualité — ${clientLogoDpi} DPI estimés`
@@ -5662,17 +6967,11 @@ function tshBuyStep2HTML() {
     : clientLogoDpi > 0
     ? `❌ Résolution insuffisante — ${clientLogoDpi} DPI estimés (minimum 150 DPI)`
     : '';
-
   const preview = clientLogoUrl
-    ? `<div style="width:120px;aspect-ratio:1;background:var(--bg-panel);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:2px solid var(--border);position:relative">
-        <img src="${clientLogoUrl}" style="max-width:90%;max-height:90%;object-fit:contain">
-      </div>
-      <div style="margin-top:8px;font-size:0.65rem;color:var(--text-secondary)">${clientLogoName}</div>`
-    : `<div style="width:120px;aspect-ratio:1;background:var(--bg-panel);border-radius:8px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:0.6">
-        <span style="font-size:1.8rem">🖼️</span>
-        <span style="font-size:0.6rem;color:var(--text-secondary)">Votre logo ici</span>
-      </div>`;
-
+    ? `<div style="width:120px;aspect-ratio:1;background:var(--bg-panel);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:2px solid var(--border)"><img src="${clientLogoUrl}" style="max-width:90%;max-height:90%;object-fit:contain"></div>
+       <div style="margin-top:8px;font-size:0.65rem;color:var(--text-secondary)">${clientLogoName}</div>`
+    : `<div style="width:120px;aspect-ratio:1;background:var(--bg-panel);border-radius:8px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:0.6"><span style="font-size:1.8rem">🖼️</span><span style="font-size:0.6rem;color:var(--text-secondary)">Votre logo ici</span></div>`;
+  const dpiWarn1 = (clientLogoDpi > 0 && clientLogoDpi < 150) ? `<div style="background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);border-radius:8px;padding:8px;font-size:0.64rem;color:#ffb3b3;text-align:center;max-width:280px;line-height:1.5">⚠️ En cliquant sur Suivant vous acceptez que la qualité d'impression ne sera pas optimale. HCS ne pourra être tenu responsable du résultat.</div>` : '';
   return `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:6px 0">
     <div style="text-align:center">
       <div style="font-size:0.8rem;font-weight:800;margin-bottom:4px">Uploadez votre logo</div>
@@ -5680,63 +6979,117 @@ function tshBuyStep2HTML() {
     </div>
     ${preview}
     ${dpiClass ? `<div class="tsh-dpi-badge ${dpiClass}">${dpiLabel}</div>` : ''}
+    ${dpiWarn1}
     <label style="cursor:pointer;padding:10px 24px;background:linear-gradient(135deg,#4facfe,#00f2fe);border-radius:10px;font-weight:800;font-size:0.82rem;color:#0f0f1a;display:inline-block">
-      📁 ${clientLogoUrl ? 'Changer le logo' : 'Choisir un fichier'}
+      📁 ${clientLogoUrl ? 'Changer le logo' : 'Uploader ton logo'}
       <input type="file" accept="image/*,.pdf,.ai,.eps,.svg" style="display:none" onchange="tshClientLogoLoad(event)">
     </label>
     <div style="font-size:0.62rem;color:var(--text-secondary);text-align:center;max-width:280px;line-height:1.5">
-      💡 Pour un rendu optimal sur tissu DTF, votre logo doit être en haute résolution (PNG 300 DPI ou SVG vectoriel). Les images floues ou pixelisées ne seront pas acceptées.
+      💡 Pour un rendu optimal sur tissu DTF, votre logo doit être en haute résolution (PNG 300 DPI ou SVG vectoriel).
     </div>
   </div>`;
 }
 
-// ── Étape 3 : Studio placement interactif ─────────────
+// ── Étape 3 : Studio placement interactif (1 ou 2 faces) ─
 function tshBuyStep3HTML() {
-  const { campId, prodIdx, clientLogoUrl } = tshBuy;
+  const pcfg = tshGetParcours(tshBuy.campId);
+  const is2face = (pcfg.faces || ['front']).length > 1;
+  if (!is2face) return tshBuyStep3FaceHTML('front');
+  return tshBuy.faceSubstep === 'preview' ? tshBuyStep3PreviewHTML() : tshBuyStep3FaceHTML(tshBuy.faceSubstep);
+}
+
+function tshBuyStep3FaceHTML(face) {
+  const { campId, prodIdx } = tshBuy;
   const pcfg = tshGetParcours(campId);
-  const face = tshBuy.face || (pcfg.faces ? pcfg.faces[0] : 'front');
-  tshBuy.face = face;
-  if (!tshBuy.logoPos) tshBuy.logoPos = { xPct: 50, yPct: 47, wPct: 44 };
+  const is2face = (pcfg.faces || ['front']).length > 1;
+
+  // Lier logoPos à la bonne face (référence directe — mutations propagées par drag)
+  if (face === 'front') {
+    if (!tshBuy.logoFrontPos) tshBuy.logoFrontPos = { xPct: 50, yPct: 40, wPct: 44 };
+    tshBuy.logoPos = tshBuy.logoFrontPos;
+  } else {
+    if (!tshBuy.logoBackPos) tshBuy.logoBackPos = { xPct: 50, yPct: 40, wPct: 44 };
+    tshBuy.logoPos = tshBuy.logoBackPos;
+  }
   const pos = tshBuy.logoPos;
+  const logoUrl = face === 'back' ? (tshBuy.logoBackUrl || tshBuy.clientLogoUrl) : tshBuy.clientLogoUrl;
+  const wClamped = Math.min(pos.wPct, 50);
 
   const shirtSrc = tshGetFaceImg(campId, prodIdx, face);
   const shirtEl = shirtSrc
     ? `<img class="tsh-studio-shirt" id="tsh-studio-shirt-img" src="${shirtSrc}">`
     : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px">👕</div>`;
 
-  const logoEl = clientLogoUrl
-    ? `<div class="tsh-studio-logo" id="tsh-logo-dragger" style="left:${pos.xPct}%;top:${pos.yPct}%;width:${pos.wPct}%">
-        <img src="${clientLogoUrl}" draggable="false">
+  const logoEl = logoUrl
+    ? `<div class="tsh-studio-logo" id="tsh-logo-dragger" style="left:${pos.xPct}%;top:${pos.yPct}%;width:${wClamped}%">
+        <img src="${logoUrl}" draggable="false">
         <div class="tsh-studio-resize" id="tsh-logo-resize"></div>
       </div>`
     : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5">
         <span style="font-size:0.65rem;color:rgba(255,255,255,0.35);text-align:center;padding:12px">Revenez à l'étape 2<br>pour uploader votre logo</span>
       </div>`;
 
-  const faces = pcfg.faces || ['front'];
-  const faceTabs = faces.length > 1
-    ? `<div class="tsh-studio-face-tabs">${faces.map(f =>
-        `<button class="tsh-studio-face-tab${f===face?' active':''}" onclick="tshStudioSetFace('${f}')">${f==='front'?'🔵 Avant':'🔴 Dos'}</button>`
-      ).join('')}</div>`
+  // Zone d'impression max : ≈ moitié A3 / surface poitrine t-shirt
+  const printZone = `<div style="position:absolute;left:25%;top:22%;width:50%;height:52%;border:2px dashed rgba(79,172,254,0.4);border-radius:4px;pointer-events:none;z-index:1;background:rgba(79,172,254,0.025)">
+    <span style="position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font-size:0.5rem;color:rgba(79,172,254,0.55);white-space:nowrap">Zone max ½ A3</span>
+  </div>`;
+
+  const faceLabel = is2face
+    ? `<div style="font-size:0.72rem;font-weight:800;color:${face==='front'?'#4facfe':'#ff6b6b'}">${face==='front'?'🔵 Positionnement Avant':'🔴 Positionnement Dos'}</div>`
     : '';
 
-  const slider = clientLogoUrl ? `
+  const slider = logoUrl ? `
     <div style="display:flex;align-items:center;gap:8px;width:100%;max-width:220px">
       <span style="font-size:0.65rem;color:var(--text-secondary);white-space:nowrap">↔ Taille</span>
-      <input type="range" min="10" max="80" value="${pos.wPct}" id="tsh-logo-size-sl"
+      <input type="range" min="10" max="50" value="${wClamped}" id="tsh-logo-size-sl"
         oninput="tshLogoResize(this.value)" style="flex:1;accent-color:#4facfe">
-      <span id="tsh-logo-size-val" style="font-size:0.65rem;font-weight:700;color:#4facfe;min-width:30px">${Math.round(pos.wPct)}%</span>
+      <span id="tsh-logo-size-val" style="font-size:0.65rem;font-weight:700;color:#4facfe;min-width:30px">${Math.round(wClamped)}%</span>
     </div>` : '';
 
   return `<div style="display:flex;flex-direction:column;align-items:center;gap:12px">
-    <div style="font-size:0.72rem;color:var(--text-secondary);text-align:center">🖱 Glissez le logo · Poignée bleue pour redimensionner</div>
-    ${faceTabs}
+    ${faceLabel}
+    <div style="font-size:0.68rem;color:var(--text-secondary);text-align:center">🖱 Glissez le logo · Poignée bleue pour redimensionner</div>
     <div class="tsh-studio-wrap" id="tsh-studio-wrap">
       ${shirtEl}
+      ${printZone}
       ${logoEl}
     </div>
     ${slider}
-    <div style="font-size:0.6rem;color:rgba(255,255,255,0.22);text-align:center">Placement transmis avec votre commande — aperçu indicatif</div>
+    <div style="font-size:0.58rem;color:rgba(255,255,255,0.2);text-align:center">Placement transmis avec votre commande — aperçu indicatif</div>
+  </div>`;
+}
+
+function tshBuyStep3PreviewHTML() {
+  const { campId, prodIdx, clientLogoUrl, logoBackUrl, logoFrontPos, logoBackPos } = tshBuy;
+  const backLogoUrl = logoBackUrl || clientLogoUrl;
+
+  const facePreview = (face, logoUrl, pos) => {
+    const shirtSrc = tshGetFaceImg(campId, prodIdx, face);
+    const bgStyle = shirtSrc
+      ? `background-image:url('${shirtSrc}');background-size:cover;background-position:center top`
+      : 'background:#1e1e3a';
+    const { xPct=50, yPct=40, wPct=44 } = pos || {};
+    const logoEl = logoUrl
+      ? `<div style="position:absolute;left:${xPct}%;top:${yPct}%;transform:translate(-50%,-50%);width:${wPct}%;z-index:2;pointer-events:none">
+          <img src="${logoUrl}" style="width:100%;height:auto;filter:drop-shadow(0 1px 6px rgba(0,0,0,0.6))">
+         </div>`
+      : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div style="font-size:0.68rem;font-weight:700;color:${face==='front'?'#4facfe':'#ff6b6b'}">${face==='front'?'🔵 Avant':'🔴 Dos'}</div>
+      <div style="position:relative;width:150px;height:200px;border-radius:10px;overflow:hidden;${bgStyle};border:1px solid rgba(255,255,255,.1)">
+        ${!shirtSrc?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:40px">👕</div>`:''}
+        ${logoEl}
+      </div>
+    </div>`;
+  };
+
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:4px 0">
+    <div style="font-size:0.78rem;font-weight:800;text-align:center">Aperçu recto / verso</div>
+    <div style="display:flex;gap:20px;justify-content:center;align-items:flex-start;flex-wrap:wrap">
+      ${facePreview('front', clientLogoUrl, logoFrontPos)}
+      ${facePreview('back', backLogoUrl, logoBackPos)}
+    </div>
+    <div style="font-size:0.58rem;color:rgba(255,255,255,0.22);text-align:center">Aperçu indicatif — proportions finales peuvent varier</div>
   </div>`;
 }
 
@@ -5895,24 +7248,29 @@ function tshBuyStep4HTML() {
   const shirtBg = shirtSrc4
     ? `<img src="${shirtSrc4}" class="tsh-s2-shirt">`
     : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px">${prod.e}</div>`;
-  const { xPct:lx=50, yPct:ly=47, wPct:lw=44 } = tshBuy.logoPos || {};
+  const { xPct:lx=50, yPct:ly=47, wPct:lw=44 } = tshBuy.logoFrontPos || tshBuy.logoPos || {};
   const logoEl = clientLogoUrl
     ? `<div style="position:absolute;left:${lx}%;top:${ly}%;transform:translate(-50%,-50%);width:${lw}%;z-index:2;pointer-events:none">
         <img src="${clientLogoUrl}" style="width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 1px 4px rgba(0,0,0,0.6))">
       </div>`
     : '';
+  const pcfg4 = tshGetParcours(campId);
   const priceNum = parseInt(prod.p.replace(/[^\d]/g,'')) || 0;
   const total = priceNum * qty;
-  const activeSizes = tshGetParcours(tshBuy.campId).sizes;
+  const activeSizes = pcfg4.sizes;
   const sizeButtons = (activeSizes.length > 0 ? activeSizes : TSH_SIZES).map(s =>
     `<button class="tsh-size-btn${s===size?' tsh-sz-active':''}" onclick="tshBuyPickSize('${s}')">${s}</button>`
   ).join('');
+  // Section taille conditionnelle selon le toggle admin
+  const sizeSection = pcfg4.requireSize
+    ? `<div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">Taille${!size ? ' <span style="color:#ff6b6b;font-size:0.65rem">— requis ✱</span>' : ''}</div>
+       <div class="tsh-size-grid">${sizeButtons}</div>`
+    : '';
   return `<div class="tsh-step2-wrap">
     <div class="tsh-step2-preview">${shirtBg}${logoEl}</div>
     <div class="tsh-step2-form">
-      <div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin-bottom:4px">Taille</div>
-      <div class="tsh-size-grid">${sizeButtons}</div>
-      <div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin:10px 0 4px">Quantité</div>
+      ${sizeSection}
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text-secondary);margin:${pcfg4.requireSize ? '10px' : '0'} 0 4px">Quantité</div>
       <div class="tsh-qty-row">
         <button class="tsh-qty-btn" onclick="tshBuyQty(-1)">−</button>
         <span class="tsh-qty-val" id="tsh-buy-qty-val">${qty}</span>
@@ -5925,9 +7283,9 @@ function tshBuyStep4HTML() {
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
           <span style="color:var(--text-secondary)">Logo</span><span style="font-weight:700">${tshBuy.clientLogoName || '—'}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="color:var(--text-secondary)">Taille</span><span style="font-weight:700">${size}</span>
-        </div>
+        ${pcfg4.requireSize ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="color:var(--text-secondary)">Taille</span><span style="font-weight:700">${size || '—'}</span>
+        </div>` : ''}
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
           <span style="color:var(--text-secondary)">Qté</span><span style="font-weight:700">${qty}</span>
         </div>
@@ -5939,30 +7297,44 @@ function tshBuyStep4HTML() {
   </div>`;
 }
 
-// ── Chargement logo client + vérification DPI ─────────
+// ── Chargement logo avant + vérification DPI ──────────
 function tshClientLogoLoad(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
     const url = ev.target.result;
-    // Vérifier les dimensions pour estimer la qualité DPI
     const img = new Image();
     img.onload = () => {
-      // Estimation : logo poitrine ~10cm × 10cm à l'impression
-      // 300 DPI × 10cm / 2.54 = ~1181px → référence
       const refPx = 1181;
       const minDim = Math.min(img.naturalWidth, img.naturalHeight);
-      const estimatedDpi = Math.round(minDim / 10 * 2.54 * 10) / 10;
-      // Simplification : on estime en se basant sur 10cm d'impression
       const dpiEst = Math.round((minDim / refPx) * 300);
       tshBuy.clientLogoUrl  = url;
       tshBuy.clientLogoName = file.name;
       tshBuy.clientLogoDpi  = dpiEst;
-      if (dpiEst < 150) {
-        // On accepte mais on prévient — re-render pour montrer le badge
-      }
-      tshBuyRender(); // re-render step 2 avec le preview
+      tshBuyRender();
+    };
+    img.src = url;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Chargement logo dos (optionnel) ───────────────────
+function tshClientLogoBackLoad(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const url = ev.target.result;
+    const img = new Image();
+    img.onload = () => {
+      const refPx = 1181;
+      const minDim = Math.min(img.naturalWidth, img.naturalHeight);
+      const dpiEst = Math.round((minDim / refPx) * 300);
+      tshBuy.logoBackUrl  = url;
+      tshBuy.logoBackName = file.name;
+      tshBuy.logoBackDpi  = dpiEst;
+      tshBuyRender();
     };
     img.src = url;
   };
@@ -5984,22 +7356,60 @@ function tshBuyQty(delta) {
   tshBuyRender();
 }
 function tshBuyBack() {
-  if (tshBuy.step > 1) { tshBuy.step--; tshBuyRender(); }
+  const pcfg = tshGetParcours(tshBuy.campId);
+  const is2face = (pcfg.faces || ['front']).length > 1;
+  if (tshBuy.step === 3 && is2face) {
+    const sub = tshBuy.faceSubstep;
+    if (sub === 'back')    { tshBuy.faceSubstep = 'front';   tshBuyRender(); }
+    else if (sub === 'preview') { tshBuy.faceSubstep = 'back';    tshBuyRender(); }
+    // Retour étape 1 directement si étape logo désactivée
+    else if (!pcfg.showStep2)   { tshBuy.step = 1;             tshBuyRender(); }
+    else                        { tshBuy.step--;               tshBuyRender(); }
+  } else if (tshBuy.step > 1) {
+    // Idem depuis l'étape 4 : sauter étape 2 si désactivée
+    if (tshBuy.step === 4 && !pcfg.showStep2) { tshBuy.step = 3; tshBuyRender(); }
+    else { tshBuy.step--; tshBuyRender(); }
+  }
 }
 function tshBuyNext() {
   const { step, prodIdx, clientLogoUrl, clientLogoDpi } = tshBuy;
+  const pcfg = tshGetParcours(tshBuy.campId);
+  const is2face = (pcfg.faces || ['front']).length > 1;
+
   if (step === 1) {
     if (prodIdx === null) { alert('Sélectionnez un produit.'); return; }
-    tshBuy.step = 2; tshBuyRender();
+    // Sauter l'étape logo si désactivée dans le panneau admin
+    tshBuy.step = pcfg.showStep2 ? 2 : 3;
+    tshBuyRender();
   } else if (step === 2) {
-    if (!clientLogoUrl) { alert('Veuillez uploader votre logo.'); return; }
+    if (!clientLogoUrl) { alert('Veuillez uploader votre logo avant.'); return; }
     if (clientLogoDpi < 150) {
-      if (!confirm(`La résolution de votre logo semble insuffisante (${clientLogoDpi} DPI estimés).\nLe résultat imprimé pourrait être flou.\n\nContinuer quand même ?`)) return;
+      if (!confirm(`⚠️ Résolution insuffisante — ${clientLogoDpi} DPI estimés (minimum 150 DPI recommandé).\n\nEn cliquant sur OK, vous acceptez et reconnaissez que la qualité d'impression ne sera pas optimale en raison de la résolution insuffisante de votre logo. HCS ne pourra être tenu responsable du résultat obtenu.\n\nVoulez-vous continuer malgré tout ?`)) return;
     }
+    tshBuy.faceSubstep = 'front';
     tshBuy.step = 3; tshBuyRender();
   } else if (step === 3) {
-    tshBuy.step = 4; tshBuyRender();
+    if (is2face) {
+      const sub = tshBuy.faceSubstep;
+      if (sub === 'front') {
+        tshBuy.logoFrontPos = { ...tshBuy.logoPos };
+        tshBuy.faceSubstep = 'back';
+        if (!tshBuy.logoBackPos) tshBuy.logoBackPos = { xPct: 50, yPct: 40, wPct: 44 };
+        tshBuyRender();
+      } else if (sub === 'back') {
+        tshBuy.logoBackPos = { ...tshBuy.logoPos };
+        tshBuy.faceSubstep = 'preview';
+        tshBuyRender();
+      } else {
+        // preview → taille & commander
+        tshBuy.step = 4; tshBuyRender();
+      }
+    } else {
+      tshBuy.step = 4; tshBuyRender();
+    }
   } else {
+    // Taille obligatoire : bloquer si aucune taille sélectionnée
+    if (pcfg.requireSize && !tshBuy.size) { alert('Veuillez sélectionner une taille avant de commander.'); return; }
     tshBuyConfirm();
   }
 }
@@ -6038,10 +7448,28 @@ function tshBuyConfirm() {
     </div>
     <div class="stk-cl-body" id="stk-cl-body"></div>
     <div class="stk-cl-foot">
+      <button class="stk-cl-btn-vms" onclick="openVmsModal()">
+        🚗 Visualiser sur mon véhicule
+      </button>
       <button class="stk-cl-btn-order" onclick="stkClientConfirm()">
         🛒 Commander &amp; Payer
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VEHICLE MOCKUP STUDIO — Overlay iframe
+═══════════════════════════════════════════════════════ -->
+<div id="vms-modal">
+  <div class="vms-modal-bar">
+    <span style="font-size:1.2rem">🚗</span>
+    <span class="vms-modal-title">Vehicle Mockup Studio — Aperçu déco véhicule</span>
+    <span class="vms-modal-hint">Importez votre PNG pour voir le rendu sur votre véhicule</span>
+    <button class="vms-modal-close" onclick="closeVmsModal()">✕ Fermer</button>
+  </div>
+  <div class="vms-modal-body">
+    <iframe id="vms-iframe" src="vehicle-mockup-studio.html" title="Vehicle Mockup Studio" loading="lazy"></iframe>
   </div>
 </div>
 
@@ -6074,6 +7502,583 @@ function tshBuyConfirm() {
     </div>
   </div>
 </div>
+
+<!-- ══ MODAL GÉNÉRIQUE — Verticals 3-7 ══════════════════ -->
+<div id="gen-flow-modal">
+  <div class="gen-box" id="gen-flow-box">
+    <div class="gen-head">
+      <span class="gen-head-icon" id="gen-head-icon"></span>
+      <span class="gen-head-title" id="gen-head-title">Commander</span>
+      <button class="gen-head-close" onclick="closeGenericFlow()">✕</button>
+    </div>
+    <div class="gen-step-bar" id="gen-step-bar"></div>
+    <div class="gen-body" id="gen-body"></div>
+    <div class="gen-recap">
+      <div class="gen-recap-row">
+        <span class="gen-recap-icon" id="gen-recap-icon"></span>
+        <div class="gen-recap-info">
+          <div class="gen-recap-name" id="gen-recap-name">—</div>
+          <div class="gen-recap-opts" id="gen-recap-opts">Aucune option sélectionnée</div>
+        </div>
+        <span class="gen-recap-price" id="gen-recap-price"></span>
+      </div>
+      <div class="gen-recap-foot">
+        <button class="gen-btn-prev" id="gen-btn-prev" onclick="genFlowPrev()" style="display:none">← Retour</button>
+        <span class="gen-recap-qty" id="gen-recap-qty"></span>
+        <button class="gen-btn-next" id="gen-btn-next" onclick="genFlowNext()">Suivant →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Vehicle Mockup Studio — fonctions overlay ──────────
+function openVmsModal() {
+  document.getElementById('vms-modal').classList.add('open');
+}
+function closeVmsModal() {
+  document.getElementById('vms-modal').classList.remove('open');
+}
+// Fermer VMS avec Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const vms = document.getElementById('vms-modal');
+    if (vms?.classList.contains('open')) closeVmsModal();
+  }
+});
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// MODAL GÉNÉRIQUE — verticals 3-7
+// Priorité haute : step bar + récap flottant + preview live
+// Priorité moyenne : validation progressive + calculateur prix
+// Priorité basse : galerie visuelle + indicateur stock
+// ═══════════════════════════════════════════════════════
+const GEN_COLORS = { 3:'#fa709a', 4:'#a18cd1', 5:'#f093fb', 6:'#30cfd0', 7:'#f6d365' };
+
+let genFlow = {
+  campId:3, prodIdx:0, step:1,
+  selections:{ color:null, size:null, qty:1, format:null, file:null, filePreview:null,
+    fileQuality:null, date:null, sessionFormat:null, module:null,
+    plan:null, duree:'mensuel', service:null, description:'',
+    contactName:'', contactEmail:'', contactPhone:'', contactNote:'' }
+};
+
+function openGenericFlow(campId, prodIdx) {
+  const camp = CAMPS[campId];
+  const color = GEN_COLORS[campId] || '#6c63ff';
+  genFlow = { campId, prodIdx, step:1,
+    selections:{ color:null, size:null, qty:1, format:null, file:null, filePreview:null,
+      fileQuality:null, date:null, sessionFormat:null, module:null,
+      plan:null, duree:'mensuel', service:null, description:'',
+      contactName:'', contactEmail:'', contactPhone:'', contactNote:'' } };
+  const box = document.getElementById('gen-flow-box');
+  box.style.setProperty('--gen-color', color);
+  document.getElementById('gen-head-icon').textContent = camp.icon;
+  document.getElementById('gen-head-title').textContent = camp.name;
+  document.getElementById('gen-recap-icon').textContent = camp.products[prodIdx].e;
+  document.getElementById('gen-recap-name').textContent = camp.products[prodIdx].n;
+  document.getElementById('gen-flow-modal').classList.add('open');
+  genRender();
+}
+function closeGenericFlow() { document.getElementById('gen-flow-modal').classList.remove('open'); }
+
+function genStepLabels(campId) {
+  const cfg = getParcoursCfg(campId);
+  return [
+    cfg.label1 || 'Options',
+    cfg.label2 || 'Coordonnées',
+    cfg.label3 || 'Paiement'
+  ];
+}
+
+// ── Barre de progression générique ──────────────────────
+function genRender() {
+  const { campId, step } = genFlow;
+  const labels = genStepLabels(campId);
+  // Step bar
+  document.getElementById('gen-step-bar').innerHTML = labels.map((lbl, i) => {
+    const n = i + 1;
+    const dotCls = n < step ? 'done' : n === step ? 'active' : '';
+    const lblCls = n === step ? 'active' : '';
+    const conn = i < labels.length - 1
+      ? `<div class="gen-step-connector${n < step ? ' done' : ''}"></div>` : '';
+    return `<div class="gen-step-item">
+        <div class="gen-step-dot ${dotCls}">${n < step ? '✓' : n}</div>
+        <div class="gen-step-label ${lblCls}">${lbl}</div>
+      </div>${conn}`;
+  }).join('');
+  // Body
+  const bodyEl = document.getElementById('gen-body');
+  if (step === 1)      bodyEl.innerHTML = genStep1HTML();
+  else if (step === 2) bodyEl.innerHTML = genStep2HTML();
+  else                 bodyEl.innerHTML = genStep3HTML();
+  // Boutons
+  const prevBtn = document.getElementById('gen-btn-prev');
+  const nextBtn = document.getElementById('gen-btn-next');
+  prevBtn.style.display = step > 1 ? '' : 'none';
+  if (step === labels.length) {
+    nextBtn.textContent = '💳 Payer maintenant';
+    nextBtn.style.background = 'linear-gradient(135deg,#43e97b,#38f9d7)';
+    nextBtn.style.color = '#0f0f1a';
+  } else {
+    nextBtn.textContent = step === labels.length - 1 ? 'Confirmer →' : 'Suivant →';
+    nextBtn.style.background = 'var(--gen-color)';
+    nextBtn.style.color = 'white';
+  }
+  nextBtn.disabled = false;
+  updateGenRecap();
+}
+
+function genFlowNext() {
+  if (!genValidateStep()) return;
+  const labels = genStepLabels(genFlow.campId);
+  if (genFlow.step < labels.length) { genFlow.step++; genRender(); }
+  else genSubmitOrder();
+}
+function genFlowPrev() { if (genFlow.step > 1) { genFlow.step--; genRender(); } }
+
+// ── Validation progressive par étape ────────────────────
+function genValidateStep() {
+  const { campId, step, selections } = genFlow;
+  let msg = '';
+  if (step === 1) {
+    if (campId === 3 && !selections.color)   msg = 'Veuillez choisir une couleur de T-shirt.';
+    if (campId === 4 && !selections.format)  msg = 'Veuillez choisir un format gang sheet.';
+    if (campId === 5 && !selections.module)  msg = 'Veuillez choisir un module de formation.';
+    if (campId === 6 && !selections.plan)    msg = 'Veuillez choisir un plan.';
+    if (campId === 7 && !selections.service) msg = 'Veuillez choisir un service.';
+  }
+  if (step === 2) {
+    const name  = document.getElementById('gen-ck-name')?.value.trim() || '';
+    const email = document.getElementById('gen-ck-email')?.value.trim() || '';
+    if (!name || !email) {
+      msg = 'Prénom / Nom et email sont obligatoires.';
+    } else {
+      genFlow.selections.contactName  = name;
+      genFlow.selections.contactEmail = email;
+      genFlow.selections.contactPhone = document.getElementById('gen-ck-phone')?.value.trim() || '';
+      genFlow.selections.contactNote  = document.getElementById('gen-ck-note')?.value.trim() || '';
+      if (campId === 5) genFlow.selections.date = document.querySelector('.gen-date-pill.selected')?.dataset?.date || genFlow.selections.date;
+    }
+  }
+  if (msg) {
+    let errEl = document.getElementById('gen-inline-error');
+    if (!errEl) {
+      errEl = document.createElement('div');
+      errEl.id = 'gen-inline-error'; errEl.className = 'gen-error';
+      document.getElementById('gen-body').appendChild(errEl);
+    }
+    errEl.textContent = msg; errEl.classList.add('visible');
+    errEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    return false;
+  }
+  return true;
+}
+
+// ── Étape 1 : Sélection produit spécifique ──────────────
+function genStep1HTML() {
+  const { campId, prodIdx, selections } = genFlow;
+  const camp = CAMPS[campId];
+  const prod  = camp.products[prodIdx];
+  const cfg   = getParcoursCfg(campId);
+  const color = GEN_COLORS[campId];
+
+  const prodLine = `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:14px">
+    <div style="font-size:1.5rem">${prod.e}</div>
+    <div style="flex:1"><div style="font-size:0.82rem;font-weight:700">${prod.n}</div>
+      <div style="font-size:0.72rem;color:${color};font-weight:800">${prod.p}</div></div>
+  </div>`;
+
+  const label = (txt) => `<div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin:12px 0 6px">${txt}</div>`;
+
+  // ── id=3 DTF Originals ──
+  if (campId === 3) {
+    const sizes  = tshGetParcours(campId).sizes || ['XS','S','M','L','XL','2XL','3XL','4XL'];
+    const colors = cfg.tshirtColors || ['Blanc','Noir','Gris chiné','Marine','Vert forêt','Rouge'];
+    const HEX = {Blanc:'#f5f5f5',Noir:'#111','Gris chiné':'#9e9e9e',Marine:'#1a237e','Vert forêt':'#2e7d32',Rouge:'#c62828'};
+    const swatches = colors.map(c => `<div class="gen-color-wrap" onclick="genSetColor('${c}')">
+        <div class="gen-color-swatch${selections.color===c?' selected':''}" style="background:${HEX[c]||'#888'}${c==='Blanc'?';border-color:#ccc':''}"></div>
+        <div class="gen-color-label">${c}</div>
+      </div>`).join('');
+    const szBtns = sizes.map(s => `<div class="gen-format-btn${selections.size===s?' selected':''}" onclick="genSetSize('${s}')">${s}</div>`).join('');
+    // Galerie logo (priorité basse)
+    const hasLogoImgs = Object.keys(tshFaceImages[campId]||{}).length > 0;
+    const logoGallery = hasLogoImgs ? `${label('Visuels disponibles')}<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px">${camp.products.map((p,i)=>{const img=tshFaceImages[campId]?.[i]?.front;return img?`<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid ${prodIdx===i?color:'var(--border)'};cursor:pointer" onclick="genSelectDesign(${i})"><img src="${img}" style="width:100%;height:100%;object-fit:contain"></div>`:'';}).filter(Boolean).join('')}</div>` : '';
+    return prodLine + logoGallery + label('Couleur du T-shirt') + `<div class="gen-color-grid">${swatches}</div>` + label('Taille') + `<div class="gen-format-grid">${szBtns}</div>`;
+  }
+
+  // ── id=4 Grille DTF ──
+  if (campId === 4) {
+    const fmtMap = {'22x30cm':'22" × 30 cm','22x60cm':'22" × 60 cm','22x90cm':'22" × 90 cm','A3':'A3 (30×42 cm)','A2':'A2 (42×60 cm)'};
+    const fmtPrices = {'22x30cm':8500,'22x60cm':12000,'22x90cm':15000,'A3':9000,'A2':14000};
+    const formats = cfg.formats || ['22x30cm','22x60cm'];
+    const fmtBtns = formats.map(f=>`<div class="gen-format-btn${selections.format===f?' selected':''}" onclick="genSetFormat('${f}')">${fmtMap[f]||f}</div>`).join('');
+    const hasFile = !!selections.filePreview;
+    const hint = cfg.uploadHint || 'Fichier PNG ou PDF 300 DPI, fond transparent';
+    const priceBox = selections.format ? `<div class="gen-price-calc-box"><span class="gen-price-calc-label">Prix estimé</span><span class="gen-price-calc-val" id="gen-price-calc">${(fmtPrices[selections.format]*(selections.qty||1)).toLocaleString('fr-FR')} XPF</span></div>` : '';
+    return prodLine + label('Format gang sheet') + `<div class="gen-format-grid">${fmtBtns}</div>` + priceBox +
+      label('Fichier print-ready') + `<label style="cursor:pointer;display:block">
+      <div class="gen-upload-preview${hasFile?' has-file':''}" id="gen-upload-preview">
+        ${hasFile ? `<img src="${selections.filePreview}"><div class="gen-upload-overlay"><span style="color:white;font-size:0.75rem;font-weight:700">Changer</span></div>` : `<div style="text-align:center;color:var(--text-secondary);padding:12px"><div style="font-size:2rem;margin-bottom:6px">📎</div><div style="font-size:0.72rem">${hint}</div></div>`}
+      </div>
+      <input type="file" accept="image/*,.pdf,.ai,.psd" style="display:none" onchange="genFileLoad(event)">
+    </label>${selections.fileQuality ? `<div class="gen-file-quality ${selections.fileQuality.cls}">${selections.fileQuality.label}</div>` : ''}`;
+  }
+
+  // ── id=5 Formation Textile ──
+  if (campId === 5) {
+    const modules = cfg.modules || ['debutant','avance','complet'];
+    const MOD = {
+      debutant:{ label:'Débutant', emoji:'📗', price:cfg.price_debutant||15000, desc:'Bases DTF, manipulation, entretien' },
+      avance:  { label:'Avancé',   emoji:'📘', price:cfg.price_avance  ||25000, desc:'Techniques pro, couleurs, sérigraphie' },
+      complet: { label:'Complet',  emoji:'🏆', price:cfg.price_complet ||35000, desc:'Programme intégral débutant → expert' }
+    };
+    const cards = modules.filter(m=>MOD[m]).map(m=>`<div class="gen-plan-card${selections.module===m?' selected':''}" onclick="genSetModule('${m}')">
+        <div class="gen-plan-head"><span class="gen-plan-emoji">${MOD[m].emoji}</span>
+          <span class="gen-plan-name">${MOD[m].label}</span>
+          <span class="gen-plan-price">${(+MOD[m].price).toLocaleString('fr-FR')} XPF</span></div>
+        <div class="gen-plan-avantages">${MOD[m].desc}</div>
+      </div>`).join('');
+    return prodLine + label('Choisir le module') + cards;
+  }
+
+  // ── id=6 Abonnements ──
+  if (campId === 6) {
+    const plans = cfg.plans || ['starter','pro','premium'];
+    const PLAN = {
+      starter:{ label:'Starter', emoji:'🌱', priceM:1800, priceA:18000, color:'#30cfd0', av:'Points bonus HCS\nAccès offres prioritaires' },
+      pro:    { label:'Pro',     emoji:'⚡', priceM:3500, priceA:35000, color:'#a18cd1', av:'Points bonus ×2\nLogos offerts (2/mois)\nRemise 10%' },
+      premium:{ label:'Premium', emoji:'👑', priceM:5500, priceA:55000, color:'#f6d365', av:'Points bonus ×3\nLogos offerts (5/mois)\nRemise 20%\nConseil personnalisé' }
+    };
+    const cards = plans.filter(p=>PLAN[p]).map(p=>{
+      const avList = (cfg['avantages_'+p] || PLAN[p].av).split('\n').filter(Boolean).map(a=>`✓ ${a}`).join('<br>');
+      return `<div class="gen-plan-card${selections.plan===p?' selected':''}" onclick="genSetPlan('${p}')">
+        <div class="gen-plan-head"><span class="gen-plan-emoji">${PLAN[p].emoji}</span>
+          <span class="gen-plan-name" style="color:${PLAN[p].color}">${PLAN[p].label}</span>
+          <span class="gen-plan-price" style="color:${PLAN[p].color}">${PLAN[p].priceM.toLocaleString('fr-FR')} XPF/mois</span></div>
+        <div class="gen-plan-avantages">${avList}</div>
+      </div>`;
+    }).join('');
+    return label('Choisir votre plan') + cards;
+  }
+
+  // ── id=7 Graphiques / Vecto IA ──
+  if (campId === 7) {
+    const services = cfg.services || ['vecto','detour','logo','pack'];
+    const SVC = {
+      vecto: { label:'Vectorisation SVG/AI', icon:'📐', price:2500, desc:'Conversion vectoriel haute qualité' },
+      detour:{ label:'Détourage IA',         icon:'✂️', price:1500, desc:'Fond transparent — PNG optimisé' },
+      logo:  { label:'Création logo complet',icon:'🎨', price:8000, desc:'Logo pro livré en vectoriel' },
+      pack:  { label:'Pack graphique',        icon:'📦', price:8000, desc:'Vectorisation + Détourage + Retouches' }
+    };
+    const cards = services.filter(s=>SVC[s]).map(s=>`<div class="gen-service-card${selections.service===s?' selected':''}" onclick="genSetService('${s}')">
+        <span class="gen-service-icon">${SVC[s].icon}</span>
+        <div style="flex:1"><div class="gen-service-label">${SVC[s].label}</div>
+          <div style="font-size:0.62rem;color:var(--text-secondary);margin-top:2px">${SVC[s].desc}</div></div>
+        <span class="gen-service-price">${SVC[s].price.toLocaleString('fr-FR')} XPF</span>
+      </div>`).join('');
+    return prodLine + label('Choisir le service') + cards;
+  }
+  return '';
+}
+
+// ── Étape 2 : Complément + Coordonnées ──────────────────
+function genStep2HTML() {
+  const { campId, selections } = genFlow;
+  const cfg = getParcoursCfg(campId);
+  let extra = '';
+
+  if (campId === 3) {
+    extra = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:8px">Quantité</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onclick="genChangeQty(-1)" class="gen-qty-btn">−</button>
+        <span id="gen-qty-val" style="font-size:1rem;font-weight:800;min-width:28px;text-align:center">${selections.qty}</span>
+        <button onclick="genChangeQty(1)" class="gen-qty-btn">+</button>
+      </div>
+    </div>`;
+  }
+
+  if (campId === 4) {
+    const fmtPrices = {'22x30cm':8500,'22x60cm':12000,'22x90cm':15000,'A3':9000,'A2':14000};
+    const base = fmtPrices[selections.format] || 8500;
+    extra = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:8px">Quantité de feuilles</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onclick="genChangeQty(-1)" class="gen-qty-btn">−</button>
+        <span id="gen-qty-val" style="font-size:1rem;font-weight:800;min-width:28px;text-align:center">${selections.qty}</span>
+        <button onclick="genChangeQty(1)" class="gen-qty-btn">+</button>
+        <span style="flex:1;text-align:right;font-size:1rem;font-weight:900;color:var(--gen-color)" id="gen-price-calc">${(base*selections.qty).toLocaleString('fr-FR')} XPF</span>
+      </div>
+    </div>`;
+  }
+
+  if (campId === 5) {
+    const dates = (cfg.dates||'').split('\n').filter(d=>d.trim());
+    const datePills = dates.length
+      ? dates.map(d=>`<div class="gen-date-pill${selections.date===d.trim()?' selected':''}" data-date="${d.trim()}" onclick="genSetDate('${d.trim().replace(/'/g,"\\'")}',this)">${d.trim()}</div>`).join('')
+      : `<div style="font-size:0.72rem;color:var(--text-secondary)">Aucune date — contactez-nous.</div>`;
+    const fmtLabels = {atelier:'🏫 En atelier',enligne:'💻 En ligne'};
+    const formats = cfg.formats || ['atelier'];
+    const fmtBtns = formats.map(f=>`<div class="gen-format-btn${selections.sessionFormat===f?' selected':''}" onclick="genSetSessionFormat('${f}')">${fmtLabels[f]||f}</div>`).join('');
+    extra = `<div style="margin-bottom:14px">
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:6px">Date de session</div>
+      <div class="gen-date-grid">${datePills}</div>
+    </div>
+    ${formats.length>1?`<div style="margin-bottom:14px">
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:6px">Format</div>
+      <div class="gen-format-grid">${fmtBtns}</div>
+    </div>`:''}`;
+  }
+
+  if (campId === 6) {
+    const PLAN = {starter:{priceM:1800,priceA:18000},pro:{priceM:3500,priceA:35000},premium:{priceM:5500,priceA:55000}};
+    const info = PLAN[selections.plan] || {priceM:0,priceA:0};
+    const durees = cfg.durees || ['mensuel','annuel'];
+    const pMap = {
+      mensuel:`${info.priceM.toLocaleString('fr-FR')} XPF/mois`,
+      trimestriel:`${Math.round(info.priceM*3*0.95).toLocaleString('fr-FR')} XPF/trim.`,
+      annuel:`${info.priceA.toLocaleString('fr-FR')} XPF/an`
+    };
+    const cards = durees.map(d=>`<div class="gen-plan-card${selections.duree===d?' selected':''}" onclick="genSetDuree('${d}')">
+        <div class="gen-plan-head"><span class="gen-plan-name" style="text-transform:capitalize">${d}</span>
+          <span class="gen-plan-price">${pMap[d]||''}</span></div>
+        ${d!=='mensuel'?`<div class="gen-plan-avantages" style="color:#43e97b">${d==='trimestriel'?'✓ Économisez 5%':'✓ Économisez 15%'}</div>`:''}</div>`).join('');
+    extra = `<div style="margin-bottom:14px">
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:8px">Durée d'engagement</div>
+      ${cards}</div>`;
+  }
+
+  if (campId === 7) {
+    const hasFile = !!selections.filePreview;
+    const descPh = cfg.descPlaceholder || 'Décrivez votre besoin (couleurs, style, références...)';
+    extra = `${cfg.allowUpload!==false?`<div style="margin-bottom:14px">
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:6px">Fichier source (optionnel)</div>
+      <label style="cursor:pointer;display:block">
+        <div class="gen-upload-preview${hasFile?' has-file':''}" id="gen-upload-preview" style="aspect-ratio:3/1">
+          ${hasFile?`<img src="${selections.filePreview}"><div class="gen-upload-overlay"><span style="color:white;font-size:0.75rem">Changer</span></div>`:`<div style="text-align:center;color:var(--text-secondary)"><div style="font-size:1.8rem">📁</div><div style="font-size:0.7rem;margin-top:4px">PNG · JPG · PDF · AI · PSD</div></div>`}
+        </div>
+        <input type="file" accept="image/*,.pdf,.ai,.psd,.eps" style="display:none" onchange="genFileLoad(event)">
+      </label>
+    </div>`:''}
+    ${cfg.allowDesc!==false?`<div style="margin-bottom:14px">
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:6px">Description du besoin</div>
+      <textarea class="finput" rows="3" placeholder="${descPh}" style="resize:vertical;font-size:0.75rem;line-height:1.5"
+        oninput="genFlow.selections.description=this.value;updateGenRecap()">${selections.description||''}</textarea>
+    </div>`:''}`;
+  }
+
+  return `${extra}
+    <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:10px">Vos coordonnées</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div><label style="font-size:0.65rem;color:var(--text-secondary);display:block;margin-bottom:3px">Prénom &amp; Nom *</label>
+        <input class="finput" id="gen-ck-name" placeholder="Jean Dupont" value="${genFlow.selections.contactName}" style="font-size:0.8rem"></div>
+      <div><label style="font-size:0.65rem;color:var(--text-secondary);display:block;margin-bottom:3px">Email *</label>
+        <input class="finput" id="gen-ck-email" type="email" placeholder="jean@mail.com" value="${genFlow.selections.contactEmail}" style="font-size:0.8rem"></div>
+      <div><label style="font-size:0.65rem;color:var(--text-secondary);display:block;margin-bottom:3px">Téléphone</label>
+        <input class="finput" id="gen-ck-phone" type="tel" placeholder="87 00 00 00" value="${genFlow.selections.contactPhone}" style="font-size:0.8rem"></div>
+      <div><label style="font-size:0.65rem;color:var(--text-secondary);display:block;margin-bottom:3px">Note / instructions</label>
+        <textarea class="finput" id="gen-ck-note" rows="2" style="resize:none;font-size:0.75rem" placeholder="Informations complémentaires...">${genFlow.selections.contactNote}</textarea></div>
+    </div>`;
+}
+
+// ── Étape 3 : Paiement Krypton ──────────────────────────
+function genStep3HTML() {
+  const { campId, prodIdx } = genFlow;
+  const camp = CAMPS[campId]; const prod = camp.products[prodIdx];
+  const price = genGetPrice();
+  const workerUrl = document.getElementById(`pz-worker-${campId}`)?.value || 'https://payzen-hcs.highcoffeeshirt.workers.dev/payzen-token';
+  const workerSec = document.getElementById(`pz-secret-${campId}`)?.value || 'hcs-payzen-2026';
+  const mode      = document.getElementById(`pz-mode-${campId}`)?.value   || 'TEST';
+  const publicKey = mode === 'PRODUCTION'
+    ? '41545085:publickey_IzNDzp5XcAadriFpCh08meZmg8Ri6WbYIG6TIQ9mpu2NA'
+    : '41545085:testpublickey_HJw0fXMbbvOAzJuN1BXImXIu5U16qkSHv2eQVjSu0YftA';
+  setTimeout(() => genInitKrypton(price, workerUrl, workerSec, publicKey, mode), 100);
+  return `<div style="text-align:center;margin-bottom:14px">
+    <div style="font-size:1.6rem;font-weight:900;color:var(--gen-color)">${price.toLocaleString('fr-FR')} XPF</div>
+    <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:4px">${prod.n} — paiement sécurisé OSB</div>
+  </div>
+  <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:14px">
+    <div style="padding:4px 9px;border-radius:5px;background:#1A1F71"><span style="color:#fff;font-weight:900;font-size:0.7rem;letter-spacing:1px">VISA</span></div>
+    <div style="position:relative;width:34px;height:22px"><div style="width:20px;height:20px;border-radius:50%;background:#EB001B;position:absolute;left:0;top:1px"></div><div style="width:20px;height:20px;border-radius:50%;background:#F79E1B;position:absolute;right:0;top:1px;opacity:0.9"></div></div>
+    <div style="padding:4px 9px;border-radius:5px;background:#005EB8"><span style="color:#fff;font-weight:900;font-size:0.7rem;letter-spacing:1px">CB</span></div>
+  </div>
+  <div id="gen-pz-loading" style="text-align:center;color:var(--text-secondary);font-size:0.78rem;padding:12px">⏳ Connexion à OSB…</div>
+  <div id="gen-pz-error" style="display:none;background:rgba(255,80,80,0.12);border:1px solid rgba(255,80,80,0.3);border-radius:8px;padding:10px;color:#ff6b6b;font-size:0.75rem;text-align:center"></div>
+  <div id="gen-pz-kr-form" style="display:none"><div class="kr-embedded"></div></div>`;
+}
+
+async function genInitKrypton(amount, workerUrl, workerSec, publicKey, mode) {
+  try {
+    const resp = await fetch(workerUrl, {
+      method:'POST', headers:{'Content-Type':'application/json','X-Worker-Secret':workerSec},
+      body: JSON.stringify({ amount: amount*100, currency:'953', mode })
+    });
+    let data; try { data = await resp.json(); } catch { throw new Error(await resp.text()); }
+    if (!data.formToken) throw new Error(data.errorMessage || 'Token introuvable');
+    document.getElementById('gen-pz-loading').style.display = 'none';
+    document.getElementById('gen-pz-kr-form').style.display = 'block';
+    if (!window.KR) {
+      await new Promise((resolve, reject) => {
+        if (document.getElementById('pz-sdk-gen')) { resolve(); return; }
+        const s = document.createElement('script'); s.id = 'pz-sdk-gen';
+        s.src = 'https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';
+        s.setAttribute('kr-public-key', publicKey); s.setAttribute('kr-language','fr-FR');
+        s.onload = resolve; s.onerror = () => reject(new Error('SDK OSB indisponible'));
+        document.head.appendChild(s);
+      });
+    }
+    await KR.setFormConfig({'kr-public-key': publicKey, 'kr-language':'fr-FR'});
+    await KR.setFormToken(data.formToken);
+    KR.onSubmit(async (r) => {
+      const status = r.clientAnswer?.orderStatus;
+      if (status === 'PAID' || status === 'AUTHORISED') {
+        document.getElementById('gen-pz-kr-form').innerHTML =
+          `<div style="text-align:center;padding:24px"><div style="font-size:2.5rem;margin-bottom:8px">✅</div><div style="font-size:1rem;font-weight:800;color:#43e97b">Paiement confirmé !</div><div style="font-size:0.72rem;color:var(--text-secondary);margin-top:6px">Merci, votre commande est enregistrée.</div></div>`;
+        setTimeout(closeGenericFlow, 2800);
+      }
+      return true;
+    });
+  } catch(err) {
+    document.getElementById('gen-pz-loading').style.display = 'none';
+    const errEl = document.getElementById('gen-pz-error');
+    if (errEl) { errEl.style.display='block'; errEl.textContent='Erreur : '+err.message; }
+  }
+}
+
+// ── Calculateur de prix dynamique ───────────────────────
+function genGetPrice() {
+  const { campId, prodIdx, selections } = genFlow;
+  const prod = CAMPS[campId].products[prodIdx];
+  const base = parseInt(prod.p.replace(/[^\d]/g,'')) || 0;
+  if (campId === 4) {
+    const P = {'22x30cm':8500,'22x60cm':12000,'22x90cm':15000,'A3':9000,'A2':14000};
+    return (P[selections.format] || base) * (selections.qty || 1);
+  }
+  if (campId === 5) {
+    const cfg = getParcoursCfg(campId);
+    const P = {debutant:+cfg.price_debutant||15000, avance:+cfg.price_avance||25000, complet:+cfg.price_complet||35000};
+    return P[selections.module] || base;
+  }
+  if (campId === 6) {
+    const P = {starter:{priceM:1800,priceA:18000},pro:{priceM:3500,priceA:35000},premium:{priceM:5500,priceA:55000}};
+    const info = P[selections.plan] || {priceM:base,priceA:base*10};
+    if (selections.duree === 'annuel') return info.priceA;
+    if (selections.duree === 'trimestriel') return Math.round(info.priceM*3*0.95);
+    return info.priceM;
+  }
+  if (campId === 7) {
+    const P = {vecto:2500,detour:1500,logo:8000,pack:8000};
+    return P[selections.service] || base;
+  }
+  return base * (selections.qty || 1);
+}
+
+// ── Récapitulatif flottant — mise à jour ────────────────
+function updateGenRecap() {
+  const { campId, selections } = genFlow;
+  const price = genGetPrice();
+  const opts  = [];
+  if (selections.color)   opts.push(selections.color);
+  if (selections.size)    opts.push(selections.size);
+  if (selections.format)  opts.push(selections.format.replace('x','×'));
+  if (selections.module)  opts.push({debutant:'Débutant',avance:'Avancé',complet:'Complet'}[selections.module]||selections.module);
+  if (selections.plan)    opts.push({starter:'Starter',pro:'Pro',premium:'Premium'}[selections.plan]||selections.plan);
+  if (selections.duree && selections.duree!=='mensuel') opts.push(selections.duree);
+  if (selections.service) opts.push({vecto:'Vectorisation',detour:'Détourage IA',logo:'Logo',pack:'Pack'}[selections.service]||selections.service);
+  if (selections.date)    opts.push(selections.date);
+  if (selections.file)    opts.push('📎 '+selections.file.name.slice(0,20));
+  const qty = selections.qty || 1;
+  document.getElementById('gen-recap-opts').textContent = opts.length ? opts.join(' · ') : 'Aucune option sélectionnée';
+  document.getElementById('gen-recap-price').textContent = price.toLocaleString('fr-FR') + ' XPF';
+  document.getElementById('gen-recap-qty').textContent = qty > 1 ? `×${qty}` : '';
+}
+
+// ── Sélecteurs ──────────────────────────────────────────
+function genSetColor(v)   { genFlow.selections.color   = v; genRender(); }
+function genSetSize(v)    { genFlow.selections.size    = v; genRender(); }
+function genSetFormat(v)  { genFlow.selections.format  = v; genRender(); }
+function genSetModule(v)  { genFlow.selections.module  = v; genRender(); }
+function genSetPlan(v)    { genFlow.selections.plan    = v; genRender(); }
+function genSetDuree(v)   { genFlow.selections.duree   = v; genRender(); }
+function genSetService(v) { genFlow.selections.service = v; genRender(); }
+function genSelectDesign(prodIdx) { genFlow.prodIdx = prodIdx; document.getElementById('gen-recap-icon').textContent = CAMPS[genFlow.campId].products[prodIdx].e; document.getElementById('gen-recap-name').textContent = CAMPS[genFlow.campId].products[prodIdx].n; genRender(); }
+function genSetDate(v, el) {
+  genFlow.selections.date = v;
+  document.querySelectorAll('.gen-date-pill').forEach(p => p.classList.toggle('selected', p.dataset.date === v));
+  updateGenRecap();
+}
+function genSetSessionFormat(v) {
+  genFlow.selections.sessionFormat = v;
+  document.querySelectorAll('#gen-body .gen-format-btn').forEach(b => b.classList.toggle('selected', b.textContent.trim().includes(({atelier:'atelier',enligne:'enligne'})[v]||v)));
+  updateGenRecap();
+}
+
+function genChangeQty(delta) {
+  const cfg = getParcoursCfg(genFlow.campId);
+  genFlow.selections.qty = Math.min(cfg.qtyMax||99, Math.max(cfg.qtyMin||1, (genFlow.selections.qty||1)+delta));
+  const qEl = document.getElementById('gen-qty-val');
+  if (qEl) qEl.textContent = genFlow.selections.qty;
+  const calcEl = document.getElementById('gen-price-calc');
+  if (calcEl) calcEl.textContent = genGetPrice().toLocaleString('fr-FR') + ' XPF';
+  updateGenRecap();
+}
+
+// ── Preview live fichier uploadé ─────────────────────────
+function genFileLoad(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  genFlow.selections.file = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    genFlow.selections.filePreview = ev.target.result;
+    const prevEl = document.getElementById('gen-upload-preview');
+    if (prevEl) {
+      const isImg = file.type.startsWith('image/');
+      prevEl.classList.add('has-file');
+      prevEl.innerHTML = isImg
+        ? `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:contain"><div class="gen-upload-overlay"><span style="color:white;font-size:0.75rem;font-weight:700">Changer</span></div>`
+        : `<div style="text-align:center"><div style="font-size:2rem">📄</div><div style="font-size:0.72rem;margin-top:4px;color:#43e97b;font-weight:700">${file.name}</div></div><div class="gen-upload-overlay"><span style="color:white;font-size:0.75rem;font-weight:700">Changer</span></div>`;
+      if (isImg) {
+        const img = new Image();
+        img.onload = () => {
+          const dpi = Math.round(Math.min(img.width, img.height) / 4);
+          const cls = dpi >= 300 ? 'ok' : dpi >= 150 ? 'warn' : 'bad';
+          const lbl = dpi >= 300 ? `✅ Excellente qualité — ~${dpi} DPI` : dpi >= 150 ? `⚠️ Qualité acceptable — ~${dpi} DPI (300 DPI recommandé)` : `❌ Résolution faible — ~${dpi} DPI`;
+          genFlow.selections.fileQuality = { cls, label: lbl };
+          const existing = prevEl.parentNode?.querySelector('.gen-file-quality');
+          if (existing) existing.remove();
+          const qEl = document.createElement('div');
+          qEl.className = `gen-file-quality ${cls}`; qEl.textContent = lbl;
+          prevEl.insertAdjacentElement('afterend', qEl);
+        };
+        img.src = ev.target.result;
+      }
+    }
+    updateGenRecap();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Soumission : passer au panier standard ──────────────
+function genSubmitOrder() {
+  const { campId, prodIdx, selections } = genFlow;
+  const camp = CAMPS[campId]; const prod = camp.products[prodIdx];
+  const price = genGetPrice();
+  CART = [{ campId, prodIdx, icon:prod.e, name:prod.n, camp:camp.name,
+    price, priceStr:price.toLocaleString('fr-FR')+' XPF', qty:selections.qty||1,
+    options:{ color:selections.color, size:selections.size, format:selections.format,
+      module:selections.module, plan:selections.plan, service:selections.service }
+  }];
+  closeGenericFlow();
+  CK_STEP = 2;
+  updateBadge();
+  openCart();
+  renderStep();
+}
+</script>
 
 <script src="../hcs-hub-ecosystem/hcs-hub-ecosystem/andromeda-v2-patch.js"></script>
 </body>
