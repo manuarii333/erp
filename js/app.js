@@ -117,7 +117,7 @@ const APPS = [
     label: 'Fidélité',
     icon: '⭐',
     color: '#f6d365',
-    pinned: false,
+    pinned: true,
     views: [
       { id: 'programme',  label: 'Programme Fidélité', icon: '⭐', section: 'Comptes Clients',
         href: 'apps/andromeda-campaign.html' },

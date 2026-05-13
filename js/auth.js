@@ -27,7 +27,7 @@ const ROLES = {
     color:       '#6366F1',
     icon:        '🛡️',
     modules:     ['dashboard','crm','ventes','achats','stock','production',
-                  'comptabilite','rh','messagerie','caisse','outils','parametres'],
+                  'comptabilite','rh','messagerie','caisse','outils','parametres','fidelite'],
     peutGererUtilisateurs: true,
     peutCreerSuperAdmin:   false
   },
@@ -36,7 +36,7 @@ const ROLES = {
     description: 'Comptabilité, ventes en lecture et rapports financiers',
     color:       '#0891B2',
     icon:        '💼',
-    modules:     ['dashboard','comptabilite','ventes','achats','messagerie'],
+    modules:     ['dashboard','comptabilite','ventes','achats','messagerie','fidelite'],
     peutGererUtilisateurs: false,
     peutCreerSuperAdmin:   false
   },
@@ -45,7 +45,7 @@ const ROLES = {
     description: 'CRM, devis, commandes, factures et caisse',
     color:       '#16A34A',
     icon:        '🤝',
-    modules:     ['dashboard','crm','ventes','caisse','messagerie'],
+    modules:     ['dashboard','crm','ventes','caisse','messagerie','fidelite'],
     peutGererUtilisateurs: false,
     peutCreerSuperAdmin:   false
   },
@@ -63,7 +63,7 @@ const ROLES = {
     description: 'Saisie de devis, commandes et point de caisse',
     color:       '#7C3AED',
     icon:        '🛒',
-    modules:     ['dashboard','crm','ventes','caisse','messagerie'],
+    modules:     ['dashboard','crm','ventes','caisse','messagerie','fidelite'],
     peutGererUtilisateurs: false,
     peutCreerSuperAdmin:   false
   },
