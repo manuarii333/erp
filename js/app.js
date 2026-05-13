@@ -600,6 +600,18 @@ function renderView() {
         Accounting.init(document.getElementById('toolbar-actions'), container, view);
       }
       break;
+    case 'fidelite':
+      if (view === 'programme') {
+        renderIframe('apps/andromeda-campaign.html', container);
+      } else if (view === 'portail') {
+        window.open('apps/compte-client.html', '_blank');
+        container.innerHTML = `<div class="table-empty"><p>🔗 Portail client ouvert dans un nouvel onglet.</p></div>`;
+      } else if (view === 'envoyer-lien') {
+        renderSendLink(container);
+      } else {
+        container.innerHTML = `<div class="table-empty"><p>⭐ Sélectionnez une vue Fidélité.</p></div>`;
+      }
+      break;
     case 'rh':           renderRH(view, container);           break;
     case 'parametres':
       if (typeof Users !== 'undefined') {
@@ -1326,6 +1338,123 @@ function renderRH(view, container) {
         <p>Module RH — chargement…</p>
       </div>`;
   }
+}
+
+/* ---- FIDÉLITÉ — Envoyer un lien magique au client ---- */
+async function renderSendLink(container) {
+  const ERP_API_LOCAL = 'https://highcoffeeshirts.com/erp/api';
+  const CLIENT_PORTAL_LOCAL = 'https://highcoffeeshirts.com/erp/apps/compte-client.html';
+
+  container.innerHTML = `
+    <div style="max-width:520px;margin:40px auto;padding:0 16px">
+      <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:6px">📧 Envoyer un lien d'accès client</h2>
+      <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:24px">
+        Génère un lien magique et l'envoie par email au client. Il peut consulter ses points fidélité et définir son mot de passe.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label style="display:block;font-size:.82rem;color:var(--text-muted);margin-bottom:5px">Email du client *</label>
+          <input id="sl-email" type="email" placeholder="client@mail.com"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--input-bg,#1e1e2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text-primary,#fff);font-size:.9rem">
+        </div>
+        <div>
+          <label style="display:block;font-size:.82rem;color:var(--text-muted);margin-bottom:5px">Nom du client (optionnel)</label>
+          <input id="sl-name" type="text" placeholder="Prénom Nom"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--input-bg,#1e1e2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text-primary,#fff);font-size:.9rem">
+        </div>
+        <button id="sl-btn" onclick="window._sendMagicLink()"
+          style="padding:12px;background:var(--caramel,#c4813a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:.9rem">
+          Envoyer le lien magique
+        </button>
+        <div id="sl-result" style="display:none;padding:12px 14px;border-radius:8px;font-size:.85rem"></div>
+      </div>
+    </div>`;
+
+  window._sendMagicLink = async function() {
+    const email = document.getElementById('sl-email')?.value.trim();
+    const name  = document.getElementById('sl-name')?.value.trim();
+    const btn   = document.getElementById('sl-btn');
+    const res   = document.getElementById('sl-result');
+    if (!email || !email.includes('@')) { alert('Email invalide.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Envoi en cours…';
+    res.style.display = 'none';
+
+    try {
+      /* 1. Générer le token */
+      const r1 = await fetch(`${ERP_API_LOCAL}/compte_client`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'request_link', email, name: name || undefined })
+      });
+      const d1 = await r1.json();
+      if (!d1.token) throw new Error(d1.error || 'Génération token échouée');
+      const magicUrl = `${CLIENT_PORTAL_LOCAL}?token=${d1.token}`;
+
+      /* 2. Envoyer l'email */
+      const clientName = name || d1.name || email.split('@')[0];
+      const emailHtml = `
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;font-size:14px;color:#222">
+  <tr><td style="background:#c4813a;padding:20px 28px;border-radius:8px 8px 0 0">
+    <strong style="color:#fff;font-size:20px">High Coffee Shirt</strong>
+    <span style="display:block;color:rgba(255,255,255,.8);font-size:12px">Papeete, Polynésie française</span>
+  </td></tr>
+  <tr><td style="padding:24px 28px;background:#fff">
+    <p style="font-size:17px;font-weight:700;margin:0 0 8px">🔗 Accédez à votre espace fidélité</p>
+    <p style="color:#444;margin:0 0 20px">Bonjour <strong>${clientName}</strong>,<br>
+    Retrouvez vos points fidélité, votre historique d'achats et vos avantages HCS en un clic :</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+      <tr><td style="background:#1a6ee0;border-radius:8px;text-align:center;padding:14px">
+        <a href="${magicUrl}" style="color:#fff;font-weight:700;font-size:14px;text-decoration:none">🔗 Accéder à mon espace client HCS →</a>
+      </td></tr>
+    </table>
+    <p style="color:#888;font-size:12px;margin:0 0 16px">Ce lien est valable <strong>24 heures</strong>. Vous pouvez définir un mot de passe pour vous connecter à tout moment.</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbf0;border:1px solid #f0a030;border-radius:8px;font-size:13px">
+      <tr><td style="padding:12px 16px;font-weight:700;color:#8a6200">⭐ Programme Fidélité HCS</td></tr>
+      <tr><td style="padding:0 16px 12px">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;color:#555">🥉 Rookie</td><td style="text-align:right;color:#555">0 XPF — 1 pt/100 XPF</td></tr>
+          <tr><td style="padding:4px 0;color:#4facfe">🥈 Regular</td><td style="text-align:right;color:#4facfe">50 000 XPF — 1,2 pt/100 XPF</td></tr>
+          <tr><td style="padding:4px 0;color:#a78bfa">🥇 Pro</td><td style="text-align:right;color:#a78bfa">150 000 XPF — 1,5 pt/100 XPF</td></tr>
+          <tr><td style="padding:4px 0;color:#f6a800">🏆 Ambassadeur</td><td style="text-align:right;color:#f6a800">300 000 XPF — 2 pt/100 XPF</td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="background:#f5f5f5;padding:14px 28px;border-radius:0 0 8px 8px;font-size:12px;color:#888;text-align:center">
+    High Coffee Shirt · Papeete, Tahiti · highcoffeeshirt@gmail.com
+  </td></tr>
+</table>`;
+
+      const r2 = await fetch('https://highcoffeeshirts.com/erp/api/send_email.php', {
+        method: 'POST', headers: {'Content-Type':'application/json','x-api-key':'hcs-erp-2026'},
+        body: JSON.stringify({
+          to: email,
+          subject: '🔗 Votre espace client High Coffee Shirt',
+          bodyHtml: emailHtml,
+          body: ' ',
+          fromName: 'High Coffee Shirt'
+        })
+      });
+      const d2 = await r2.json();
+      if (!d2.success) throw new Error(d2.error || 'Envoi email échoué');
+
+      res.style.display = 'block';
+      res.style.background = 'rgba(34,197,94,.1)';
+      res.style.border = '1px solid rgba(34,197,94,.3)';
+      res.style.color = '#22c55e';
+      res.innerHTML = `✅ Lien envoyé à <strong>${email}</strong>`;
+    } catch(err) {
+      res.style.display = 'block';
+      res.style.background = 'rgba(239,68,68,.1)';
+      res.style.border = '1px solid rgba(239,68,68,.3)';
+      res.style.color = '#ef4444';
+      res.innerHTML = `❌ Erreur : ${err.message}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Envoyer le lien magique';
+    }
+  };
 }
 
 /* ---- MESSAGERIE — délégué à js/modules/discuss.js ---- */

@@ -5916,6 +5916,86 @@ async function _enrichConfirmation(orderId, total, contact, delivery, productNam
   <div style="text-align:center;margin-top:14px;font-size:.72rem;color:rgba(255,255,255,.35)">
     Merci ${contact.name} — High Coffee Shirt 🌺
   </div>`;
+
+  /* ── Envoi email de confirmation ─────────────────────── */
+  try {
+    const baremeEmail = [
+      { name:'Rookie',      min:'0 XPF',       taux:'1 pt / 100 XPF',   color:'#888888' },
+      { name:'Regular',     min:'50 000 XPF',  taux:'1,2 pt / 100 XPF', color:'#4facfe' },
+      { name:'Pro',         min:'150 000 XPF', taux:'1,5 pt / 100 XPF', color:'#a78bfa' },
+      { name:'Ambassadeur', min:'300 000 XPF', taux:'2 pt / 100 XPF',   color:'#f6a800' },
+    ].map(t => `<tr style="border-bottom:1px solid #eee">
+      <td style="padding:6px 10px;font-weight:${t.name===tier?'700':'400'};color:${t.name===tier?t.color:'#444'}">${t.name===tier?'▶ ':''} ${t.name}</td>
+      <td style="padding:6px 10px;color:#777;font-size:12px">dès ${t.min}</td>
+      <td style="padding:6px 10px;font-weight:600;color:${t.name===tier?t.color:'#444'};text-align:right">${t.taux}</td>
+    </tr>`).join('');
+
+    const livraisonEmail = delivery?.pickupDate
+      ? `Retrait prévu le <strong>${delivery.pickupDate}</strong>${delivery.slot ? ' · ' + delivery.slot : ''}`
+      : delivery?.type === 'pickup' ? 'Retrait en boutique HCS' : `Livraison ${delivery?.island || 'Tahiti'}`;
+
+    const emailHtml = `
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;font-size:14px;color:#222">
+  <tr><td style="background:#c4813a;padding:20px 28px;border-radius:8px 8px 0 0">
+    <strong style="color:#fff;font-size:20px">High Coffee Shirt</strong>
+    <span style="display:block;color:rgba(255,255,255,.8);font-size:12px">Papeete, Polynésie française</span>
+  </td></tr>
+  <tr><td style="padding:24px 28px;background:#fff">
+    <p style="font-size:18px;font-weight:700;margin:0 0 6px">✅ Commande confirmée !</p>
+    <p style="color:#666;margin:0 0 20px">Bonjour <strong>${contact.name}</strong>, votre paiement a bien été reçu.</p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:8px;margin-bottom:20px">
+      <tr><td style="padding:14px 16px;font-weight:700;border-bottom:1px solid #eee;font-size:13px;color:#555">📦 RÉCAPITULATIF COMMANDE</td></tr>
+      ${productName ? `<tr><td style="padding:8px 16px">Produit : <strong>${productName}</strong></td></tr>` : ''}
+      <tr><td style="padding:8px 16px">Numéro de commande : <strong>${orderId}</strong></td></tr>
+      <tr><td style="padding:8px 16px">Montant payé : <strong style="color:#c4813a;font-size:16px">${total.toLocaleString('fr-FR')} XPF</strong></td></tr>
+      <tr><td style="padding:8px 16px 14px">📅 ${livraisonEmail}</td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbf0;border:2px solid #f0a030;border-radius:8px;margin-bottom:20px">
+      <tr><td style="padding:14px 16px;font-weight:700;border-bottom:1px solid #f6d365;font-size:13px;color:#8a6200">⭐ VOS POINTS FIDÉLITÉ</td></tr>
+      <tr><td style="padding:14px 16px">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><span style="font-size:32px;font-weight:900;color:#f0a030">+${ptsGagne}</span> <span style="color:#888;font-size:13px">points gagnés</span></td>
+            <td style="text-align:right;vertical-align:middle"><span style="background:#f0a030;color:#fff;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700">${tier}</span></td>
+          </tr>
+        </table>
+        <p style="color:#666;font-size:12px;margin:6px 0 0">${total.toLocaleString('fr-FR')} XPF × ${taux} (niveau ${tier}) = ${ptsGagne} pts</p>
+        <p style="background:#fff7e0;padding:8px 12px;border-radius:6px;font-size:13px;margin:10px 0 0"><strong>Solde total : ${totalPts.toLocaleString('fr-FR')} pts</strong></p>
+      </td></tr>
+    </table>
+
+    <p style="font-weight:700;font-size:13px;color:#555;margin:0 0 8px">📊 BARÈME DU PROGRAMME FIDÉLITÉ</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:6px;margin-bottom:20px;font-size:13px">
+      <tr style="background:#f5f5f5"><th style="padding:8px 10px;text-align:left;font-weight:600;color:#555">Niveau</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#555">Seuil CA</th><th style="padding:8px 10px;text-align:right;font-weight:600;color:#555">Points</th></tr>
+      ${baremeEmail}
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+      <tr><td style="background:#1a6ee0;border-radius:8px;text-align:center;padding:14px">
+        <a href="${magicUrl}" style="color:#fff;font-weight:700;font-size:14px;text-decoration:none">🔗 Accéder à mon espace client HCS →</a>
+      </td></tr>
+    </table>
+    <p style="color:#aaa;font-size:11px;text-align:center;margin:0">Lien valable 24h — un nouveau lien est généré à chaque commande</p>
+  </td></tr>
+  <tr><td style="background:#f5f5f5;padding:14px 28px;border-radius:0 0 8px 8px;font-size:12px;color:#888;text-align:center">
+    High Coffee Shirt · Papeete, Tahiti · highcoffeeshirt@gmail.com
+  </td></tr>
+</table>`;
+
+    await fetch('https://highcoffeeshirts.com/erp/api/send_email.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': 'hcs-erp-2026' },
+      body: JSON.stringify({
+        to: contact.email,
+        subject: `✅ Confirmation commande #${orderId} — High Coffee Shirt`,
+        bodyHtml: emailHtml,
+        body: ' ',
+        fromName: 'High Coffee Shirt'
+      })
+    });
+  } catch(_) { /* email non bloquant */ }
 }
 
 // ═══════════════════════════════════════════════════════
