@@ -3171,6 +3171,7 @@ async function ckPayment() {
       document.getElementById('pz-kr-form').style.display='none';
       const ok=document.getElementById('pz-ok'); if(ok){ok.removeAttribute('style');ok.style.cssText='display:block!important';}
       const bk=document.getElementById('pz-back'); if(bk) bk.style.display='none';
+      _enrichConfirmation(orderId, total, ckContact, ckDelivery, p?.n || '');
       fetch(WORKER_URL.replace('/payzen-token','/order/save'),{
         method:'POST',keepalive:true,headers:{'Content-Type':'application/json','X-Worker-Secret':WORKER_SECRET},
         body:JSON.stringify({
@@ -4246,6 +4247,7 @@ async function gfInitKrypton(amount) {
           })
         }).catch(function(e){console.warn('Ordre non sauvegardé:',e);});
         document.getElementById('gf-pz-kr-form').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:2.5rem;margin-bottom:8px">✅</div><div style="font-size:1rem;font-weight:800;color:#43e97b">Paiement confirmé !</div><div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:6px">Merci '+(_s.name?_s.name.split(' ')[0]:'')+(', votre commande est enregistrée.')+'</div></div>';
+        _enrichConfirmation(orderId, total, {name:_s.name||'', email:_s.email||'', phone:_s.phone||''}, {type:'pickup', pickupDate:_s.date||''}, prod.n||'');
         setTimeout(closeFlow,2800);
       }
       return true;
@@ -5328,6 +5330,7 @@ async function renderStep4() {
         document.getElementById('pz-kr-form').style.display='none';
         document.getElementById('pz-ok').style.display='block';
         document.getElementById('pz-back-btn').style.display='none';
+        _enrichConfirmation(orderId, total, contact, delivery, items);
         // Sauvegarder commande
         try {
           await fetch(_wUrl.replace('/payzen-token','/order/save'), {
