@@ -375,7 +375,8 @@ $migrations = [
     /* ── Triage & Réception (Agent 1) ───────────────────────── */
     'triage_messages' => [
         'canal'      => 'VARCHAR(20) NULL',                        /* gmail | messenger */
-        'expediteur' => 'VARCHAR(150) NULL',                       /* nom ou PSID */
+        'expediteur' => 'VARCHAR(150) NULL',                       /* nom affiché */
+        'source_id'  => 'VARCHAR(150) NULL',                       /* PSID Messenger OU thread_id Gmail */
         'message'    => 'TEXT NULL',                               /* contenu brut */
         'categorie'  => 'VARCHAR(30) NULL',                        /* DEVIS | INFO_SERVICES | … */
         'action'     => 'VARCHAR(100) NULL',                       /* action effectuée */

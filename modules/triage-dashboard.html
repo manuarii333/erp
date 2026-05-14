@@ -47,6 +47,10 @@
   th{background:#0d0d20;color:#666688;padding:8px 10px;text-align:left;font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.4px;border-bottom:1px solid #1e1e3a}
   td{padding:9px 10px;border-bottom:1px solid #0d0d20;color:#a0a0c0;vertical-align:middle}
   tr:hover td{background:#0f0f22}
+  tr.clickable{cursor:pointer}
+  tr.clickable:hover td{background:#111230}
+  .link-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:#0d1a2e;border:1px solid #1e2e4a;color:#4a9eff;font-size:13px;text-decoration:none;transition:.15s}
+  .link-btn:hover{background:#1a3a5a;border-color:#4a9eff}
   .canal{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:12px;font-weight:500}
   .canal-gmail{background:#1a0d0d;color:#ef5350;border:1px solid #5a1a1a}
   .canal-messenger{background:#0d1a2e;color:#4a9eff;border:1px solid #1a3a5a}
@@ -148,7 +152,7 @@
       </div>
     </div>
     <table>
-      <thead><tr><th>Heure</th><th>Canal</th><th>Expéditeur</th><th>Message</th><th>Catégorie</th><th>Action</th></tr></thead>
+      <thead><tr><th>Heure</th><th>Canal</th><th>Expéditeur</th><th>Message</th><th>Catégorie</th><th>Action</th><th style="width:36px"></th></tr></thead>
       <tbody id="msgTable"></tbody>
     </table>
   </div>
@@ -207,6 +211,10 @@
 const API_BASE = 'https://highcoffeeshirts.com/erp/api';
 const API_KEY  = 'hcs-erp-2026';
 
+// IDs Facebook Business Manager HCS (constants)
+const FB_BUSINESS_ID = '5210235986495098';
+const FB_PAGE_ID     = '128737020795199';
+
 // Données de secours si l'API est indisponible
 const DEMO_FALLBACK = [
   {ts:'08:14',canal:'gmail',   sender:'Marie Tamatoa',      msg:'Bonjour, je voudrais commander 20 t-shirts pour notre événement...',cat:'DEVIS',           action:'→ Agent 2 (Devis)'},
@@ -224,13 +232,29 @@ let MESSAGES = [];
 // ============================================================
 function norm(r) {
   return {
-    ts:     (r.created_at || '').slice(11, 16) || r.ts || '--:--',
-    canal:  r.canal      || 'messenger',
-    sender: r.expediteur || r.sender || '?',
-    msg:    r.message    || r.msg    || '',
-    cat:    r.categorie  || r.cat    || 'INFO_SERVICES',
-    action: r.action     || '',
+    ts:        (r.created_at || '').slice(11, 16) || r.ts || '--:--',
+    canal:     r.canal      || 'messenger',
+    sender:    r.expediteur || r.sender || '?',
+    msg:       r.message    || r.msg    || '',
+    cat:       r.categorie  || r.cat    || 'INFO_SERVICES',
+    action:    r.action     || '',
+    source_id: r.source_id  || '',
   };
+}
+
+// Construit le lien de conversation (Messenger Business Manager ou Gmail)
+function buildLink(m) {
+  if (m.canal === 'messenger' && m.source_id) {
+    return `https://business.facebook.com/latest/inbox/messenger`
+         + `?business_id=${FB_BUSINESS_ID}`
+         + `&asset_id=${FB_PAGE_ID}`
+         + `&selected_item_id=${m.source_id}`
+         + `&thread_type=FB_MESS`;
+  }
+  if (m.canal === 'gmail' && m.source_id) {
+    return `https://mail.google.com/mail/u/0/#inbox/${m.source_id}`;
+  }
+  return null;
 }
 
 // ============================================================
@@ -299,12 +323,21 @@ function renderTable(){
     return;
   }
   msgs.forEach(m=>{
-    const tr=document.createElement('tr');
+    const link = buildLink(m);
+    const tr   = document.createElement('tr');
+    if (link) {
+      tr.className = 'clickable';
+      tr.title     = 'Ouvrir la conversation';
+      tr.onclick   = () => window.open(link, '_blank');
+    }
+    const linkCell = link
+      ? `<td><a href="${link}" target="_blank" class="link-btn" onclick="event.stopPropagation()" title="Ouvrir">↗</a></td>`
+      : '<td></td>';
     tr.innerHTML=`<td class="time">${m.ts}</td><td>${canalBadge(m.canal)}</td>
       <td style="font-size:12px;color:#e0e0f0">${m.sender}</td>
-      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.msg}</td>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.msg}</td>
       <td>${catBadge(m.cat)}</td>
-      <td class="action">${m.action||''}</td>`;
+      <td class="action">${m.action||''}</td>${linkCell}`;
     tbody.appendChild(tr);
   });
 }
