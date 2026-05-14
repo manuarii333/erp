@@ -176,6 +176,8 @@ $allowedTables = [
     /* Programme Fidélité */
     'fidelite_clients',
     'fidelite_historique',
+    /* Triage & Réception (Agent 1) */
+    'triage_messages',
 ];
 
 if (!$resource || !in_array($resource, $allowedTables, true)) {

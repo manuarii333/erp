@@ -372,6 +372,16 @@ $migrations = [
         'reason'        => 'VARCHAR(255) NULL',
         'updated_at'    => 'DATETIME NULL',
     ],
+    /* ── Triage & Réception (Agent 1) ───────────────────────── */
+    'triage_messages' => [
+        'canal'      => 'VARCHAR(20) NULL',                        /* gmail | messenger */
+        'expediteur' => 'VARCHAR(150) NULL',                       /* nom ou PSID */
+        'message'    => 'TEXT NULL',                               /* contenu brut */
+        'categorie'  => 'VARCHAR(30) NULL',                        /* DEVIS | INFO_SERVICES | … */
+        'action'     => 'VARCHAR(100) NULL',                       /* action effectuée */
+        'devis_ref'  => 'VARCHAR(30) NULL',                        /* ref devis créé si applicable */
+        'statut'     => 'VARCHAR(20) NULL DEFAULT "traite"',       /* traite | erreur */
+    ],
 ];
 
 /* Récupérer les tables existantes */
