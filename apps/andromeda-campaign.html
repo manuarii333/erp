@@ -898,6 +898,12 @@ function buildSidebar() {
   <div class="sidebar-action" id="nav-loyalty" onclick="showLoyalty()">
     <div class="sa-icon" style="background:linear-gradient(135deg,#f6d365,#fda085)">⭐</div>
     <div><div class="sa-label">Fidélité</div><div class="item-tag">Points · Tiers clients</div></div>
+  </div>
+  <div class="sidebar-sep"></div>
+  <div class="sidebar-label">Config</div>
+  <div class="sidebar-action" id="nav-vdec" onclick="openVDecAdmin()">
+    <div class="sa-icon" style="background:linear-gradient(135deg,#ff6584,#ff9966)">🚗</div>
+    <div><div class="sa-label">Déco Véhicule</div><div class="item-tag">Modèles · Logos · Polices</div></div>
   </div>`;
 }
 
@@ -5004,9 +5010,9 @@ function selectProd(campId, prodIdx) {
   if (card) card.classList.add('selected');
   _selectedProd[campId] = prodIdx;
 
-  // Sticker Auto (id=0) → ouvrir directement le parcours client personnalisé
+  // Sticker Auto (id=0) → parcours client Déco Véhicule
   if (campId === 0) {
-    stkOpenClientFlow(campId, prodIdx);
+    vdecOpenFlow(campId, prodIdx);
     return;
   }
 
@@ -5479,7 +5485,7 @@ function renderOrdersView(orders, archived=false) {
                 }</td>
                 <td style="font-weight:700;color:var(--accent-3)">${(o.amount||0).toLocaleString('fr-FR')} ${o.currency||'XPF'}</td>
                 <td><span class="status-badge s-${o.status||'pending'}">${statusIcons[o.status]||''} ${o.status||'pending'}</span></td>
-                <td>
+                <td style="display:flex;flex-direction:column;gap:5px;align-items:flex-start">
                   <select class="status-select" onchange="updateOrderStatus('${o.orderId}',this.value)">
                     <option value="">— Statut</option>
                     <option value="pending">⏳ En attente</option>
@@ -5489,6 +5495,7 @@ function renderOrdersView(orders, archived=false) {
                     <option value="cancelled">❌ Annulée</option>
                     <option value="archived">🗃️ Archiver</option>
                   </select>
+                  <button onclick="deleteOrder('${o.orderId}',${archived})" style="padding:4px 10px;background:rgba(255,77,77,.15);border:1px solid #ff4d4d;color:#ff6b6b;border-radius:6px;font-size:0.68rem;cursor:pointer;white-space:nowrap;transition:all .2s" onmouseover="this.style.background='rgba(255,77,77,.3)'" onmouseout="this.style.background='rgba(255,77,77,.15)'">🗑️ Supprimer</button>
                 </td>
               </tr>
             `).join('')}
@@ -5517,6 +5524,18 @@ async function updateOrderStatus(orderId, status) {
     }
     await loadOrders(status==='archived');
   } catch(e) { alert('Erreur : ' + e.message); }
+}
+
+async function deleteOrder(orderId, archived) {
+  if (!confirm(`⚠️ Supprimer définitivement la commande ${orderId} ?\n\nCette action est irréversible.`)) return;
+  try {
+    const res = await fetch(`${WORKER_BASE}/admin/db/order/${encodeURIComponent(orderId)}`, {
+      method: 'DELETE',
+      headers: { 'X-Admin-Secret': adminSecret }
+    });
+    if (!res.ok) throw new Error(`Erreur ${res.status}`);
+    await loadOrders(!!archived);
+  } catch(e) { alert('Erreur suppression : ' + e.message); }
 }
 
 function showArchive() {
@@ -8740,5 +8759,1129 @@ function genSubmitOrder() {
 </script>
 
 <script src="../hcs-hub-ecosystem/hcs-hub-ecosystem/andromeda-v2-patch.js"></script>
+
+<!-- ═══════════════════════════════════════════════════════
+     VEHICLE DECORATION FLOW — Parcours client 4 étapes
+     Étape 1 : Catégorie véhicule
+     Étape 2 : Vue + placement logo/texte (canvas)
+     Étape 3 : Contact + livraison
+     Étape 4 : Paiement PayZen
+═══════════════════════════════════════════════════════ -->
+<style>
+/* ── VDEC Modal ── */
+#vdec-modal{display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.97);flex-direction:column;font-family:'Segoe UI',system-ui,sans-serif}
+#vdec-modal.open{display:flex}
+.vdec-topbar{background:#0a0a14;border-bottom:1px solid rgba(255,100,130,.3);padding:12px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.vdec-tb-title{font-size:.88rem;font-weight:800;color:#ff9966;flex:1}
+.vdec-tb-steps{display:flex;align-items:center;gap:4px}
+.vdec-tb-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;border:2px solid rgba(255,255,255,.12);color:rgba(255,255,255,.28);transition:all .2s}
+.vdec-tb-dot.active{border-color:#ff9966;color:#ff9966;background:rgba(255,153,102,.12)}
+.vdec-tb-dot.done{border-color:#43e97b;color:#43e97b;background:rgba(67,233,123,.12)}
+.vdec-tb-line{width:18px;height:2px;background:rgba(255,255,255,.1)}
+.vdec-body{flex:1;overflow-y:auto;padding:20px}
+.vdec-step-title{font-size:1.15rem;font-weight:800;text-align:center;margin-bottom:8px}
+.vdec-step-sub{font-size:.8rem;color:rgba(255,255,255,.4);text-align:center;margin-bottom:24px}
+
+/* Step 1 — Categories */
+.vdec-cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:680px;margin:0 auto}
+.vdec-cat-card{background:rgba(255,150,100,.05);border:2px solid rgba(255,150,100,.18);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;transition:all .2s}
+.vdec-cat-card:hover{border-color:#ff9966;transform:translateY(-2px)}
+.vdec-cat-card.selected{border-color:#ff9966;background:rgba(255,150,100,.14)}
+.vdec-cat-icon{font-size:48px;display:block;margin-bottom:10px}
+.vdec-cat-name{font-size:.96rem;font-weight:700;margin-bottom:4px}
+.vdec-cat-model{font-size:.72rem;color:rgba(255,255,255,.45)}
+
+/* Step 2 — Mockup Studio */
+.vdec-s2-wrap{display:grid;grid-template-columns:1fr 268px;gap:12px;height:calc(100vh - 170px)}
+.vdec-canvas-col{display:flex;flex-direction:column;gap:8px}
+.vdec-view-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.vdec-vtab{padding:6px 13px;border-radius:16px;font-size:.7rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:transparent;color:rgba(255,255,255,.45);transition:all .2s}
+.vdec-vtab.active{background:#ff9966;color:#1a0e07;border-color:#ff9966}
+.vdec-canvas-wrap{flex:1;position:relative;background:#0d0d1a;border-radius:12px;border:1px solid rgba(255,255,255,.07);overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none;min-height:280px}
+.vdec-canvas-wrap img.vdec-veh-img{max-width:100%;max-height:100%;object-fit:contain;pointer-events:none;display:block}
+.vdec-no-img-msg{color:rgba(255,255,255,.2);font-size:.78rem;text-align:center;padding:30px 20px;line-height:1.7}
+.vdec-logo-el{position:absolute;cursor:grab;touch-action:none}
+.vdec-logo-el.dragging{cursor:grabbing}
+.vdec-logo-el img{width:100%;height:auto;pointer-events:none;display:block}
+.vdec-resize-h{position:absolute;bottom:-8px;right:-8px;width:16px;height:16px;background:#ff9966;border-radius:50%;cursor:nwse-resize;border:2px solid white;touch-action:none}
+.vdec-txt-el{position:absolute;cursor:grab;white-space:nowrap;font-weight:700;text-shadow:0 2px 6px rgba(0,0,0,.8);touch-action:none}
+.vdec-txt-el.dragging{cursor:grabbing}
+
+/* Right panel */
+.vdec-panel{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow-y:auto;display:flex;flex-direction:column}
+.vdec-ps{padding:11px 13px;border-bottom:1px solid rgba(255,255,255,.06)}
+.vdec-ps:last-child{border-bottom:none}
+.vdec-ph{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:9px}
+.vdec-logo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:7px}
+.vdec-lc{aspect-ratio:1;border-radius:7px;border:2px solid rgba(255,255,255,.1);background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;transition:border-color .15s}
+.vdec-lc:hover,.vdec-lc.active{border-color:#ff9966}
+.vdec-lc.active{box-shadow:0 0 0 3px rgba(255,153,102,.2)}
+.vdec-lc img{width:100%;height:100%;object-fit:contain}
+.vdec-upload-btn{width:100%;padding:8px;border-radius:7px;border:2px dashed rgba(255,255,255,.14);background:transparent;color:rgba(255,255,255,.38);font-size:.7rem;cursor:pointer;text-align:center;transition:all .2s}
+.vdec-upload-btn:hover{border-color:#ff9966;color:#ff9966}
+.vdec-tf-row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.vdec-tf-lbl{font-size:.6rem;color:rgba(255,255,255,.38);width:46px;flex-shrink:0}
+.vdec-tf-row input[type=range]{flex:1;accent-color:#ff9966;cursor:pointer}
+.vdec-tf-val{font-size:.6rem;color:rgba(255,255,255,.45);width:28px;text-align:right;flex-shrink:0}
+.vdec-sel{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.3);color:white;font-size:.72rem;outline:none;margin-bottom:7px}
+.vdec-swatches{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px}
+.vdec-sw{width:20px;height:20px;border-radius:4px;cursor:pointer;border:2px solid transparent;transition:border-color .15s;flex-shrink:0}
+.vdec-sw.active{border-color:white}
+.vdec-add-txt-btn{width:100%;padding:7px;background:rgba(255,150,100,.12);border:1px solid rgba(255,150,100,.35);border-radius:7px;color:#ff9966;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s}
+.vdec-add-txt-btn:hover{background:rgba(255,150,100,.25)}
+.vdec-txt-item{display:flex;align-items:center;gap:5px;padding:5px 7px;background:rgba(0,0,0,.18);border-radius:6px;margin-bottom:4px}
+.vdec-txt-content{flex:1;font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vdec-txt-del{background:none;border:none;color:rgba(255,80,80,.65);cursor:pointer;font-size:.78rem;flex-shrink:0}
+
+/* Footer */
+.vdec-footer{background:#0a0a14;border-top:1px solid rgba(255,255,255,.07);padding:11px 18px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.vdec-btn{padding:9px 20px;border-radius:9px;border:none;cursor:pointer;font-size:.8rem;font-weight:700;transition:all .2s}
+.vdec-btn-prev{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65)}
+.vdec-btn-prev:hover{background:rgba(255,255,255,.14)}
+.vdec-btn-next{background:linear-gradient(135deg,#ff6584,#ff9966);color:white}
+.vdec-btn-next:hover{opacity:.9}
+.vdec-btn-pay{background:linear-gradient(135deg,#43e97b,#38f9d7);color:#0a1a10}
+.vdec-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* Step 3 */
+.vdec-s3-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;margin-bottom:13px}
+.vdec-s3-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.38);margin-bottom:11px}
+.vdec-deliv-card{padding:13px;border-radius:10px;border:2px solid rgba(255,255,255,.13);background:transparent;cursor:pointer;text-align:center;transition:all .2s}
+.vdec-deliv-card.active{border-color:#ff9966;background:rgba(255,153,102,.1)}
+.vdec-slot-btn{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.18);cursor:pointer;text-align:center;font-size:.75rem;font-weight:600;transition:all .2s;color:white}
+.vdec-slot-btn.active{border-color:#ff9966;background:rgba(255,153,102,.12);color:#ff9966}
+
+/* Step 4 */
+.vdec-recap-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;margin-bottom:13px}
+
+/* ── ADMIN MODAL ── */
+#vdec-admin-modal{display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.9);align-items:center;justify-content:center}
+#vdec-admin-modal.open{display:flex}
+.vdec-adm-box{width:92vw;max-width:920px;max-height:86vh;background:#1a1a2e;border-radius:14px;border:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.vdec-adm-head{background:rgba(108,99,255,.1);border-bottom:1px solid var(--border);padding:13px 17px;display:flex;align-items:center;gap:10px}
+.vdec-adm-title{font-size:.88rem;font-weight:800;color:var(--accent);flex:1}
+.vdec-adm-tabs{display:flex;gap:4px;padding:9px 13px;border-bottom:1px solid var(--border);flex-shrink:0}
+.vdec-adm-tab{padding:6px 14px;border-radius:14px;font-size:.7rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);transition:all .2s}
+.vdec-adm-tab.active{background:var(--accent);color:white;border-color:var(--accent)}
+.vdec-adm-body{flex:1;overflow-y:auto;padding:15px}
+.vdec-adm-cat{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:12px}
+.vdec-adm-cat-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.vdec-views-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.vdec-view-cell{text-align:center}
+.vdec-view-lbl{font-size:.6rem;color:var(--text-secondary);margin-bottom:4px}
+.vdec-view-img{width:100%;aspect-ratio:16/9;border:2px dashed var(--border);border-radius:8px;background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;overflow:hidden;transition:border-color .2s;position:relative}
+.vdec-view-img:hover{border-color:var(--accent)}
+.vdec-view-img img{width:100%;height:100%;object-fit:contain}
+.vdec-view-del{position:absolute;top:2px;right:2px;background:rgba(255,50,50,.8);border:none;color:white;width:16px;height:16px;border-radius:50%;font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center}
+.vdec-view-img:hover .vdec-view-del{display:flex}
+.vdec-adm-logo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
+.vdec-adm-lc{aspect-ratio:1;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.25);position:relative;overflow:hidden}
+.vdec-adm-lc img{width:100%;height:100%;object-fit:contain}
+.vdec-adm-lc .adl-del{position:absolute;top:2px;right:2px;background:rgba(255,50,50,.8);border:none;color:white;width:16px;height:16px;border-radius:50%;font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center}
+.vdec-adm-lc:hover .adl-del{display:flex}
+.vdec-adm-logo-add{aspect-ratio:1;border:2px dashed var(--border);border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.4rem;color:var(--accent);transition:border-color .2s}
+.vdec-adm-logo-add:hover{border-color:var(--accent)}
+.vdec-font-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:6px}
+.vdec-font-prev{flex:1;font-size:.84rem}
+.vdec-finput{width:100%;padding:7px 9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-panel);color:var(--text-primary);font-size:.74rem;outline:none}
+</style>
+
+<!-- ── BOUTON FLOTTANT ADMIN DÉCO VÉHICULE ── -->
+<button id="vdec-fab" onclick="if(typeof openVDecAdmin==='function'){openVDecAdmin()}else{alert('openVDecAdmin non définie — vérifier console JS')}" title="Admin Déco Véhicule"
+  style="position:fixed;bottom:22px;right:22px;z-index:8900;
+         background:linear-gradient(135deg,#ff6584,#ff9966);
+         color:#fff;border:none;border-radius:50px;padding:10px 18px;
+         font-size:.82rem;font-weight:700;cursor:pointer;
+         box-shadow:0 4px 18px rgba(255,101,132,.45);
+         display:flex;align-items:center;gap:7px;letter-spacing:.3px">
+  🚗 Admin Déco Véhicule
+</button>
+
+<!-- ── VEHICLE DECORATION MODAL ── -->
+<div id="vdec-modal">
+  <div class="vdec-topbar">
+    <span style="font-size:1.2rem">🚗</span>
+    <div class="vdec-tb-title">Personnaliser votre décoration véhicule</div>
+    <div class="vdec-tb-steps">
+      <div class="vdec-tb-dot" id="vdec-dot-1">1</div>
+      <div class="vdec-tb-line"></div>
+      <div class="vdec-tb-dot" id="vdec-dot-2">2</div>
+      <div class="vdec-tb-line"></div>
+      <div class="vdec-tb-dot" id="vdec-dot-3">3</div>
+      <div class="vdec-tb-line"></div>
+      <div class="vdec-tb-dot" id="vdec-dot-4">4</div>
+    </div>
+    <button onclick="vdecClose()" style="background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.6);border-radius:7px;padding:6px 12px;cursor:pointer;font-size:.74rem">✕ Fermer</button>
+  </div>
+
+  <!-- Étape 1 — Catégorie -->
+  <div id="vdec-s1" class="vdec-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div class="vdec-step-title">Choisissez votre type de véhicule</div>
+    <div class="vdec-step-sub">3 catégories disponibles · 1 modèle par catégorie</div>
+    <div class="vdec-cat-grid" id="vdec-cat-grid"></div>
+  </div>
+
+  <!-- Étape 2 — Mockup Studio -->
+  <div id="vdec-s2" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+    <div class="vdec-body" style="flex:1;overflow:hidden;padding:12px">
+      <div class="vdec-s2-wrap">
+        <!-- Canvas col -->
+        <div class="vdec-canvas-col">
+          <div class="vdec-view-tabs" id="vdec-view-tabs"></div>
+          <div class="vdec-canvas-wrap" id="vdec-canvas-wrap">
+            <div class="vdec-no-img-msg" id="vdec-no-img">🚗<br>Aucune image chargée pour cette vue<br><span style="font-size:.65rem;opacity:.6">L'admin configure les images dans le panneau Config</span></div>
+          </div>
+          <div style="font-size:.6rem;color:rgba(255,255,255,.2);text-align:center;margin-top:4px">🖱 Glissez le logo ou le texte · Poignée orange pour redimensionner</div>
+        </div>
+        <!-- Panel droit -->
+        <div class="vdec-panel">
+          <!-- Logo section -->
+          <div class="vdec-ps">
+            <div class="vdec-ph">📌 Logo / Visuel</div>
+            <div class="vdec-logo-grid" id="vdec-preloaded-logos"></div>
+            <button class="vdec-upload-btn" onclick="document.getElementById('vdec-logo-file').click()">📤 Uploader mon logo</button>
+            <input type="file" id="vdec-logo-file" accept="image/*" style="display:none" onchange="vdecHandleLogoUpload(this)">
+          </div>
+          <!-- Logo controls -->
+          <div class="vdec-ps" id="vdec-logo-controls" style="display:none">
+            <div class="vdec-ph">🔧 Propriétés logo</div>
+            <div class="vdec-tf-row">
+              <div class="vdec-tf-lbl">Taille</div>
+              <input type="range" min="5" max="80" value="35" id="vdec-logo-size" oninput="vdecLogoSetSize(this.value)">
+              <div class="vdec-tf-val" id="vdec-logo-size-v">35%</div>
+            </div>
+            <div class="vdec-tf-row">
+              <div class="vdec-tf-lbl">Opacité</div>
+              <input type="range" min="10" max="100" value="100" id="vdec-logo-op" oninput="vdecLogoSetOp(this.value)">
+              <div class="vdec-tf-val" id="vdec-logo-op-v">100%</div>
+            </div>
+          </div>
+          <!-- Texte -->
+          <div class="vdec-ps">
+            <div class="vdec-ph">✍️ Ajouter du texte</div>
+            <input type="text" id="vdec-txt-input" placeholder="Votre texte…" style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.28);color:white;font-size:.76rem;outline:none;margin-bottom:6px">
+            <select id="vdec-txt-font" class="vdec-sel" onchange="_vdec.txtFont=this.value"></select>
+            <div class="vdec-tf-row">
+              <div class="vdec-tf-lbl">Taille</div>
+              <input type="range" min="12" max="120" value="40" id="vdec-txt-size" oninput="_vdec.txtSize=parseInt(this.value);document.getElementById('vdec-txt-size-v').textContent=this.value">
+              <div class="vdec-tf-val" id="vdec-txt-size-v">40</div>
+            </div>
+            <div class="vdec-tf-row">
+              <div class="vdec-tf-lbl">Rotation</div>
+              <input type="range" min="-180" max="180" value="0" id="vdec-txt-rot" oninput="_vdec.txtRot=parseInt(this.value);document.getElementById('vdec-txt-rot-v').textContent=this.value+'°'">
+              <div class="vdec-tf-val" id="vdec-txt-rot-v">0°</div>
+            </div>
+            <div style="margin-bottom:7px">
+              <div class="vdec-ph" style="margin-bottom:5px">Couleur</div>
+              <div class="vdec-swatches" id="vdec-swatches">
+                <div class="vdec-sw active" style="background:#fff" onclick="vdecPickColor('#fff',this)"></div>
+                <div class="vdec-sw" style="background:#000;border-color:rgba(255,255,255,.2)" onclick="vdecPickColor('#000',this)"></div>
+                <div class="vdec-sw" style="background:#c4813a" onclick="vdecPickColor('#c4813a',this)"></div>
+                <div class="vdec-sw" style="background:#ff6584" onclick="vdecPickColor('#ff6584',this)"></div>
+                <div class="vdec-sw" style="background:#4facfe" onclick="vdecPickColor('#4facfe',this)"></div>
+                <div class="vdec-sw" style="background:#43e97b" onclick="vdecPickColor('#43e97b',this)"></div>
+                <input type="color" value="#ffffff" id="vdec-color-pick" style="width:20px;height:20px;padding:0;border:none;cursor:pointer;border-radius:4px;vertical-align:middle" onchange="vdecPickColor(this.value,null)">
+              </div>
+            </div>
+            <button class="vdec-add-txt-btn" onclick="vdecAddText()">✚ Ajouter ce texte</button>
+          </div>
+          <!-- Liste textes -->
+          <div class="vdec-ps">
+            <div class="vdec-ph">📋 Textes placés</div>
+            <div id="vdec-txt-list"><div style="font-size:.7rem;color:rgba(255,255,255,.22);text-align:center;padding:8px 0">Aucun texte</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Étape 3 — Contact + Livraison -->
+  <div id="vdec-s3" class="vdec-body" style="display:none;flex-direction:column;align-items:center">
+    <div style="width:100%;max-width:700px">
+      <div class="vdec-step-title" style="text-align:left;margin-bottom:18px">📋 Coordonnées &amp; Livraison</div>
+      <div id="vdec-s3-content"></div>
+    </div>
+  </div>
+
+  <!-- Étape 4 — Paiement -->
+  <div id="vdec-s4" class="vdec-body" style="display:none;flex-direction:column;align-items:center">
+    <div style="width:100%;max-width:520px">
+      <div class="vdec-step-title" style="text-align:left;margin-bottom:18px">💳 Paiement sécurisé</div>
+      <div id="vdec-s4-content"></div>
+    </div>
+  </div>
+
+  <!-- Footer nav -->
+  <div class="vdec-footer">
+    <button class="vdec-btn vdec-btn-prev" id="vdec-btn-prev" onclick="vdecPrev()" style="display:none">← Retour</button>
+    <div style="flex:1"></div>
+    <button class="vdec-btn vdec-btn-next" id="vdec-btn-next" onclick="vdecNext()">Suivant →</button>
+  </div>
+</div>
+
+<!-- ── ADMIN PANEL — Vehicle Decoration Config ── -->
+<div id="vdec-admin-modal">
+  <div class="vdec-adm-box">
+    <div class="vdec-adm-head">
+      <span style="font-size:1.2rem">🚗</span>
+      <div class="vdec-adm-title">Déco Véhicule — Configuration Admin</div>
+      <button onclick="closeVDecAdmin()" style="background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.6);border-radius:7px;padding:5px 11px;cursor:pointer;font-size:.72rem">✕</button>
+    </div>
+    <div class="vdec-adm-tabs">
+      <button class="vdec-adm-tab active" onclick="vdecAdmTab('categories',this)">🚗 Véhicules & Vues</button>
+      <button class="vdec-adm-tab" onclick="vdecAdmTab('logos',this)">🖼️ Logos préchargés</button>
+      <button class="vdec-adm-tab" onclick="vdecAdmTab('fonts',this)">✍️ Polices</button>
+    </div>
+    <div class="vdec-adm-body">
+      <div id="vdec-adm-categories"></div>
+      <div id="vdec-adm-logos" style="display:none"></div>
+      <div id="vdec-adm-fonts" style="display:none"></div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0">
+      <button onclick="closeVDecAdmin()" class="btn btn-outline" style="font-size:.75rem">Fermer</button>
+      <button onclick="vdecAdmSaveAndClose()" class="btn btn-primary" style="font-size:.75rem">✓ Enregistrer &amp; Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// VEHICLE DECORATION FLOW — Parcours client 4 étapes
+// ═══════════════════════════════════════════════════════
+const VDEC_KEY        = 'hcs_vdec_cfg';
+const VDEC_API        = 'https://highcoffeeshirts.com/erp/api';
+const VDEC_UPLOAD_URL = 'https://highcoffeeshirts.com/erp/api/upload.php';
+const VDEC_API_KEY    = 'hcs-erp-2026';
+
+const VDEC_VIEWS_DEF = [
+  { key:'left',  label:'◀ Côté gauche' },
+  { key:'front', label:'▲ Face avant' },
+  { key:'back',  label:'▼ Arrière' },
+  { key:'right', label:'▶ Côté droit' }
+];
+const VDEC_SHIP_RATES = { tahiti:1800,moorea:1500,huahine:2500,'bora-bora':2500,raiatea:2500,tahaa:2500,maupiti:3500,rangiroa:3000,makemo:4000,tubuai:4000,'hiva-oa':5000,'nuku-hiva':5000 };
+const VDEC_ISLAND_LABELS = { tahiti:'Tahiti',moorea:'Moorea',huahine:'Huahine','bora-bora':'Bora Bora',raiatea:'Raiatea',tahaa:'Tahaa',maupiti:'Maupiti',rangiroa:'Rangiroa',makemo:'Makemo',tubuai:'Tubuai','hiva-oa':'Hiva Oa','nuku-hiva':'Nuku Hiva' };
+
+function vdecLoadCfg() {
+  try {
+    const raw = localStorage.getItem(VDEC_KEY);
+    if (!raw) return vdecDefaultCfg();
+    const cfg = JSON.parse(raw);
+    if (!cfg.cats || cfg.cats.length < 3) cfg.cats = vdecDefaultCfg().cats;
+    if (!cfg.logos) cfg.logos = [];
+    if (!cfg.fonts || !cfg.fonts.length) cfg.fonts = vdecDefaultCfg().fonts;
+    return cfg;
+  } catch(e) { return vdecDefaultCfg(); }
+}
+function vdecDefaultCfg() {
+  return {
+    cats: [
+      { id:'pickup', name:'Pickup / 4×4',     icon:'🛻', model:'Toyota HiLux',   views:{ left:'', front:'', back:'', right:'' } },
+      { id:'suv',    name:'SUV / Monospace',   icon:'🚙', model:'Toyota RAV4',    views:{ left:'', front:'', back:'', right:'' } },
+      { id:'berline',name:'Berline / City',    icon:'🚗', model:'Toyota Corolla', views:{ left:'', front:'', back:'', right:'' } }
+    ],
+    logos: [],
+    fonts: [
+      { name:'Impact',     url:'' },
+      { name:'Arial Black',url:'' },
+      { name:'Syne',       url:'https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap' },
+      { name:'Montserrat', url:'https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap' },
+      { name:'Inter',      url:'https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap' }
+    ]
+  };
+}
+function vdecSaveCfg(cfg) {
+  try { localStorage.setItem(VDEC_KEY, JSON.stringify(cfg)); } catch(e) { console.warn('vdec save err', e); }
+  vdecSyncToServer(cfg);
+}
+
+/* ── Sync MySQL ───────────────────────────────────────────── */
+function vdecSyncToServer(cfg) {
+  fetch(VDEC_API + '/vdec_config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': VDEC_API_KEY },
+    body: JSON.stringify(cfg)
+  }).catch(e => console.warn('[vdec] sync server err:', e));
+}
+
+async function vdecSyncFromServer() {
+  try {
+    const res  = await fetch(VDEC_API + '/vdec_config', { headers: { 'x-api-key': VDEC_API_KEY } });
+    const json = await res.json();
+    if (json.ok && json.data) {
+      localStorage.setItem(VDEC_KEY, JSON.stringify(json.data));
+    }
+  } catch(e) { console.warn('[vdec] load server err:', e); }
+}
+
+/* ── Upload image vers serveur ────────────────────────────── */
+async function vdecUploadImage(file, folder) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('produit_id', 'vdec-' + folder);
+  const res  = await fetch(VDEC_UPLOAD_URL, { method: 'POST', headers: { 'x-api-key': VDEC_API_KEY }, body: fd });
+  if (!res.ok) throw new Error('Upload échoué (' + res.status + ')');
+  const json = await res.json();
+  if (!json.ok || !json.url) throw new Error(json.error || 'URL manquante');
+  return json.url;
+}
+
+// ── Flow state ────────────────────────────────────────
+let _vdec = {
+  step:1, catIdx:null, viewKey:'left', campId:0, prodIdx:0,
+  logo:null, logoPos:{ x:50, y:50, w:35, op:100 },
+  texts:[], txtColor:'#ffffff', txtFont:'Impact', txtSize:40, txtRot:0,
+  contact:{ name:'', email:'', phone:'', note:'' },
+  delivery:{ type:'pickup', island:'tahiti', address:'', pickupDate:'', slot:'08-12', shippingFee:0 },
+  orderId:''
+};
+
+function vdecOpenFlow(campId, prodIdx) {
+  _vdec = { step:1, catIdx:null, viewKey:'left', campId, prodIdx,
+    logo:null, logoPos:{ x:50, y:50, w:35, op:100 }, texts:[],
+    txtColor:'#ffffff', txtFont:'Impact', txtSize:40, txtRot:0,
+    contact:{ name:'', email:'', phone:'', note:'' },
+    delivery:{ type:'pickup', island:'tahiti', address:'', pickupDate:'', slot:'08-12', shippingFee:0 },
+    orderId:'VDC-' + Date.now()
+  };
+  document.getElementById('vdec-modal').classList.add('open');
+  vdecLoadFonts();
+  vdecRender();
+}
+
+function vdecClose() {
+  document.getElementById('vdec-modal').classList.remove('open');
+}
+
+function vdecLoadFonts() {
+  const cfg = vdecLoadCfg();
+  (cfg.fonts || []).forEach(f => {
+    if (f.url && !document.querySelector(`link[href="${f.url}"]`)) {
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = f.url;
+      document.head.appendChild(l);
+    }
+  });
+}
+
+function vdecRender() {
+  [1,2,3,4].forEach(s => {
+    const el = document.getElementById('vdec-s' + s);
+    if (!el) return;
+    el.style.display = 'none';
+  });
+  const cur = document.getElementById('vdec-s' + _vdec.step);
+  if (cur) cur.style.display = _vdec.step === 2 ? 'flex' : 'flex';
+
+  // Step dots
+  [1,2,3,4].forEach(s => {
+    const d = document.getElementById('vdec-dot-' + s);
+    if (!d) return;
+    d.classList.remove('active','done');
+    if (s < _vdec.step) d.classList.add('done');
+    else if (s === _vdec.step) d.classList.add('active');
+  });
+
+  // Buttons
+  const prev = document.getElementById('vdec-btn-prev');
+  const next = document.getElementById('vdec-btn-next');
+  if (prev) prev.style.display = _vdec.step > 1 ? 'block' : 'none';
+  if (next) {
+    next.textContent = _vdec.step === 4 ? '💳 Payer' : 'Suivant →';
+    next.className = 'vdec-btn ' + (_vdec.step === 4 ? 'vdec-btn-pay' : 'vdec-btn-next');
+    next.style.display = _vdec.step === 4 ? 'none' : 'block';
+  }
+
+  if (_vdec.step === 1) vdecRenderS1();
+  else if (_vdec.step === 2) vdecRenderS2();
+  else if (_vdec.step === 3) vdecRenderS3();
+  else if (_vdec.step === 4) vdecRenderS4();
+}
+
+// ── Étape 1 : Catégorie ───────────────────────────────
+function vdecRenderS1() {
+  const cfg = vdecLoadCfg();
+  document.getElementById('vdec-cat-grid').innerHTML = cfg.cats.map((cat, i) => `
+    <div class="vdec-cat-card ${_vdec.catIdx === i ? 'selected' : ''}" onclick="vdecSelectCat(${i})">
+      <span class="vdec-cat-icon">${cat.icon}</span>
+      <div class="vdec-cat-name">${cat.name}</div>
+      <div class="vdec-cat-model">${cat.model}</div>
+    </div>
+  `).join('');
+}
+
+function vdecSelectCat(idx) {
+  _vdec.catIdx = idx;
+  document.querySelectorAll('.vdec-cat-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
+}
+
+// ── Étape 2 : Mockup Studio ───────────────────────────
+function vdecRenderS2() {
+  const cfg = vdecLoadCfg();
+  const cat = cfg.cats[_vdec.catIdx];
+  // View tabs
+  document.getElementById('vdec-view-tabs').innerHTML = VDEC_VIEWS_DEF.map(v =>
+    `<button class="vdec-vtab ${v.key === _vdec.viewKey ? 'active' : ''}" onclick="vdecSetView('${v.key}')">${v.label}</button>`
+  ).join('');
+  // Canvas
+  vdecRenderCanvas(cat);
+  // Preloaded logos
+  vdecRenderLogoGrid(cfg);
+  // Font select
+  const sel = document.getElementById('vdec-txt-font');
+  if (sel) {
+    const fonts = cfg.fonts && cfg.fonts.length ? cfg.fonts : vdecDefaultCfg().fonts;
+    sel.innerHTML = fonts.map(f => `<option value="${f.name}" ${f.name === _vdec.txtFont ? 'selected' : ''}>${f.name}</option>`).join('');
+  }
+  // Logo controls visibility
+  const ctrl = document.getElementById('vdec-logo-controls');
+  if (ctrl) ctrl.style.display = _vdec.logo ? 'block' : 'none';
+  // Text list
+  vdecRenderTxtList();
+}
+
+function vdecSetView(key) {
+  _vdec.viewKey = key;
+  const cfg = vdecLoadCfg();
+  document.querySelectorAll('.vdec-vtab').forEach(t => t.classList.toggle('active', t.textContent.includes(VDEC_VIEWS_DEF.find(v=>v.key===key)?.label?.slice(-3) || key)));
+  document.getElementById('vdec-view-tabs').innerHTML = VDEC_VIEWS_DEF.map(v =>
+    `<button class="vdec-vtab ${v.key === key ? 'active' : ''}" onclick="vdecSetView('${v.key}')">${v.label}</button>`
+  ).join('');
+  vdecRenderCanvas(cfg.cats[_vdec.catIdx]);
+}
+
+function vdecRenderCanvas(cat) {
+  const wrap = document.getElementById('vdec-canvas-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  const imgSrc = cat?.views?.[_vdec.viewKey];
+  if (imgSrc) {
+    const img = document.createElement('img');
+    img.src = imgSrc; img.className = 'vdec-veh-img';
+    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;pointer-events:none;';
+    wrap.appendChild(img);
+  } else {
+    const msg = document.createElement('div');
+    msg.className = 'vdec-no-img-msg';
+    msg.innerHTML = '🚗<br>Aucune image pour cette vue<br><span style="font-size:.62rem;opacity:.5">Configurer via Admin → Déco Véhicule</span>';
+    wrap.appendChild(msg);
+  }
+
+  // Logo overlay
+  if (_vdec.logo) {
+    const el = vdecCreateLogoEl();
+    wrap.appendChild(el);
+    vdecInitLogoDrag(el, wrap);
+  }
+  // Text overlays
+  _vdec.texts.forEach((t, i) => {
+    const el = vdecCreateTxtEl(t, i);
+    wrap.appendChild(el);
+    vdecInitTxtDrag(el, wrap, i);
+  });
+}
+
+function vdecCreateLogoEl() {
+  const { x, y, w, op } = _vdec.logoPos;
+  const d = document.createElement('div');
+  d.id = 'vdec-logo-el'; d.className = 'vdec-logo-el';
+  d.style.cssText = `left:${x}%;top:${y}%;width:${w}%;transform:translate(-50%,-50%);opacity:${op/100};position:absolute`;
+  const img = document.createElement('img');
+  img.src = _vdec.logo;
+  img.style.cssText = 'width:100%;height:auto;pointer-events:none;display:block;';
+  d.appendChild(img);
+  const h = document.createElement('div');
+  h.className = 'vdec-resize-h'; h.title = 'Redimensionner';
+  d.appendChild(h);
+  return d;
+}
+
+function vdecCreateTxtEl(t, idx) {
+  const d = document.createElement('div');
+  d.className = 'vdec-txt-el'; d.setAttribute('data-idx', idx);
+  d.style.cssText = `left:${t.x||50}%;top:${t.y||55}%;transform:translate(-50%,-50%) rotate(${t.rot||0}deg);font-size:${t.size||40}px;color:${t.color||'#fff'};font-family:${t.font||'Impact'};position:absolute`;
+  d.textContent = t.text;
+  return d;
+}
+
+// Drag logo
+let _vdecLdrag = null;
+function vdecInitLogoDrag(el, wrap) {
+  const handle = el.querySelector('.vdec-resize-h');
+
+  function start(type, cx, cy) {
+    const rect = wrap.getBoundingClientRect();
+    _vdecLdrag = { type, cx, cy, ox:_vdec.logoPos.x, oy:_vdec.logoPos.y, ow:_vdec.logoPos.w, rw:rect.width, rh:rect.height };
+    el.classList.add('dragging');
+  }
+  function move(cx, cy) {
+    if (!_vdecLdrag) return;
+    const { rw, rh, type, cx:scx, cy:scy, ox, oy, ow } = _vdecLdrag;
+    if (type === 'move') {
+      _vdec.logoPos.x = Math.max(5, Math.min(95, ox + (cx-scx)/rw*100));
+      _vdec.logoPos.y = Math.max(5, Math.min(95, oy + (cy-scy)/rh*100));
+      el.style.left = _vdec.logoPos.x + '%';
+      el.style.top  = _vdec.logoPos.y + '%';
+    } else {
+      _vdec.logoPos.w = Math.max(5, Math.min(80, ow + (cx-scx)/rw*200));
+      el.style.width = _vdec.logoPos.w + '%';
+      const sl = document.getElementById('vdec-logo-size');
+      const sv = document.getElementById('vdec-logo-size-v');
+      if (sl) sl.value = Math.round(_vdec.logoPos.w);
+      if (sv) sv.textContent = Math.round(_vdec.logoPos.w) + '%';
+    }
+  }
+  function end() { _vdecLdrag = null; el.classList.remove('dragging'); }
+
+  el.addEventListener('mousedown',  e => { if (e.target === handle) return; e.preventDefault(); start('move', e.clientX, e.clientY); });
+  handle.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); start('resize', e.clientX, e.clientY); });
+  el.addEventListener('touchstart',  e => { if (e.target === handle) return; e.preventDefault(); const t=e.touches[0]; start('move', t.clientX, t.clientY); }, { passive:false });
+  handle.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); const t=e.touches[0]; start('resize', t.clientX, t.clientY); }, { passive:false });
+
+  if (!window._vdecDocMove) {
+    window._vdecDocMove = true;
+    document.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+    document.addEventListener('mouseup',   end);
+    document.addEventListener('touchmove', e => { const t=e.touches[0]; move(t.clientX, t.clientY); }, { passive:true });
+    document.addEventListener('touchend',  end);
+  }
+}
+
+let _vdecTdrags = {};
+function vdecInitTxtDrag(el, wrap, idx) {
+  let drag = null;
+  el.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    drag = { cx:e.clientX, cy:e.clientY, ox:_vdec.texts[idx].x||50, oy:_vdec.texts[idx].y||55, rw:rect.width, rh:rect.height };
+    el.classList.add('dragging');
+  });
+  document.addEventListener('mousemove', e => {
+    if (!drag) return;
+    _vdec.texts[idx].x = Math.max(2, Math.min(98, drag.ox + (e.clientX-drag.cx)/drag.rw*100));
+    _vdec.texts[idx].y = Math.max(2, Math.min(98, drag.oy + (e.clientY-drag.cy)/drag.rh*100));
+    el.style.left = _vdec.texts[idx].x + '%';
+    el.style.top  = _vdec.texts[idx].y + '%';
+  });
+  document.addEventListener('mouseup', () => { drag = null; el.classList.remove('dragging'); });
+}
+
+function vdecLogoSetSize(v) {
+  _vdec.logoPos.w = parseInt(v);
+  document.getElementById('vdec-logo-size-v').textContent = v + '%';
+  const el = document.getElementById('vdec-logo-el');
+  if (el) el.style.width = v + '%';
+}
+function vdecLogoSetOp(v) {
+  _vdec.logoPos.op = parseInt(v);
+  document.getElementById('vdec-logo-op-v').textContent = v + '%';
+  const el = document.getElementById('vdec-logo-el');
+  if (el) el.style.opacity = v / 100;
+}
+
+function vdecHandleLogoUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _vdec.logo = e.target.result;
+    _vdec.logoPos = { x:50, y:50, w:35, op:100 };
+    document.querySelectorAll('.vdec-lc').forEach(c => c.classList.remove('active'));
+    vdecRenderCanvas(vdecLoadCfg().cats[_vdec.catIdx]);
+    const ctrl = document.getElementById('vdec-logo-controls');
+    if (ctrl) ctrl.style.display = 'block';
+    const sl = document.getElementById('vdec-logo-size');
+    const sv = document.getElementById('vdec-logo-size-v');
+    if (sl) sl.value = 35;
+    if (sv) sv.textContent = '35%';
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function vdecPickPreloaded(url, cellEl) {
+  _vdec.logo = url;
+  _vdec.logoPos = { x:50, y:50, w:35, op:100 };
+  document.querySelectorAll('.vdec-lc').forEach(c => c.classList.remove('active'));
+  cellEl.classList.add('active');
+  vdecRenderCanvas(vdecLoadCfg().cats[_vdec.catIdx]);
+  const ctrl = document.getElementById('vdec-logo-controls');
+  if (ctrl) ctrl.style.display = 'block';
+}
+
+function vdecRenderLogoGrid(cfg) {
+  const grid = document.getElementById('vdec-preloaded-logos');
+  if (!grid) return;
+  if (!cfg.logos || !cfg.logos.length) {
+    grid.innerHTML = '<div style="font-size:.68rem;color:rgba(255,255,255,.22);grid-column:1/-1;text-align:center;padding:6px 0">Aucun logo préchargé</div>';
+    return;
+  }
+  grid.innerHTML = cfg.logos.map((l, i) => `
+    <div class="vdec-lc ${_vdec.logo === l.url ? 'active' : ''}" onclick="vdecPickPreloaded('${l.url.replace(/'/g,"\\'")}',this)" title="${l.name||''}">
+      <img src="${l.url}" alt="${l.name||''}">
+    </div>
+  `).join('');
+}
+
+// Texte
+function vdecPickColor(color, el) {
+  _vdec.txtColor = color;
+  document.querySelectorAll('.vdec-sw').forEach(s => s.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const pick = document.getElementById('vdec-color-pick');
+  if (pick) pick.value = color.length === 4 ? color + color.slice(1) : color;
+}
+function vdecAddText() {
+  const inp = document.getElementById('vdec-txt-input');
+  const txt = inp?.value?.trim();
+  if (!txt) { inp?.focus(); return; }
+  _vdec.txtFont = document.getElementById('vdec-txt-font')?.value || 'Impact';
+  _vdec.txtSize = parseInt(document.getElementById('vdec-txt-size')?.value) || 40;
+  _vdec.txtRot  = parseInt(document.getElementById('vdec-txt-rot')?.value)  || 0;
+  _vdec.texts.push({ text:txt, font:_vdec.txtFont, size:_vdec.txtSize, rot:_vdec.txtRot, color:_vdec.txtColor, x:50, y:55 + (_vdec.texts.length * 12) });
+  inp.value = '';
+  vdecRenderCanvas(vdecLoadCfg().cats[_vdec.catIdx]);
+  vdecRenderTxtList();
+}
+function vdecDeleteText(idx) {
+  _vdec.texts.splice(idx, 1);
+  vdecRenderCanvas(vdecLoadCfg().cats[_vdec.catIdx]);
+  vdecRenderTxtList();
+}
+function vdecRenderTxtList() {
+  const list = document.getElementById('vdec-txt-list');
+  if (!list) return;
+  if (!_vdec.texts.length) {
+    list.innerHTML = '<div style="font-size:.7rem;color:rgba(255,255,255,.22);text-align:center;padding:8px 0">Aucun texte</div>';
+    return;
+  }
+  list.innerHTML = _vdec.texts.map((t, i) => `
+    <div class="vdec-txt-item">
+      <span style="font-family:${t.font};font-size:.88rem;color:${t.color}">A</span>
+      <div class="vdec-txt-content">${t.text}</div>
+      <button class="vdec-txt-del" onclick="vdecDeleteText(${i})" title="Supprimer">✕</button>
+    </div>
+  `).join('');
+}
+
+// ── Étape 3 : Contact + Livraison ─────────────────────
+function vdecRenderS3() {
+  const d = _vdec.delivery;
+  const c = _vdec.contact;
+  const ship = d.type === 'pickup' ? 0 : (VDEC_SHIP_RATES[d.island] || 1800);
+  document.getElementById('vdec-s3-content').innerHTML = `
+    <div class="vdec-s3-box">
+      <div class="vdec-s3-label">Vos coordonnées</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div><label style="font-size:.66rem;color:rgba(255,255,255,.38);display:block;margin-bottom:3px">Nom complet *</label>
+          <input class="finput" type="text" id="vdec-cname" value="${c.name}" placeholder="Prénom Nom" oninput="_vdec.contact.name=this.value" autocomplete="name"></div>
+        <div><label style="font-size:.66rem;color:rgba(255,255,255,.38);display:block;margin-bottom:3px">Email *</label>
+          <input class="finput" type="email" id="vdec-cemail" value="${c.email}" placeholder="email@exemple.com" oninput="_vdec.contact.email=this.value" autocomplete="email"></div>
+      </div>
+      <div style="margin-bottom:8px"><label style="font-size:.66rem;color:rgba(255,255,255,.38);display:block;margin-bottom:3px">Téléphone</label>
+        <input class="finput" type="tel" id="vdec-cphone" value="${c.phone}" placeholder="+689 87 XX XX XX" oninput="_vdec.contact.phone=this.value" autocomplete="tel"></div>
+      <div><label style="font-size:.66rem;color:rgba(255,255,255,.38);display:block;margin-bottom:3px">Note (optionnel)</label>
+        <textarea class="finput" id="vdec-cnote" placeholder="Informations complémentaires…" rows="2" style="resize:vertical" oninput="_vdec.contact.note=this.value">${c.note}</textarea></div>
+    </div>
+    <div class="vdec-s3-box">
+      <div class="vdec-s3-label">Mode de retrait</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="vdec-deliv-card ${d.type==='pickup'?'active':''}" onclick="vdecSetDelivType('pickup')">
+          <div style="font-size:1.4rem;margin-bottom:5px">🏪</div>
+          <div style="font-size:.82rem;font-weight:700">Retrait atelier</div>
+          <div style="font-size:.7rem;color:rgba(255,255,255,.4)">Papeete · Gratuit</div>
+        </div>
+        <div class="vdec-deliv-card ${d.type==='delivery'?'active':''}" onclick="vdecSetDelivType('delivery')">
+          <div style="font-size:1.4rem;margin-bottom:5px">🚢</div>
+          <div style="font-size:.82rem;font-weight:700">Expédition île</div>
+          <div style="font-size:.7rem;color:rgba(255,255,255,.4)">Polynésie française</div>
+        </div>
+      </div>
+      ${d.type === 'pickup' ? `
+        <div style="margin-bottom:8px"><label style="font-size:.66rem;color:rgba(255,255,255,.38);display:block;margin-bottom:3px">Date retrait souhaitée</label>
+          <input class="finput" type="date" id="vdec-pickdate" value="${d.pickupDate}" min="${new Date().toISOString().split('T')[0]}" oninput="_vdec.delivery.pickupDate=this.value"></div>
+        <div><label style="font-size:.66rem;color:rgba(255,255,255,.38);display:block;margin-bottom:5px">Créneau horaire</label>
+          <div style="display:flex;gap:8px">
+            <button class="vdec-slot-btn ${d.slot==='08-12'?'active':''}" onclick="_vdec.delivery.slot='08-12';vdecRenderS3()">08h – 12h</button>
+            <button class="vdec-slot-btn ${d.slot==='13-17'?'active':''}" onclick="_vdec.delivery.slot='13-17';vdecRenderS3()">13h – 17h</button>
+          </div>
+        </div>
+      ` : `
+        <div style="margin-bottom:8px"><label style="font-size:.66rem;color:rgba(255,255,255,.38);display:block;margin-bottom:3px">Île de livraison</label>
+          <select class="finput fselect" id="vdec-island" onchange="vdecSetIsland(this.value)">
+            ${Object.entries(VDEC_SHIP_RATES).map(([k,v]) => `<option value="${k}" ${d.island===k?'selected':''}>${VDEC_ISLAND_LABELS[k]||k} — ${v.toLocaleString('fr-FR')} XPF</option>`).join('')}
+          </select></div>
+        <div><label style="font-size:.66rem;color:rgba(255,255,255,.38);display:block;margin-bottom:3px">Adresse de livraison</label>
+          <textarea class="finput" id="vdec-addr" placeholder="Adresse complète…" rows="2" style="resize:vertical" oninput="_vdec.delivery.address=this.value">${d.address}</textarea></div>
+      `}
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,.07);padding-top:10px">
+        <span style="font-size:.78rem;color:rgba(255,255,255,.45)">Frais de livraison</span>
+        <span style="font-size:.95rem;font-weight:800;color:${ship>0?'#ff9966':'#43e97b'}">${ship > 0 ? ship.toLocaleString('fr-FR') + ' XPF' : 'Gratuit'}</span>
+      </div>
+    </div>
+  `;
+}
+function vdecSetDelivType(type) {
+  _vdec.delivery.type = type;
+  _vdec.delivery.shippingFee = type === 'delivery' ? (VDEC_SHIP_RATES[_vdec.delivery.island] || 1800) : 0;
+  vdecRenderS3();
+}
+function vdecSetIsland(island) {
+  _vdec.delivery.island = island;
+  _vdec.delivery.shippingFee = VDEC_SHIP_RATES[island] || 1800;
+  vdecRenderS3();
+}
+
+// ── Étape 4 : Récap + Paiement ─────────────────────────
+function vdecRenderS4() {
+  const cfg = vdecLoadCfg();
+  const cat = cfg.cats[_vdec.catIdx];
+  const camp = CAMPS[_vdec.campId];
+  const prod = camp.products[_vdec.prodIdx];
+  const priceNum = parseInt((prod?.p || '0').replace(/[^\d]/g,'')) || 0;
+  const total = priceNum + (_vdec.delivery.shippingFee || 0);
+  document.getElementById('vdec-s4-content').innerHTML = `
+    <div class="vdec-recap-box">
+      <div class="vdec-s3-label">📋 Récapitulatif commande</div>
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:12px">
+        <span style="font-size:2.2rem">${cat?.icon||'🚗'}</span>
+        <div>
+          <div style="font-weight:700;font-size:.9rem">${cat?.name||'Véhicule'} — ${cat?.model||''}</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:2px">Vue : ${VDEC_VIEWS_DEF.find(v=>v.key===_vdec.viewKey)?.label || _vdec.viewKey} · ${prod?.n||''}</div>
+          ${_vdec.logo ? `<div style="font-size:.72rem;color:#43e97b;margin-top:3px">✓ Logo personnalisé</div>` : ''}
+          ${_vdec.texts.length ? `<div style="font-size:.72rem;color:#4facfe;margin-top:2px">✓ ${_vdec.texts.length} texte${_vdec.texts.length>1?'s':''} ajouté${_vdec.texts.length>1?'s':''}</div>` : ''}
+        </div>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:.8rem"><span>Produit (${prod?.n})</span><span>${priceNum.toLocaleString('fr-FR')} XPF</span></div>
+        ${_vdec.delivery.shippingFee > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:.8rem"><span>Livraison (${VDEC_ISLAND_LABELS[_vdec.delivery.island]||_vdec.delivery.island})</span><span>${_vdec.delivery.shippingFee.toLocaleString('fr-FR')} XPF</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:800;color:#ff9966;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;margin-top:8px"><span>Total</span><span>${total.toLocaleString('fr-FR')} XPF</span></div>
+      </div>
+    </div>
+    <div style="font-size:.72rem;color:rgba(255,255,255,.35);text-align:center;margin-bottom:14px">
+      ${_vdec.contact.name} · ${_vdec.contact.email}${_vdec.contact.phone?' · '+_vdec.contact.phone:''}
+    </div>
+    <div id="vdec-pz-btn">
+      <button onclick="vdecInitPZ(${total})" style="width:100%;padding:14px;background:linear-gradient(135deg,#ff6584,#ff9966);border:none;border-radius:12px;color:white;font-size:.9rem;font-weight:800;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+        🔒 Payer ${total.toLocaleString('fr-FR')} XPF par carte
+      </button>
+    </div>
+    <div id="vdec-pz-form" style="display:none"></div>
+    <div id="vdec-pz-ok" style="display:none;text-align:center;padding:30px">
+      <div style="font-size:3rem;margin-bottom:12px">✅</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#43e97b;margin-bottom:6px">Paiement confirmé !</div>
+      <div style="font-size:.78rem;color:rgba(255,255,255,.45)">Commande <code style="color:#ff9966">${_vdec.orderId}</code></div>
+      <div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-top:7px">Nous vous contacterons prochainement. Merci !</div>
+      <button onclick="vdecClose()" style="margin-top:16px;padding:10px 22px;background:rgba(255,255,255,.1);border:none;border-radius:8px;color:white;cursor:pointer;font-size:.8rem">Fermer</button>
+    </div>
+  `;
+}
+
+async function vdecInitPZ(total) {
+  const btnDiv = document.getElementById('vdec-pz-btn');
+  if (!btnDiv || !total) return;
+  btnDiv.innerHTML = '<div style="text-align:center;padding:18px;color:rgba(255,255,255,.35);font-size:.78rem">🔒 Connexion sécurisée OSB…</div>';
+  try {
+    const res = await fetch(WORKER_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json','X-Worker-Secret':WORKER_SECRET_VAL },
+      body:JSON.stringify({ amount:total*100, currency:'953', mode:WORKER_MODE, orderId:_vdec.orderId,
+        customer:{ email:_vdec.contact.email||'client@hcs.pf', name:_vdec.contact.name||'Client HCS' } })
+    });
+    if (!res.ok) throw new Error('Erreur Worker (' + res.status + ')');
+    const data = await res.json();
+    const formToken  = data.formToken  || data.answer?.formToken;
+    const publicKey  = data.publicKey  || data.answer?.publicKey;
+    if (!formToken || !publicKey) throw new Error('Token invalide');
+
+    btnDiv.style.display = 'none';
+    const formEl = document.getElementById('vdec-pz-form');
+    formEl.style.display = 'block';
+    formEl.innerHTML = '<div class="kr-embedded" style="max-width:420px;margin:0 auto"></div>';
+
+    // CSS OSB
+    ['pz-vdec-css1','pz-vdec-css2'].forEach((id, i) => {
+      if (!document.getElementById(id)) {
+        const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet';
+        l.href = 'https://static.osb.pf/static/js/krypton-client/V4.0/stable/' + (i===0?'classic-reset':'classic') + '.min.css';
+        document.head.appendChild(l);
+      }
+    });
+    const oldSdk = document.getElementById('pz-vdec-sdk');
+    if (oldSdk) oldSdk.remove();
+    if (window.KR) { try { KR.removeForms(); } catch(_) {} }
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script'); s.id = 'pz-vdec-sdk';
+      s.src = 'https://static.osb.pf/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';
+      s.setAttribute('kr-public-key', publicKey); s.setAttribute('kr-language','fr-FR');
+      s.onload = resolve; s.onerror = () => reject(new Error('SDK OSB indisponible'));
+      document.head.appendChild(s);
+    });
+    await KR.setFormConfig({ 'kr-public-key':publicKey, 'kr-language':'fr-FR' });
+    await KR.setFormToken(formToken);
+
+    const showOk = () => {
+      formEl.style.display = 'none';
+      document.getElementById('vdec-pz-ok').style.display = 'block';
+      const cfg = vdecLoadCfg();
+      fetch(WORKER_URL.replace('/payzen-token','/order/save'), {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json','X-Worker-Secret':WORKER_SECRET_VAL },
+        body:JSON.stringify({ orderId:_vdec.orderId, status:'paid', amount:total, currency:'XPF',
+          campaignName:'Déco Véhicule', product:CAMPS[_vdec.campId].products[_vdec.prodIdx].n,
+          client:_vdec.contact, delivery:_vdec.delivery,
+          note:'Catégorie: '+(cfg.cats[_vdec.catIdx]?.name||'')+' | Modèle: '+(cfg.cats[_vdec.catIdx]?.model||'')+' | Vue: '+_vdec.viewKey+(_vdec.texts.length?' | Textes: '+_vdec.texts.map(t=>t.text).join(', '):'')+(_vdec.logo?' | Logo uploadé':'') })
+      }).catch(e => console.warn('Ordre non sauvegardé:', e));
+    };
+    KR.onSubmit(d => { if (['PAID','RUNNING','AUTHORISED'].includes(d?.clientAnswer?.orderStatus)) showOk(); return false; });
+    const kf = formEl.querySelector('.kr-embedded');
+    if (kf) { let done=false; new MutationObserver(() => { if (done) return; if (formEl.querySelector('.kr-payment-success')||kf.classList.contains('kr-payment-success')) { done=true; showOk(); } }).observe(document.body, { subtree:true,childList:true,attributes:true,attributeFilter:['class'] }); }
+  } catch(e) {
+    const btnDiv2 = document.getElementById('vdec-pz-btn');
+    if (btnDiv2) btnDiv2.innerHTML = `<div style="color:#ff6b6b;text-align:center;padding:14px;font-size:.78rem">❌ ${e.message}</div><button onclick="vdecRenderS4()" style="display:block;margin:8px auto;padding:8px 16px;background:rgba(255,255,255,.1);border:none;border-radius:8px;color:white;cursor:pointer;font-size:.74rem">Réessayer</button>`;
+  }
+}
+
+// ── Navigation ─────────────────────────────────────────
+function vdecNext() {
+  if (_vdec.step === 1) {
+    if (_vdec.catIdx === null) { alert('Veuillez choisir un type de véhicule.'); return; }
+    _vdec.step = 2;
+  } else if (_vdec.step === 2) {
+    _vdec.step = 3;
+  } else if (_vdec.step === 3) {
+    const name  = document.getElementById('vdec-cname')?.value?.trim();
+    const email = document.getElementById('vdec-cemail')?.value?.trim();
+    if (!name)  { document.getElementById('vdec-cname')?.focus();  alert('Renseignez votre nom.'); return; }
+    if (!email) { document.getElementById('vdec-cemail')?.focus(); alert('Renseignez votre email.'); return; }
+    _vdec.contact.name  = name;
+    _vdec.contact.email = email;
+    _vdec.contact.phone = document.getElementById('vdec-cphone')?.value?.trim() || '';
+    _vdec.contact.note  = document.getElementById('vdec-cnote')?.value?.trim()  || '';
+    if (_vdec.delivery.type === 'delivery') {
+      _vdec.delivery.island   = document.getElementById('vdec-island')?.value || 'tahiti';
+      _vdec.delivery.shippingFee = VDEC_SHIP_RATES[_vdec.delivery.island] || 1800;
+      _vdec.delivery.address  = document.getElementById('vdec-addr')?.value?.trim() || '';
+    } else {
+      _vdec.delivery.pickupDate = document.getElementById('vdec-pickdate')?.value || '';
+    }
+    _vdec.step = 4;
+  }
+  vdecRender();
+}
+function vdecPrev() {
+  if (_vdec.step > 1) { _vdec.step--; vdecRender(); }
+}
+
+// Escape key
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('vdec-admin-modal')?.classList.contains('open')) { closeVDecAdmin(); return; }
+  if (document.getElementById('vdec-modal')?.classList.contains('open')) vdecClose();
+});
+
+// ═══════════════════════════════════════════════════════
+// ADMIN — Vehicle Decoration Config
+// ═══════════════════════════════════════════════════════
+let _vdecAdmTab = 'categories';
+
+async function openVDecAdmin() {
+  const modal = document.getElementById('vdec-admin-modal');
+  if (!modal) return;
+  modal.style.cssText = 'display:flex!important;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);align-items:center;justify-content:center';
+  modal.classList.add('open');
+  _vdecAdmTab = 'categories';
+  document.querySelectorAll('.vdec-adm-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+  /* Affichage immédiat depuis localStorage, puis refresh depuis serveur */
+  vdecAdmRender();
+  await vdecSyncFromServer();
+  vdecAdmRender();
+}
+function closeVDecAdmin() {
+  document.getElementById('vdec-admin-modal').classList.remove('open');
+}
+function vdecAdmSaveAndClose() {
+  closeVDecAdmin();
+}
+function vdecAdmTab(tab, btn) {
+  _vdecAdmTab = tab;
+  document.querySelectorAll('.vdec-adm-tab').forEach(t => t.classList.remove('active'));
+  btn?.classList.add('active');
+  vdecAdmRender();
+}
+function vdecAdmRender() {
+  ['categories','logos','fonts'].forEach(t => {
+    const el = document.getElementById('vdec-adm-' + t);
+    if (el) el.style.display = t === _vdecAdmTab ? 'block' : 'none';
+  });
+  if (_vdecAdmTab === 'categories') vdecAdmRenderCats();
+  else if (_vdecAdmTab === 'logos') vdecAdmRenderLogos();
+  else vdecAdmRenderFonts();
+}
+
+// ── Catégories / vues ─────────────────────────────────
+function vdecAdmRenderCats() {
+  const cfg = vdecLoadCfg();
+  document.getElementById('vdec-adm-categories').innerHTML = cfg.cats.map((cat, ci) => `
+    <div class="vdec-adm-cat">
+      <div class="vdec-adm-cat-hd">
+        <span style="font-size:2rem">${cat.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:.82rem;font-weight:700">${cat.name}</div>
+          <div style="font-size:.68rem;color:var(--text-secondary);margin-top:2px">Modèle :
+            <input type="text" value="${cat.model}" onchange="vdecAdmSetModel(${ci},this.value)" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text-primary);font-size:.68rem;width:140px;outline:none;padding:1px 2px">
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:.65rem;color:var(--text-secondary)">Icône</span>
+          <input type="text" value="${cat.icon}" maxlength="4" onchange="vdecAdmSetIcon(${ci},this.value)" style="background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:white;font-size:1.3rem;width:42px;text-align:center;outline:none;padding:3px">
+        </div>
+      </div>
+      <div style="font-size:.62rem;color:var(--text-secondary);margin-bottom:7px">Images véhicule par vue — PNG ou JPG recommandé (ratio ~16:9)</div>
+      <div class="vdec-views-grid">
+        ${VDEC_VIEWS_DEF.map(v => `
+          <div class="vdec-view-cell">
+            <div class="vdec-view-lbl">${v.label}</div>
+            <div class="vdec-view-img" onclick="vdecAdmPickImg(${ci},'${v.key}')">
+              ${cat.views[v.key]
+                ? `<img src="${cat.views[v.key]}" alt="${v.key}"><button class="vdec-view-del" onclick="event.stopPropagation();vdecAdmDelImg(${ci},'${v.key}')">✕</button>`
+                : '📤'}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+function vdecAdmSetModel(ci, val) { const cfg=vdecLoadCfg(); cfg.cats[ci].model=val; vdecSaveCfg(cfg); }
+function vdecAdmSetIcon(ci, val) { const cfg=vdecLoadCfg(); cfg.cats[ci].icon=val; vdecSaveCfg(cfg); vdecAdmRenderCats(); }
+function vdecAdmPickImg(ci, viewKey) {
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    /* Affichage temporaire base64 pendant l'upload */
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const cfg = vdecLoadCfg();
+      cfg.cats[ci].views[viewKey] = ev.target.result;
+      localStorage.setItem(VDEC_KEY, JSON.stringify(cfg));
+      vdecAdmRenderCats();
+    };
+    reader.readAsDataURL(file);
+    /* Upload réel vers le serveur */
+    try {
+      const url = await vdecUploadImage(file, 'vehicules');
+      const cfg = vdecLoadCfg();
+      cfg.cats[ci].views[viewKey] = url;
+      vdecSaveCfg(cfg);
+      vdecAdmRenderCats();
+    } catch(err) { console.warn('[vdec] upload img err:', err); }
+  };
+  inp.click();
+}
+function vdecAdmDelImg(ci, viewKey) { const cfg=vdecLoadCfg(); cfg.cats[ci].views[viewKey]=''; vdecSaveCfg(cfg); vdecAdmRenderCats(); }
+
+// ── Logos préchargés ──────────────────────────────────
+function vdecAdmRenderLogos() {
+  const cfg = vdecLoadCfg();
+  document.getElementById('vdec-adm-logos').innerHTML = `
+    <div style="margin-bottom:10px;font-size:.78rem;color:var(--text-secondary)">Logos disponibles pour le client (PNG fond transparent recommandé). Le client pourra aussi uploader le sien.</div>
+    <div class="vdec-adm-logo-grid" id="vdec-adm-logo-list">
+      ${(cfg.logos||[]).map((l, i) => `
+        <div class="vdec-adm-lc">
+          <img src="${l.url}" alt="${l.name||''}">
+          <button class="adl-del" onclick="vdecAdmDelLogo(${i})" title="Supprimer">✕</button>
+        </div>
+      `).join('')}
+      <div class="vdec-adm-logo-add" onclick="vdecAdmAddLogos()" title="Ajouter logos">+</div>
+    </div>
+    <div style="margin-top:10px;font-size:.7rem;color:var(--text-secondary)">${(cfg.logos||[]).length} logo${(cfg.logos||[]).length>1?'s':''} préchargé${(cfg.logos||[]).length>1?'s':''}</div>
+  `;
+}
+function vdecAdmAddLogos() {
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true;
+  inp.onchange = async e => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const cfg = vdecLoadCfg();
+    /* Preview base64 immédiat */
+    let done = 0;
+    files.forEach(file => {
+      const r = new FileReader();
+      r.onload = ev => {
+        cfg.logos.push({ name: file.name.replace(/\.[^.]+$/, ''), url: ev.target.result });
+        done++;
+        if (done === files.length) { localStorage.setItem(VDEC_KEY, JSON.stringify(cfg)); vdecAdmRenderLogos(); }
+      };
+      r.readAsDataURL(file);
+    });
+    /* Upload serveur en parallèle */
+    const serverLogos = [];
+    for (const file of files) {
+      try {
+        const url = await vdecUploadImage(file, 'logos');
+        serverLogos.push({ name: file.name.replace(/\.[^.]+$/, ''), url });
+      } catch(err) { console.warn('[vdec] logo upload err:', err); }
+    }
+    if (serverLogos.length) {
+      const cfg2 = vdecLoadCfg();
+      /* Remplace les entrées base64 par les URLs serveur */
+      const b64Count = files.length;
+      cfg2.logos.splice(cfg2.logos.length - b64Count, b64Count, ...serverLogos);
+      vdecSaveCfg(cfg2);
+      vdecAdmRenderLogos();
+    }
+  };
+  inp.click();
+}
+function vdecAdmDelLogo(idx) { const cfg=vdecLoadCfg(); cfg.logos.splice(idx,1); vdecSaveCfg(cfg); vdecAdmRenderLogos(); }
+
+// ── Polices ───────────────────────────────────────────
+function vdecAdmRenderFonts() {
+  const cfg = vdecLoadCfg();
+  const fonts = cfg.fonts && cfg.fonts.length ? cfg.fonts : vdecDefaultCfg().fonts;
+  document.getElementById('vdec-adm-fonts').innerHTML = `
+    <div style="margin-bottom:10px;font-size:.78rem;color:var(--text-secondary)">Polices disponibles pour le client dans l'outil texte. Collez une URL Google Fonts ou laissez vide pour les polices système.</div>
+    <div id="vdec-font-list">
+      ${fonts.map((f, i) => `
+        <div class="vdec-font-row">
+          <div class="vdec-font-prev" style="font-family:'${f.name}',system-ui">${f.name}</div>
+          <input type="text" value="${f.url||''}" placeholder="URL Google Fonts (optionnel)" class="vdec-finput" style="flex:2" onchange="vdecAdmSetFontUrl(${i},this.value)">
+          <button onclick="vdecAdmDelFont(${i})" style="background:none;border:none;color:rgba(255,80,80,.65);cursor:pointer;font-size:.82rem" title="Supprimer">✕</button>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-size:.72rem;color:var(--text-secondary);margin-bottom:7px">Ajouter une police</div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <input type="text" id="vdec-new-fname" placeholder="Nom (ex: Bebas Neue)" class="vdec-finput" style="flex:1">
+        <input type="text" id="vdec-new-furl"  placeholder="URL Google Fonts" class="vdec-finput" style="flex:2">
+        <button onclick="vdecAdmAddFont()" class="btn btn-primary" style="font-size:.72rem;white-space:nowrap">+ Ajouter</button>
+      </div>
+      <div style="margin-top:6px;font-size:.65rem;color:var(--text-secondary)">Exemple : <code style="color:var(--accent)">https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap</code></div>
+    </div>
+  `;
+}
+function vdecAdmSetFontUrl(idx, url) {
+  const cfg = vdecLoadCfg();
+  if (!cfg.fonts[idx]) return;
+  cfg.fonts[idx].url = url;
+  vdecSaveCfg(cfg);
+  if (url && !document.querySelector(`link[href="${url}"]`)) { const l=document.createElement('link');l.rel='stylesheet';l.href=url;document.head.appendChild(l); }
+}
+function vdecAdmDelFont(idx) { const cfg=vdecLoadCfg(); cfg.fonts.splice(idx,1); vdecSaveCfg(cfg); vdecAdmRenderFonts(); }
+function vdecAdmAddFont() {
+  const name = document.getElementById('vdec-new-fname')?.value?.trim();
+  const url  = document.getElementById('vdec-new-furl')?.value?.trim();
+  if (!name) { alert('Saisissez un nom de police.'); return; }
+  const cfg = vdecLoadCfg();
+  if (!cfg.fonts) cfg.fonts = [];
+  cfg.fonts.push({ name, url: url || '' });
+  vdecSaveCfg(cfg);
+  if (url && !document.querySelector(`link[href="${url}"]`)) { const l=document.createElement('link');l.rel='stylesheet';l.href=url;document.head.appendChild(l); }
+  vdecAdmRenderFonts();
+}
+</script>
+
 </body>
 </html>

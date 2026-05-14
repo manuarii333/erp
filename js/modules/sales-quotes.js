@@ -10,6 +10,16 @@ window.SalesQuotes = (() => {
   /* Référence au core partagé — disponible après le chargement de sales.js */
   const C = () => window._SalesCore;
 
+  /* IDs des devis sélectionnés pour action groupée */
+  let _selectedQuoteIds = new Set();
+
+  function _updateBulkDeleteBtn() {
+    const btn = document.getElementById('btn-delete-selected-quotes');
+    if (!btn) return;
+    btn.style.display = _selectedQuoteIds.size > 0 ? '' : 'none';
+    btn.textContent = `🗑 Supprimer (${_selectedQuoteIds.size})`;
+  }
+
   /* ================================================================
      VUE DEVIS (QUOTES)
      ================================================================ */
@@ -23,6 +33,7 @@ window.SalesQuotes = (() => {
       <button class="btn btn-primary btn-sm" id="btn-new-quote">+ Nouveau Devis</button>
       <button class="btn btn-ghost btn-sm" id="btn-sync-mysql-devis" title="Importer les devis créés via n8n/API">↓ Sync MySQL</button>
       <button class="btn btn-ghost btn-sm" id="btn-dedup-devis" title="Supprimer les doublons (même référence)" style="color:var(--accent-orange,#e09a4f);">🧹 Doublons</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete-selected-quotes" style="display:none;">🗑 Supprimer (0)</button>
       <select class="form-control" id="filter-quote-statut"
         style="height:28px;width:140px;font-size:12px;">
         <option value="">Tous les statuts</option>
@@ -101,6 +112,9 @@ window.SalesQuotes = (() => {
     document.getElementById('filter-quote-from')?.addEventListener('change', _applyQuoteFilters);
     document.getElementById('filter-quote-to')?.addEventListener('change', _applyQuoteFilters);
 
+    /* Réinitialiser la sélection à chaque ouverture de la vue */
+    _selectedQuoteIds.clear();
+
     area.innerHTML = `
       <div class="page-header">
         <div class="page-title">Devis</div>
@@ -110,6 +124,51 @@ window.SalesQuotes = (() => {
 
     if (isKanban) C()._drawKanban(allDevis, C().STATUTS_DEVIS, C().BADGE_DEVIS, 'quotes', toolbar, area);
     else _drawQuotesTable(allDevis, toolbar, area);
+
+    /* Délégation événements checkboxes — une seule fois par instanciation de la vue */
+    const tblContainer = document.getElementById('sales-quotes-table');
+    if (tblContainer && !isKanban) {
+      tblContainer.addEventListener('change', (e) => {
+        if (e.target.id === 'chk-all-quotes') {
+          /* Tout cocher / décocher */
+          const checked = e.target.checked;
+          tblContainer.querySelectorAll('.chk-quote').forEach(chk => {
+            chk.checked = checked;
+            if (checked) _selectedQuoteIds.add(chk.dataset.id);
+            else          _selectedQuoteIds.delete(chk.dataset.id);
+          });
+        } else if (e.target.classList.contains('chk-quote')) {
+          const id = e.target.dataset.id;
+          if (e.target.checked) _selectedQuoteIds.add(id);
+          else                   _selectedQuoteIds.delete(id);
+          /* Mettre à jour l'état du chk-all (coché / indéterminé / vide) */
+          const allChks     = tblContainer.querySelectorAll('.chk-quote');
+          const nbChecked   = [...allChks].filter(c => c.checked).length;
+          const headerChk   = document.getElementById('chk-all-quotes');
+          if (headerChk) {
+            headerChk.checked       = nbChecked === allChks.length && allChks.length > 0;
+            headerChk.indeterminate = nbChecked > 0 && nbChecked < allChks.length;
+          }
+        }
+        _updateBulkDeleteBtn();
+      });
+    }
+
+    /* Suppression groupée */
+    document.getElementById('btn-delete-selected-quotes')?.addEventListener('click', () => {
+      const count = _selectedQuoteIds.size;
+      if (!count) return;
+      showConfirm(
+        `Supprimer ${count} devis sélectionné(s) ? Cette action est irréversible.`,
+        () => {
+          _selectedQuoteIds.forEach(id => Store.remove('devis', id));
+          _selectedQuoteIds.clear();
+          allDevis = Store.getAll('devis');
+          toast(`${count} devis supprimé(s).`, 'success');
+          _applyQuoteFilters();
+        }
+      );
+    });
   }
 
   function _drawQuotesTable(data, toolbar, area) {
@@ -118,6 +177,16 @@ window.SalesQuotes = (() => {
       sortable:   true,
       data,
       columns: [
+        {
+          key:   '_sel',
+          label: '<input type="checkbox" id="chk-all-quotes" title="Tout sélectionner" style="cursor:pointer;width:16px;height:16px;">',
+          width: '40px',
+          render: (v, row) =>
+            `<input type="checkbox" class="chk-quote" data-id="${row.id}"
+              ${_selectedQuoteIds.has(row.id) ? 'checked' : ''}
+              onclick="event.stopPropagation()"
+              style="cursor:pointer;width:16px;height:16px;">`
+        },
         { key: 'ref',      label: 'Numéro',    render: (v) => `<span class="col-ref">${C()._esc(v)}</span>` },
         { key: 'date',     label: 'Date',       type: 'date' },
         { key: 'client',   label: 'Client',     type: 'text' },
@@ -140,6 +209,7 @@ window.SalesQuotes = (() => {
             { label: '🗑', className: 'btn btn-ghost btn-sm', onClick: (row) => {
                 showConfirm(`Supprimer le devis ${row.ref || row.id} ?`, () => {
                   Store.remove('devis', row.id);
+                  _selectedQuoteIds.delete(row.id);
                   toast('Devis supprimé.', 'success');
                   C()._goList('quotes', toolbar, area);
                 });
@@ -149,7 +219,19 @@ window.SalesQuotes = (() => {
         }
       ],
       onRowClick: (item) => C()._goForm('quotes', item.id, toolbar, area),
-      emptyMsg:   'Aucun devis. Cliquez sur "+ Nouveau Devis" pour commencer.'
+      emptyMsg:   'Aucun devis. Cliquez sur "+ Nouveau Devis" pour commencer.',
+      afterRender: () => {
+        /* Synchroniser l'état du chk-all après chaque re-rendu (tri, filtre, recherche) */
+        const tblCont   = document.getElementById('sales-quotes-table');
+        const allChks   = tblCont ? [...tblCont.querySelectorAll('.chk-quote')] : [];
+        const nbChecked = allChks.filter(c => c.checked).length;
+        const headerChk = document.getElementById('chk-all-quotes');
+        if (headerChk) {
+          headerChk.checked       = allChks.length > 0 && nbChecked === allChks.length;
+          headerChk.indeterminate = nbChecked > 0 && nbChecked < allChks.length;
+        }
+        _updateBulkDeleteBtn();
+      }
     });
   }
 

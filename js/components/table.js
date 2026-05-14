@@ -192,6 +192,11 @@ function _drawTable(containerId) {
 
   /* --- 4. Liaison des événements --- */
   _bindTableEvents(containerId, rows, actions);
+
+  /* --- 5. Callback post-rendu (optionnel) --- */
+  if (typeof config.afterRender === 'function') {
+    config.afterRender(rows);
+  }
 }
 
 /* ----------------------------------------------------------------
